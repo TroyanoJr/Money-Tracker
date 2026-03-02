@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.compose.compiler)
 }
 
 android {
@@ -37,6 +38,8 @@ android {
     buildFeatures {
         compose = true
     }
+
+
 }
 
 dependencies {   implementation(libs.androidx.core.ktx)
