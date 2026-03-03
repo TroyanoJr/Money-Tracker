@@ -42,7 +42,8 @@ android {
 
 }
 
-dependencies {   implementation(libs.androidx.core.ktx)
+dependencies {
+    implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.androidx.activity)
@@ -58,5 +59,8 @@ dependencies {   implementation(libs.androidx.core.ktx)
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("androidx.activity:activity-compose:1.10.0")
+
+    // ... otras dependencias
+    implementation("androidx.compose.material:material-icons-extended")
 
 }
