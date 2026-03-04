@@ -9,6 +9,7 @@ import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,7 +27,8 @@ import net.micode.spendingtracker.ui.theme.DarkBrownText
 @Composable
 fun TopNavigation(
     selectedTabIndex: Int,
-    onTabSelected: (Int) -> Unit
+    onTabSelected: (Int) -> Unit,
+    onAddClick: () -> Unit // New callback for the "+" button
 ) {
     Column(modifier = Modifier.background(BeigeHeader)) {
         // Top bar section containing the month selector and options menu.
@@ -48,7 +50,9 @@ fun TopNavigation(
             
             // Icons for adding new entries and the overflow menu.
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Add, contentDescription = "Add", tint = DarkBrownText, modifier = Modifier.padding(horizontal = 8.dp))
+                IconButton(onClick = onAddClick) {
+                    Icon(Icons.Default.Add, contentDescription = "Add", tint = DarkBrownText)
+                }
                 Icon(Icons.Default.MoreVert, contentDescription = "More", tint = DarkBrownText)
             }
         }
