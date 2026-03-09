@@ -6,59 +6,35 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import net.micode.spendingtracker.ui.components.TopNavigation
+import net.micode.spendingtracker.viewmodel.TransactionViewModel
 
 /**
  * Main dashboard screen that hosts the navigation and the swipable pages.
- * Acts as the single source of truth for dynamic data like categories and UI states.
  */
 @Composable
-fun DashboardScreen() {
-    // Pager state to manage horizontal navigation between main tabs (Spending, Transactions, etc.)
+fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
     val pagerState = rememberPagerState(pageCount = { 4 })
-    // Coroutine scope used for triggering pager animations
     val coroutineScope = rememberCoroutineScope()
     
-    // Separate reactive lists for Expense and Income categories.
-    // These are initialized with default values but can be modified dynamically.
-    val expenseCategories = remember { 
-        mutableStateListOf(
-            "Eating Out" to Icons.Default.Restaurant,
-            "Shopping" to Icons.Default.ShoppingCart,
-            "Travel" to Icons.Default.DirectionsBus,
-            "General" to Icons.Default.Sell,
-            "Wifi" to Icons.Default.Wifi,
-            "Water" to Icons.Default.WaterDrop,
-            "School" to Icons.Default.School,
-            "Clothes" to Icons.Default.Checkroom
-        )
-    }
-    val incomeCategories = remember {
-        mutableStateListOf(
-            "Salary" to Icons.Default.Payments,
-            "Bonus" to Icons.Default.Star,
-            "Investment" to Icons.Default.TrendingUp
-        )
-    }
-
     // State to track which sub-tab (Expense=0, Income=1) is active in CategoriesScreen.
-    // This allows the "Add" button to know which list to add a new category to.
     var selectedCategorySubTab by remember { mutableIntStateOf(0) }
 
-    // Visibility states for the overlay screens (Add Category and Add Transaction).
+    // Visibility states for the overlay screens.
     var showAddCategory by remember { mutableStateOf(false) }
     var showAddTransaction by remember { mutableStateOf(false) }
+    var initialTransactionType by remember { mutableIntStateOf(0) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Shared top navigation component
             TopNavigation(
                 selectedTabIndex = pagerState.currentPage,
                 onTabSelected = { index ->
@@ -67,25 +43,36 @@ fun DashboardScreen() {
                     }
                 },
                 onAddClick = {
-                    // Context-aware "Add" button: opens a different screen depending on the active tab.
                     when (pagerState.currentPage) {
-                        1 -> showAddTransaction = true // Open transaction editor for Transactions tab
-                        2 -> showAddCategory = true    // Open category editor for Categories tab
+                        1 -> {
+                            initialTransactionType = 0
+                            showAddTransaction = true
+                        }
+                        2 -> showAddCategory = true
                     }
                 }
             )
 
-            // Main swipable content area
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.weight(1f)
             ) { page ->
                 when (page) {
-                    0 -> SpendingScreen()
-                    1 -> TransactionsScreen()
+                    0 -> SpendingScreen(
+                        viewModel = viewModel,
+                        onAddExpense = {
+                            initialTransactionType = 0
+                            showAddTransaction = true
+                        },
+                        onAddIncome = {
+                            initialTransactionType = 1
+                            showAddTransaction = true
+                        }
+                    )
+                    1 -> TransactionsScreen(viewModel)
                     2 -> CategoriesScreen(
-                        expenseCategories = expenseCategories,
-                        incomeCategories = incomeCategories,
+                        expenseCategories = viewModel.expenseCategories,
+                        incomeCategories = viewModel.incomeCategories,
                         selectedSubTab = selectedCategorySubTab,
                         onSubTabChanged = { selectedCategorySubTab = it }
                     )
@@ -94,38 +81,31 @@ fun DashboardScreen() {
             }
         }
 
-        // Overlay: Screen for creating new categories.
         if (showAddCategory) {
             AddCategoryScreen(
                 onClose = { showAddCategory = false },
                 onDone = { newName ->
-                    // Adds the new category to the currently visible sub-list (Expense or Income).
                     if (selectedCategorySubTab == 0) {
-                        expenseCategories.add(newName to Icons.Default.Sell)
+                        viewModel.expenseCategories.add(newName to Icons.Default.Sell)
                     } else {
-                        incomeCategories.add(newName to Icons.Default.Sell)
+                        viewModel.incomeCategories.add(newName to Icons.Default.Sell)
                     }
                     showAddCategory = false 
                 }
             )
         }
 
-        // Overlay: Screen for creating new transactions (matches reference design).
         if (showAddTransaction) {
             AddTransactionScreen(
+                viewModel = viewModel,
+                initialType = initialTransactionType,
                 onClose = { showAddTransaction = false },
-                onDone = {
-                    // Placeholder for transaction saving logic.
-                    showAddTransaction = false
-                }
+                onDone = { showAddTransaction = false }
             )
         }
     }
 }
 
-/**
- * Preview for the main Dashboard.
- */
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun DashboardPreview() {

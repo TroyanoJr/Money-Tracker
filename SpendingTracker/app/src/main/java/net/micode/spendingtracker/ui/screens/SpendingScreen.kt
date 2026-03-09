@@ -2,6 +2,8 @@ package net.micode.spendingtracker.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -13,14 +15,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.micode.spendingtracker.ui.components.ChalkButton
 import net.micode.spendingtracker.ui.components.DottedDivider
 import net.micode.spendingtracker.ui.theme.*
+import net.micode.spendingtracker.viewmodel.TransactionViewModel
 
+/**
+ * Screen that shows the financial overview (Blackboard style).
+ * Shows Total Income, Total Expenses with category breakdown, and the final Balance.
+ */
 @Composable
-fun SpendingScreen() {
+fun SpendingScreen(
+    viewModel: TransactionViewModel,
+    onAddExpense: () -> Unit,
+    onAddIncome: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -41,49 +53,87 @@ fun SpendingScreen() {
                 IconButton(onClick = { }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = ChalkWhite)
                 }
-                Spacer(Modifier.width(20.dp))
+                Text(
+                    text = "03月 2026",
+                    color = ChalkWhite,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
                 IconButton(onClick = { }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = ChalkWhite)
                 }
             }
 
             // Visual balance bar
+            val total = viewModel.totalIncome + viewModel.totalExpense
+            val incomeWeight = if (total > 0) (viewModel.totalIncome / total).toFloat() else 0.5f
+            val expenseWeight = if (total > 0) (viewModel.totalExpense / total).toFloat() else 0.5f
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(12.dp)
                     .clip(RoundedCornerShape(6.dp))
             ) {
-                Box(modifier = Modifier.weight(0.6f).fillMaxHeight().background(ChalkGreen))
-                Box(modifier = Modifier.weight(0.4f).fillMaxHeight().background(ChalkRed))
+                if (total > 0) {
+                    Box(modifier = Modifier.weight(incomeWeight.coerceAtLeast(0.01f)).fillMaxHeight().background(ChalkGreen))
+                    Box(modifier = Modifier.weight(expenseWeight.coerceAtLeast(0.01f)).fillMaxHeight().background(ChalkRed))
+                } else {
+                    Box(modifier = Modifier.fillMaxSize().background(Color.Gray.copy(alpha = 0.3f)))
+                }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Financial summary
-            BalanceRow("Income", "¥ 0.00", ChalkGreen)
-            BalanceRow("Expense", "¥ 0.00", ChalkRed)
-            
-            DottedDivider(modifier = Modifier.padding(vertical = 16.dp))
-            
-            BalanceRow("Balance", "¥ 0.00", ChalkBlue)
+            // Scrollable list for the blackboard content
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Income Row (Total only)
+                item {
+                    BalanceRow("Income", "¥ ${String.format("%.2f", viewModel.totalIncome)}", ChalkGreen)
+                }
 
-            Spacer(modifier = Modifier.weight(1f))
+                // Expense Row (Total)
+                item {
+                    BalanceRow("Expense", "¥ ${String.format("%.2f", viewModel.totalExpense)}", ChalkRed)
+                }
+
+                // Breakdown by Category (ONLY for Expenses)
+                items(viewModel.expensesByCategory) { (name, amount) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 32.dp, top = 2.dp, bottom = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(name, color = ChalkWhite, fontSize = 20.sp, fontFamily = FontFamily.Cursive)
+                        Text("¥ ${String.format("%.2f", amount)}", color = ChalkWhite, fontSize = 20.sp, fontFamily = FontFamily.Cursive)
+                    }
+                }
+
+                // Divider and Balance
+                item {
+                    DottedDivider(modifier = Modifier.padding(vertical = 16.dp))
+                    BalanceRow("Balance", "¥ ${String.format("%.2f", viewModel.balance)}", ChalkBlue)
+                }
+            }
 
             // Action buttons
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                ChalkButton("+ Expense", onClick = { })
-                ChalkButton("+ Income", onClick = { })
+                ChalkButton("+ Expense", onClick = onAddExpense)
+                ChalkButton("+ Income", onClick = onAddIncome)
             }
             
             Text(
                 "** Rotate device to view reports **",
                 color = Color.Gray,
                 fontSize = 12.sp,
-                modifier = Modifier.padding(top = 16.dp)
+                modifier = Modifier.padding(top = 8.dp)
             )
         }
     }
@@ -92,10 +142,10 @@ fun SpendingScreen() {
 @Composable
 fun BalanceRow(label: String, value: String, color: Color) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(label, color = ChalkWhite, fontSize = 24.sp, fontFamily = FontFamily.Cursive)
-        Text(value, color = color, fontSize = 24.sp, fontFamily = FontFamily.Cursive)
+        Text(label, color = ChalkWhite, fontSize = 28.sp, fontFamily = FontFamily.Cursive, fontWeight = FontWeight.Bold)
+        Text(value, color = color, fontSize = 28.sp, fontFamily = FontFamily.Cursive, fontWeight = FontWeight.Bold)
     }
 }

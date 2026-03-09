@@ -1,3 +1,23 @@
 <resources>
     <string name="app_name">Spending Tracker</string>
+    <string name="done">Done</string>
+    <string name="expense">EXPENSE</string>
+    <string name="income">INCOME</string>
+    <string name="transaction_details">Transaction Details</string>
+    <string name="date">Date</string>
+    <string name="category">Category</string>
+    <string name="not_selected">Not Selected</string>
+    <string name="amount">Amount</string>
+    <string name="repeating_details">Repeating Details</string>
+    <string name="repeat">Repeat</string>
+    <string name="note">Note</string>
+    <string name="no_note_entered">No Note Entered</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Cancel</string>
+    <string name="close">Close</string>
+    <string name="help">Help</string>
+    <string name="spending">Spending</string>
+    <string name="transactions">Transactions</string>
+    <string name="categories">Categories</string>
+    <string name="accounts">Accounts</string>
 </resources>
