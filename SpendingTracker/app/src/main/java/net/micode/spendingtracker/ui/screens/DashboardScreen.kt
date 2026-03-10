@@ -1,14 +1,11 @@
 package net.micode.spendingtracker.ui.screens
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Sell
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -25,10 +22,8 @@ fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
     val pagerState = rememberPagerState(pageCount = { 4 })
     val coroutineScope = rememberCoroutineScope()
     
-    // State to track which sub-tab (Expense=0, Income=1) is active in CategoriesScreen.
+    // UI States
     var selectedCategorySubTab by remember { mutableIntStateOf(0) }
-
-    // Visibility states for the overlay screens.
     var showAddCategory by remember { mutableStateOf(false) }
     var showAddTransaction by remember { mutableStateOf(false) }
     var initialTransactionType by remember { mutableIntStateOf(0) }
