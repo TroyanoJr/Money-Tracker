@@ -3,71 +3,100 @@ package net.micode.spendingtracker.service
 import android.app.Notification
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
-import android.widget.Toast
-import android.os.Handler
-import android.os.Looper
-import java.util.regex.Pattern
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import net.micode.spendingtracker.model.Transaction
+import net.micode.spendingtracker.repository.TransactionRepository
+import net.micode.spendingtracker.util.PaymentParser
+import java.util.UUID
 
 /**
  * Service that listens for system notifications.
- * Filters notifications from Alipay and WeChat, detects payments in Chinese,
- * and extracts the amount and transaction type.
+ * Filters notifications from Alipay, WeChat, and ADB Shell.
+ * Automatically adds detected transactions to the repository.
  */
 class NotificationInterceptorService : NotificationListenerService() {
 
     private val alipayPackage = "com.eg.android.AlipayGphone"
     private val wechatPackage = "com.tencent.mm"
-
-    // Keywords for Chinese payment notifications
-    private val expenseKeywords = listOf("支付成功", "付款", "支出", "消费")
-    private val incomeKeywords = listOf("收款", "到账", "收入")
+    private val shellPackage = "com.android.shell"
+    
+    private val serviceScope = CoroutineScope(Dispatchers.IO)
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         super.onNotificationPosted(sbn)
         
         val packageName = sbn?.packageName ?: return
-        if (packageName != alipayPackage && packageName != wechatPackage) return
+        
+        // Filter: Only process Alipay, WeChat, and ADB Shell
+        if (packageName != alipayPackage && packageName != wechatPackage && packageName != shellPackage) return
 
         val extras = sbn.notification.extras
-        val title = extras.getString(Notification.EXTRA_TITLE) ?: ""
-        val text = extras.getString(Notification.EXTRA_TEXT) ?: ""
-        val fullContent = "$title $text"
-
-        val appName = if (packageName == alipayPackage) "Alipay" else "WeChat"
         
-        processNotification(appName, fullContent)
-    }
-
-    private fun processNotification(appName: String, content: String) {
-        // 1. Detect Amount using Regex
-        // Pattern matches numbers like 10, 10.5, 1,000.00 following ¥ or before 元
-        val amountPattern = Pattern.compile("(?<=¥|金额|付款|收款|支出|收入)\\s*([0-9,.]+)|([0-9,.]+)(?=\\s*元)")
-        val matcher = amountPattern.matcher(content)
+        val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""
+        val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
+        val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString() ?: ""
+        val subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString() ?: ""
         
-        var amount = ""
-        if (matcher.find()) {
-            amount = matcher.group().trim().replace(",", "")
-        }
+        val fullContent = "$title $text $bigText $subText"
 
-        if (amount.isEmpty()) return // Not a payment notification or amount not found
+        val result = PaymentParser.parse(fullContent, sbn.postTime)
+        
+        if (result != null) {
+            val appName = when (packageName) {
+                alipayPackage -> "Alipay"
+                wechatPackage -> "WeChat"
+                else -> "ADB Test"
+            }
 
-        // 2. Detect Transaction Type
-        val isExpense = expenseKeywords.any { content.contains(it) }
-        val isIncome = incomeKeywords.any { content.contains(it) }
+            // Map category name to icon
+            val icon = if (result.isExpense) {
+                when (result.category) {
+                    "Eating Out" -> Icons.Default.Restaurant
+                    "Shopping" -> Icons.Default.ShoppingCart
+                    "Travel" -> Icons.Default.DirectionsBus
+                    "Wifi" -> Icons.Default.Wifi
+                    "Water" -> Icons.Default.WaterDrop
+                    "School" -> Icons.Default.School
+                    "Clothes" -> Icons.Default.Checkroom
+                    else -> Icons.Default.Sell
+                }
+            } else {
+                when (result.category) {
+                    "Salary" -> Icons.Default.Payments
+                    "Bonus" -> Icons.Default.Star
+                    "Investment" -> Icons.Default.TrendingUp
+                    else -> Icons.Default.Payments
+                }
+            }
 
-        val type = when {
-            isExpense -> "Gasto (Expense)"
-            isIncome -> "Ingreso (Income)"
-            else -> return // Could not determine type definitively
-        }
+            val newTransaction = Transaction(
+                id = UUID.randomUUID().toString(),
+                amount = result.amount,
+                categoryName = result.category,
+                categoryIcon = icon,
+                date = result.timestamp,
+                note = "Detectado automáticamente desde $appName",
+                isExpense = result.isExpense
+            )
 
-        // 3. Notify user
-        showToast("$appName: $type detectado de ¥$amount")
-    }
+            // Automate: Add to repository instead of showing Toasts
+            serviceScope.launch {
+                TransactionRepository.addTransaction(newTransaction)
+            }
 
-    private fun showToast(message: String) {
-        Handler(Looper.getMainLooper()).post {
-            Toast.makeText(applicationContext, message, Toast.LENGTH_LONG).show()
+            /* 
+            // Toasts are now commented out as requested
+            val type = if (result.isExpense) "Gasto" else "Ingreso"
+            val dateStr = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(result.timestamp))
+            val message1 = "[$appName] $type Detectado ✅\nMonto: ¥${result.amount}"
+            val message2 = "Categoría: ${result.category}\nHora: $dateStr"
+            showToast(message1)
+            Handler(Looper.getMainLooper()).postDelayed({ showToast(message2) }, 2500) 
+            */
         }
     }
 }

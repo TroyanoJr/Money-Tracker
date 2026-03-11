@@ -4,11 +4,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import net.micode.spendingtracker.model.Transaction
+import net.micode.spendingtracker.repository.TransactionRepository
 
 /**
  * ViewModel responsible for managing financial transactions.
- * It tracks all income and expense entries and calculates total balances.
+ * Automatically listens to the TransactionRepository for new automated entries.
  */
 class TransactionViewModel : ViewModel() {
     // Categories
@@ -33,6 +36,15 @@ class TransactionViewModel : ViewModel() {
     private val _transactions = mutableStateListOf<Transaction>()
     val transactions: List<Transaction> get() = _transactions
 
+    init {
+        // Automatically listen for transactions coming from the NotificationInterceptorService
+        viewModelScope.launch {
+            TransactionRepository.newTransactions.collect { automatedTransaction ->
+                addTransaction(automatedTransaction)
+            }
+        }
+    }
+
     // Computed totals
     val totalExpense: Double
         get() = _transactions.filter { it.isExpense }.sumOf { it.amount }
@@ -43,16 +55,11 @@ class TransactionViewModel : ViewModel() {
     val balance: Double
         get() = totalIncome - totalExpense
 
-    /**
-     * Groups expenses by category and returns a sorted list.
-     * Only includes categories that have at least one transaction.
-     */
     val expensesByCategory: List<Pair<String, Double>>
         get() = _transactions
             .filter { it.isExpense }
             .groupBy { it.categoryName }
-            .map { (name, list) -> name to list.sumOf { it.amount } }
-            .sortedByDescending { it.second }
+            .map { (category, transactions) -> category to transactions.sumOf { it.amount } }
 
     /**
      * Adds a new transaction to the top of the list.
