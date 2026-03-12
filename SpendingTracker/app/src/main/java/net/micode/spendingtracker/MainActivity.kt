@@ -6,14 +6,26 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.app.NotificationManagerCompat
 import net.micode.spendingtracker.ui.screens.DashboardScreen
+import net.micode.spendingtracker.viewmodel.TransactionViewModel
+import net.micode.spendingtracker.viewmodel.TransactionViewModelFactory
+import net.micode.spendingtracker.repository.TransactionRepository
 
 class MainActivity : ComponentActivity() {
+    
+    private val viewModel: TransactionViewModel by viewModels {
+        val app = application as SpendingTrackerApp
+        val repository = TransactionRepository.getInstance(
+            app.database.transactionDao(),
+            app.database.categoryDao()
+        )
+        TransactionViewModelFactory(repository)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -22,7 +34,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 Surface {
-                    DashboardScreen()
+                    DashboardScreen(viewModel = viewModel)
                 }
             }
         }
@@ -30,7 +42,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Volvemos a chequear al regresar de ajustes
         checkNotificationPermission(onlyShowIfDisabled = true)
     }
 
@@ -45,23 +56,11 @@ class MainActivity : ComponentActivity() {
             }
         } else {
             Toast.makeText(this, "Por favor, activa el acceso a notificaciones para Spending Tracker ⚠️", Toast.LENGTH_LONG).show()
-            // Redirigir a la configuración de Notification Listener
             try {
                 startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
             } catch (e: Exception) {
-                // Alternativa por si falla el intent directo
                 startActivity(Intent(Settings.ACTION_SETTINGS))
             }
-        }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun DashboardPreview() {
-    MaterialTheme {
-        Surface {
-            DashboardScreen()
         }
     }
 }

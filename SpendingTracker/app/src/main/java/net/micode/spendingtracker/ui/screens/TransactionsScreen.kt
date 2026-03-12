@@ -11,16 +11,13 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import net.micode.spendingtracker.R
 import net.micode.spendingtracker.model.Transaction
 import net.micode.spendingtracker.ui.theme.BeigeHeader
 import net.micode.spendingtracker.ui.theme.DarkBrownText
@@ -28,17 +25,17 @@ import net.micode.spendingtracker.viewmodel.TransactionViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
-/**
- * Screen that displays the list of transactions with income/expense totals.
- */
 @Composable
 fun TransactionsScreen(viewModel: TransactionViewModel) {
+    val transactions by viewModel.transactions.collectAsState()
+    val totalIncome by viewModel.totalIncome.collectAsState()
+    val totalExpense by viewModel.totalExpense.collectAsState()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(BeigeHeader)
     ) {
-        // Totals Header: Income (Green) and Expense (Red)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -46,26 +43,25 @@ fun TransactionsScreen(viewModel: TransactionViewModel) {
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             TotalBox(
-                amount = viewModel.totalIncome,
-                labelColor = Color(0xFF4CAF50), // Green
+                amount = totalIncome,
+                labelColor = Color(0xFF4CAF50),
                 modifier = Modifier.weight(1f)
             )
             TotalBox(
-                amount = viewModel.totalExpense,
-                labelColor = Color(0xFFE57373), // Red
+                amount = totalExpense,
+                labelColor = Color(0xFFE57373),
                 modifier = Modifier.weight(1f)
             )
         }
 
-        // Transactions List
         Box(modifier = Modifier.weight(1f)) {
-            if (viewModel.transactions.isEmpty()) {
+            if (transactions.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(text = "No transactions yet", color = Color.Gray)
                 }
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(viewModel.transactions) { transaction ->
+                    items(transactions) { transaction ->
                         TransactionItem(transaction)
                         HorizontalDivider(
                             modifier = Modifier.padding(start = 56.dp),
@@ -77,7 +73,6 @@ fun TransactionsScreen(viewModel: TransactionViewModel) {
             }
         }
 
-        // Bottom action bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()

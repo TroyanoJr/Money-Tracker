@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.micode.spendingtracker.model.Category
 import net.micode.spendingtracker.ui.components.CategoryRow
 import net.micode.spendingtracker.ui.components.SectionHeader
 import net.micode.spendingtracker.ui.theme.BeigeHeader
@@ -23,10 +24,12 @@ import net.micode.spendingtracker.ui.theme.DarkBrownText
 
 @Composable
 fun AddCategoryScreen(
+    categoryToEdit: Category? = null,
+    isExpense: Boolean = true,
     onClose: () -> Unit,
-    onDone: (String) -> Unit
+    onDone: (Category) -> Unit
 ) {
-    var categoryName by remember { mutableStateOf("") }
+    var categoryName by remember { mutableStateOf(categoryToEdit?.name ?: "") }
     val labelBlue = Color(0xFF1976D2)
 
     Column(
@@ -52,7 +55,9 @@ fun AddCategoryScreen(
                     .padding(end = 16.dp)
                     .clickable { 
                         if (categoryName.isNotBlank()) {
-                            onDone(categoryName)
+                            val category = categoryToEdit?.copy(name = categoryName) 
+                                ?: Category(name = categoryName, iconName = "Sell", isExpense = isExpense)
+                            onDone(category)
                         } else {
                             onClose()
                         }

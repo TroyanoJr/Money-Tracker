@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import net.micode.spendingtracker.SpendingTrackerApp
 import net.micode.spendingtracker.model.Transaction
 import net.micode.spendingtracker.repository.TransactionRepository
 import net.micode.spendingtracker.util.PaymentParser
@@ -85,7 +86,12 @@ class NotificationInterceptorService : NotificationListenerService() {
 
             // Automate: Add to repository instead of showing Toasts
             serviceScope.launch {
-                TransactionRepository.addTransaction(newTransaction)
+                val database = (application as SpendingTrackerApp).database
+                val repository = TransactionRepository.getInstance(
+                    database.transactionDao(),
+                    database.categoryDao()
+                )
+                repository.insertTransaction(newTransaction)
             }
 
             /* 

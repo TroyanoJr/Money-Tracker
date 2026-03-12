@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,6 +43,9 @@ fun AddTransactionScreen(
 ) {
     val pagerState = rememberPagerState(initialPage = initialType, pageCount = { 2 })
     val coroutineScope = rememberCoroutineScope()
+
+    val expenseCategories by viewModel.expenseCategories.collectAsState()
+    val incomeCategories by viewModel.incomeCategories.collectAsState()
 
     var amount by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
@@ -83,14 +87,15 @@ fun AddTransactionScreen(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(end = 16.dp).clickable {
                     val isExpense = pagerState.currentPage == 0
-                    val categories = if (isExpense) viewModel.expenseCategories else viewModel.incomeCategories
+                    val categories = if (isExpense) expenseCategories else incomeCategories
                     
-                    if (amount.isNotEmpty() && selectedCategoryIndex != -1) {
+                    if (amount.isNotEmpty() && selectedCategoryIndex != -1 && selectedCategoryIndex < categories.size) {
+                        val category = categories[selectedCategoryIndex]
                         val transaction = Transaction(
                             id = UUID.randomUUID().toString(),
                             amount = amount.toDoubleOrNull() ?: 0.0,
-                            categoryName = categories[selectedCategoryIndex].first,
-                            categoryIcon = categories[selectedCategoryIndex].second,
+                            categoryName = category.name,
+                            categoryIcon = Icons.Default.Sell,
                             date = datePickerState.selectedDateMillis ?: System.currentTimeMillis(),
                             note = note,
                             isExpense = isExpense,
@@ -124,7 +129,7 @@ fun AddTransactionScreen(
 
         HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { page ->
             val isExpense = page == 0
-            val categories = if (isExpense) viewModel.expenseCategories else viewModel.incomeCategories
+            val categories = if (isExpense) expenseCategories else incomeCategories
 
             Column(modifier = Modifier.fillMaxSize()) {
                 SectionHeader(title = stringResource(R.string.transaction_details))
@@ -143,14 +148,14 @@ fun AddTransactionScreen(
                 // Category Selection
                 CategoryRow(label = stringResource(R.string.category), labelColor = Color(0xFF1976D2)) {
                     Box(modifier = Modifier.fillMaxSize().clickable { showCategoryMenu = true }, contentAlignment = Alignment.CenterStart) {
-                        val categoryText = if (selectedCategoryIndex != -1) categories[selectedCategoryIndex].first else stringResource(R.string.not_selected)
+                        val categoryText = if (selectedCategoryIndex != -1 && selectedCategoryIndex < categories.size) categories[selectedCategoryIndex].name else stringResource(R.string.not_selected)
                         Text(text = categoryText, color = if (selectedCategoryIndex != -1) DarkBrownText else Color.Gray, fontSize = 16.sp)
                         
                         DropdownMenu(expanded = showCategoryMenu, onDismissRequest = { showCategoryMenu = false }) {
-                            categories.forEachIndexed { index, pair ->
+                            categories.forEachIndexed { index, category ->
                                 DropdownMenuItem(
-                                    text = { Text(pair.first) },
-                                    leadingIcon = { Icon(pair.second, contentDescription = null, modifier = Modifier.size(20.dp)) },
+                                    text = { Text(category.name) },
+                                    leadingIcon = { Icon(Icons.Default.Sell, contentDescription = null, modifier = Modifier.size(20.dp)) },
                                     onClick = {
                                         selectedCategoryIndex = index
                                         showCategoryMenu = false

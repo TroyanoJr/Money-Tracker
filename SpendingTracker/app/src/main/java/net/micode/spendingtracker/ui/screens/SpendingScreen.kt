@@ -10,6 +10,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,6 +35,11 @@ fun SpendingScreen(
     onAddExpense: () -> Unit,
     onAddIncome: () -> Unit
 ) {
+    val totalIncome by viewModel.totalIncome.collectAsState()
+    val totalExpense by viewModel.totalExpense.collectAsState()
+    val balance by viewModel.balance.collectAsState()
+    val expensesByCategory by viewModel.expensesByCategory.collectAsState()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -65,9 +72,9 @@ fun SpendingScreen(
             }
 
             // Visual balance bar
-            val total = viewModel.totalIncome + viewModel.totalExpense
-            val incomeWeight = if (total > 0) (viewModel.totalIncome / total).toFloat() else 0.5f
-            val expenseWeight = if (total > 0) (viewModel.totalExpense / total).toFloat() else 0.5f
+            val total = totalIncome + totalExpense
+            val incomeWeight = if (total > 0) (totalIncome / total).toFloat() else 0.5f
+            val expenseWeight = if (total > 0) (totalExpense / total).toFloat() else 0.5f
 
             Row(
                 modifier = Modifier
@@ -92,16 +99,16 @@ fun SpendingScreen(
             ) {
                 // Income Row (Total only)
                 item {
-                    BalanceRow("Income", "¥ ${String.format("%.2f", viewModel.totalIncome)}", ChalkGreen)
+                    BalanceRow("Income", "¥ ${String.format("%.2f", totalIncome)}", ChalkGreen)
                 }
 
                 // Expense Row (Total)
                 item {
-                    BalanceRow("Expense", "¥ ${String.format("%.2f", viewModel.totalExpense)}", ChalkRed)
+                    BalanceRow("Expense", "¥ ${String.format("%.2f", totalExpense)}", ChalkRed)
                 }
 
                 // Breakdown by Category (ONLY for Expenses)
-                items(viewModel.expensesByCategory) { (name, amount) ->
+                items(expensesByCategory) { (name, amount) ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -116,7 +123,7 @@ fun SpendingScreen(
                 // Divider and Balance
                 item {
                     DottedDivider(modifier = Modifier.padding(vertical = 16.dp))
-                    BalanceRow("Balance", "¥ ${String.format("%.2f", viewModel.balance)}", ChalkBlue)
+                    BalanceRow("Balance", "¥ ${String.format("%.2f", balance)}", ChalkBlue)
                 }
             }
 

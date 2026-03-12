@@ -3,14 +3,12 @@ package net.micode.spendingtracker.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
+import net.micode.spendingtracker.model.Category
 import net.micode.spendingtracker.ui.components.TopNavigation
 import net.micode.spendingtracker.viewmodel.TransactionViewModel
 
@@ -25,8 +23,13 @@ fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
     // UI States
     var selectedCategorySubTab by remember { mutableIntStateOf(0) }
     var showAddCategory by remember { mutableStateOf(false) }
+    var categoryToEdit by remember { mutableStateOf<Category?>(null) }
+    
     var showAddTransaction by remember { mutableStateOf(false) }
     var initialTransactionType by remember { mutableIntStateOf(0) }
+
+    val expenseCategories by viewModel.expenseCategories.collectAsState()
+    val incomeCategories by viewModel.incomeCategories.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -43,7 +46,10 @@ fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
                             initialTransactionType = 0
                             showAddTransaction = true
                         }
-                        2 -> showAddCategory = true
+                        2 -> {
+                            categoryToEdit = null
+                            showAddCategory = true
+                        }
                     }
                 }
             )
@@ -66,10 +72,17 @@ fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
                     )
                     1 -> TransactionsScreen(viewModel)
                     2 -> CategoriesScreen(
-                        expenseCategories = viewModel.expenseCategories,
-                        incomeCategories = viewModel.incomeCategories,
+                        expenseCategories = expenseCategories,
+                        incomeCategories = incomeCategories,
                         selectedSubTab = selectedCategorySubTab,
-                        onSubTabChanged = { selectedCategorySubTab = it }
+                        onSubTabChanged = { selectedCategorySubTab = it },
+                        onEditCategory = { category ->
+                            categoryToEdit = category
+                            showAddCategory = true
+                        },
+                        onDeleteCategories = { categories ->
+                            viewModel.deleteCategories(categories)
+                        }
                     )
                     3 -> AccountsScreen()
                 }
@@ -78,14 +91,20 @@ fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
 
         if (showAddCategory) {
             AddCategoryScreen(
-                onClose = { showAddCategory = false },
-                onDone = { newName ->
-                    if (selectedCategorySubTab == 0) {
-                        viewModel.expenseCategories.add(newName to Icons.Default.Sell)
+                categoryToEdit = categoryToEdit,
+                isExpense = selectedCategorySubTab == 0,
+                onClose = { 
+                    showAddCategory = false
+                    categoryToEdit = null
+                },
+                onDone = { category ->
+                    if (categoryToEdit == null) {
+                        viewModel.addCategory(category)
                     } else {
-                        viewModel.incomeCategories.add(newName to Icons.Default.Sell)
+                        viewModel.updateCategory(category)
                     }
                     showAddCategory = false 
+                    categoryToEdit = null
                 }
             )
         }
@@ -97,16 +116,6 @@ fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
                 onClose = { showAddTransaction = false },
                 onDone = { showAddTransaction = false }
             )
-        }
-    }
-}
-
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun DashboardPreview() {
-    MaterialTheme {
-        Surface {
-            DashboardScreen()
         }
     }
 }
