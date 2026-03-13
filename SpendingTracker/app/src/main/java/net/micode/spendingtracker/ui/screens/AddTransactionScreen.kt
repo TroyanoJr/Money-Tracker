@@ -48,6 +48,9 @@ fun AddTransactionScreen(
 
     val expenseCategories by viewModel.expenseCategories.collectAsState()
     val incomeCategories by viewModel.incomeCategories.collectAsState()
+    
+    // Obtener la fecha seleccionada actualmente en el dashboard
+    val currentDashboardDate by viewModel.selectedDate.collectAsState()
 
     var amount by remember { mutableStateOf(transactionToEdit?.amount?.toString() ?: "") }
     var note by remember { mutableStateOf(transactionToEdit?.note ?: "") }
@@ -69,7 +72,8 @@ fun AddTransactionScreen(
     var showCategoryMenu by remember { mutableStateOf(false) }
 
     // Date Selection
-    val initialDate = transactionToEdit?.date ?: System.currentTimeMillis()
+    // Usamos la fecha del dashboard si no estamos editando
+    val initialDate = transactionToEdit?.date ?: currentDashboardDate
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialDate)
     val dateFormatter = remember { SimpleDateFormat("dd MM月 yyyy", Locale.CHINA) }
@@ -109,24 +113,26 @@ fun AddTransactionScreen(
                     
                     if (amount.isNotEmpty() && selectedCategoryIndex != -1 && selectedCategoryIndex < categories.size) {
                         val category = categories[selectedCategoryIndex]
+                        val selectedTimestamp = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
+                        
                         val transaction = Transaction(
                             id = transactionToEdit?.id ?: UUID.randomUUID().toString(),
                             amount = amount.toDoubleOrNull() ?: 0.0,
                             categoryName = category.name,
                             categoryIcon = Icons.Default.Sell,
-                            date = datePickerState.selectedDateMillis ?: System.currentTimeMillis(),
+                            date = selectedTimestamp,
                             note = note,
                             isExpense = isExpense,
                             isRepeating = isRepeating
                         )
+                        
+                        // Guardar transacción
                         if (transactionToEdit == null) {
                             viewModel.addTransaction(transaction)
                         } else {
-                            // We need an updateTransaction method in ViewModel, but for now we can delete and add
-                            // or ideally add an updateTransaction method.
-                            // Assuming viewModel.addTransaction handles upsert or we add update.
-                            viewModel.addTransaction(transaction) 
+                            viewModel.updateTransaction(transaction) 
                         }
+
                         onDone()
                     }
                 }

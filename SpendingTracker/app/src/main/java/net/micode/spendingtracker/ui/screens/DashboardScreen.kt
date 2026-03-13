@@ -33,6 +33,9 @@ fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
 
     val expenseCategories by viewModel.expenseCategories.collectAsState()
     val incomeCategories by viewModel.incomeCategories.collectAsState()
+    
+    val selectedPeriod by viewModel.selectedPeriod.collectAsState()
+    val selectedDate by viewModel.selectedDate.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -55,7 +58,10 @@ fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
                             showAddCategory = true
                         }
                     }
-                }
+                },
+                selectedPeriod = selectedPeriod,
+                selectedDate = selectedDate,
+                onPeriodSelected = { viewModel.setPeriod(it) }
             )
 
             HorizontalPager(

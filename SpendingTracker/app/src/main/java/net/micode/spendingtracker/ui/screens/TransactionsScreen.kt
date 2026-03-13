@@ -87,7 +87,7 @@ fun TransactionsScreen(
         Box(modifier = Modifier.weight(1f)) {
             if (transactions.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(text = "No transactions yet", color = Color.Gray)
+                    Text(text = "No transactions for this period", color = Color.Gray)
                 }
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -129,11 +129,11 @@ fun TransactionsScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row {
-                IconButton(onClick = { }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = DarkBrownText)
+                IconButton(onClick = { viewModel.previousPeriod() }) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous Period", tint = DarkBrownText)
                 }
-                IconButton(onClick = { }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = DarkBrownText)
+                IconButton(onClick = { viewModel.nextPeriod() }) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next Period", tint = DarkBrownText)
                 }
             }
             Row {

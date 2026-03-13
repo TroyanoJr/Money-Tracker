@@ -8,10 +8,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -20,6 +18,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.micode.spendingtracker.ui.theme.BeigeHeader
 import net.micode.spendingtracker.ui.theme.DarkBrownText
+import net.micode.spendingtracker.viewmodel.Period
+import java.text.SimpleDateFormat
+import java.util.*
 
 /**
  * Top navigation component that handles tab selection and global actions.
@@ -28,8 +29,24 @@ import net.micode.spendingtracker.ui.theme.DarkBrownText
 fun TopNavigation(
     selectedTabIndex: Int,
     onTabSelected: (Int) -> Unit,
-    onAddClick: () -> Unit // New callback for the "+" button
+    onAddClick: () -> Unit,
+    selectedPeriod: Period,
+    selectedDate: Long,
+    onPeriodSelected: (Period) -> Unit
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+    
+    val dateFormatter = remember(selectedPeriod) {
+        when (selectedPeriod) {
+            Period.DAY -> SimpleDateFormat("yyyy-MM-dd", Locale.CHINA)
+            Period.WEEK -> SimpleDateFormat("'Week' w, yyyy", Locale.CHINA)
+            Period.MONTH -> SimpleDateFormat("MM月", Locale.CHINA)
+            Period.YEAR -> SimpleDateFormat("yyyy", Locale.CHINA)
+        }
+    }
+    
+    val dateText = dateFormatter.format(Date(selectedDate))
+
     Column(modifier = Modifier.background(BeigeHeader)) {
         // Top bar section containing the month selector and options menu.
         Row(
@@ -40,12 +57,30 @@ fun TopNavigation(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Month display box with a simple border.
-            Box(
-                modifier = Modifier
-                    .border(1.dp, Color.Gray)
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-            ) {
-                Text("三月", color = DarkBrownText)
+            Box {
+                Box(
+                    modifier = Modifier
+                        .border(1.dp, Color.Gray)
+                        .clickable { showMenu = true }
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                ) {
+                    Text(dateText, color = DarkBrownText)
+                }
+                
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    Period.values().forEach { period ->
+                        DropdownMenuItem(
+                            text = { Text(period.name) },
+                            onClick = {
+                                onPeriodSelected(period)
+                                showMenu = false
+                            }
+                        )
+                    }
+                }
             }
             
             // Icons for adding new entries and the overflow menu.

@@ -56,23 +56,21 @@ class NotificationInterceptorService : NotificationListenerService() {
             // Map category name to icon
             val icon = if (result.isExpense) {
                 when (result.category) {
-                    "Eating Out" -> Icons.Default.Restaurant
+                    "Food & Dining" -> Icons.Default.Restaurant
                     "Shopping" -> Icons.Default.ShoppingCart
-                    "Travel" -> Icons.Default.DirectionsBus
-                    "Wifi" -> Icons.Default.Wifi
-                    "Water" -> Icons.Default.WaterDrop
-                    "School" -> Icons.Default.School
-                    "Clothes" -> Icons.Default.Checkroom
+                    "Transport" -> Icons.Default.DirectionsBus
+                    "Utilities & Subs" -> Icons.Default.Wifi
+                    "Health & Beauty" -> Icons.Default.HealthAndSafety
+                    "Entertainment" -> Icons.Default.Movie
+                    "Education" -> Icons.Default.School
                     else -> Icons.Default.Sell
                 }
             } else {
-                when (result.category) {
-                    "Salary" -> Icons.Default.Payments
-                    "Bonus" -> Icons.Default.Star
-                    "Investment" -> Icons.Default.TrendingUp
-                    else -> Icons.Default.Payments
-                }
+                Icons.Default.Payments
             }
+
+            val notePrefix = if (result.merchant != null) "${result.merchant} - " else ""
+            val finalNote = "${notePrefix}Auto-detectado ($appName)"
 
             val newTransaction = Transaction(
                 id = UUID.randomUUID().toString(),
@@ -80,11 +78,11 @@ class NotificationInterceptorService : NotificationListenerService() {
                 categoryName = result.category,
                 categoryIcon = icon,
                 date = result.timestamp,
-                note = "Detectado automáticamente desde $appName",
+                note = finalNote,
                 isExpense = result.isExpense
             )
 
-            // Automate: Add to repository instead of showing Toasts
+            // Persist to database
             serviceScope.launch {
                 val database = (application as SpendingTrackerApp).database
                 val repository = TransactionRepository.getInstance(
@@ -93,16 +91,6 @@ class NotificationInterceptorService : NotificationListenerService() {
                 )
                 repository.insertTransaction(newTransaction)
             }
-
-            /* 
-            // Toasts are now commented out as requested
-            val type = if (result.isExpense) "Gasto" else "Ingreso"
-            val dateStr = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(result.timestamp))
-            val message1 = "[$appName] $type Detectado ✅\nMonto: ¥${result.amount}"
-            val message2 = "Categoría: ${result.category}\nHora: $dateStr"
-            showToast(message1)
-            Handler(Looper.getMainLooper()).postDelayed({ showToast(message2) }, 2500) 
-            */
         }
     }
 }
