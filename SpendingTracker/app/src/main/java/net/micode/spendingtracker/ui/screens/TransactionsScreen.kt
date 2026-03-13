@@ -1,6 +1,8 @@
 package net.micode.spendingtracker.ui.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -26,16 +28,44 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
-fun TransactionsScreen(viewModel: TransactionViewModel) {
+fun TransactionsScreen(
+    viewModel: TransactionViewModel,
+    onEditTransaction: (Transaction) -> Unit,
+    onDeleteTransactions: (List<Transaction>) -> Unit
+) {
     val transactions by viewModel.transactions.collectAsState()
     val totalIncome by viewModel.totalIncome.collectAsState()
     val totalExpense by viewModel.totalExpense.collectAsState()
+
+    // Estado para la selección múltiple
+    var selectedTransactionIds by remember { mutableStateOf(setOf<String>()) }
+    
+    // Estado para el diálogo de confirmación de borrado
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var transactionsToDelete by remember { mutableStateOf<List<Transaction>>(emptyList()) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(BeigeHeader)
     ) {
+        // Barra de herramientas dinámica cuando hay selección
+        if (selectedTransactionIds.isNotEmpty()) {
+            CategorySelectionToolbar(
+                selectedCount = selectedTransactionIds.size,
+                onClearSelection = { selectedTransactionIds = emptySet() },
+                onEdit = {
+                    val transaction = transactions.find { it.id == selectedTransactionIds.first() }
+                    transaction?.let { onEditTransaction(it) }
+                    selectedTransactionIds = emptySet()
+                },
+                onDelete = {
+                    transactionsToDelete = transactions.filter { it.id in selectedTransactionIds }
+                    showDeleteDialog = true
+                }
+            )
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -62,7 +92,25 @@ fun TransactionsScreen(viewModel: TransactionViewModel) {
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(transactions) { transaction ->
-                        TransactionItem(transaction)
+                        val isSelected = selectedTransactionIds.contains(transaction.id)
+                        TransactionItem(
+                            transaction = transaction,
+                            isSelected = isSelected,
+                            onClick = {
+                                if (selectedTransactionIds.isEmpty()) {
+                                    onEditTransaction(transaction)
+                                } else {
+                                    selectedTransactionIds = if (isSelected) {
+                                        selectedTransactionIds - transaction.id
+                                    } else {
+                                        selectedTransactionIds + transaction.id
+                                    }
+                                }
+                            },
+                            onLongClick = {
+                                selectedTransactionIds = selectedTransactionIds + transaction.id
+                            }
+                        )
                         HorizontalDivider(
                             modifier = Modifier.padding(start = 56.dp),
                             thickness = 0.5.dp,
@@ -98,6 +146,43 @@ fun TransactionsScreen(viewModel: TransactionViewModel) {
             }
         }
     }
+
+    // Diálogo de confirmación de borrado
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { 
+                Text(
+                    text = "Delete Transaction", 
+                    color = DarkBrownText,
+                    fontWeight = FontWeight.Bold
+                ) 
+            },
+            text = { 
+                Text(
+                    text = "Are you sure you want to delete the selected transactions?",
+                    color = DarkBrownText
+                ) 
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteTransactions(transactionsToDelete)
+                        selectedTransactionIds = emptySet()
+                        showDeleteDialog = false
+                    }
+                ) {
+                    Text("Delete", color = Color.Red, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel", color = DarkBrownText)
+                }
+            },
+            containerColor = BeigeHeader
+        )
+    }
 }
 
 @Composable
@@ -118,13 +203,24 @@ fun TotalBox(amount: Double, labelColor: Color, modifier: Modifier = Modifier) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun TransactionItem(transaction: Transaction) {
+fun TransactionItem(
+    transaction: Transaction,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
     val dateFormatter = remember { SimpleDateFormat("EEEE, dd MM月 yyyy", Locale.CHINA) }
     
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .background(if (isSelected) Color(0xFFE0F7FA) else Color.Transparent)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

@@ -72,9 +72,21 @@ class TransactionViewModel(private val repository: TransactionRepository) : View
         }
     }
 
+    fun updateTransaction(transaction: Transaction) {
+        viewModelScope.launch {
+            repository.updateTransaction(transaction)
+        }
+    }
+
     fun deleteTransaction(transaction: Transaction) {
         viewModelScope.launch {
             repository.deleteTransaction(transaction)
+        }
+    }
+
+    fun deleteTransactions(transactions: List<Transaction>) {
+        viewModelScope.launch {
+            transactions.forEach { repository.deleteTransaction(it) }
         }
     }
 

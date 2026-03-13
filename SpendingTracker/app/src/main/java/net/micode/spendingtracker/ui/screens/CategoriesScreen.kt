@@ -47,6 +47,10 @@ fun CategoriesScreen(
     
     // Estado para la selección múltiple
     var selectedCategoryIds by remember { mutableStateOf(setOf<Long>()) }
+    
+    // Estado para el diálogo de confirmación de borrado
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var categoriesToDelete by remember { mutableStateOf<List<Category>>(emptyList()) }
 
     LaunchedEffect(selectedSubTab) {
         if (pagerState.currentPage != selectedSubTab) {
@@ -71,9 +75,8 @@ fun CategoriesScreen(
                     selectedCategoryIds = emptySet()
                 },
                 onDelete = {
-                    val categoriesToDelete = (expenseCategories + incomeCategories).filter { it.id in selectedCategoryIds }
-                    onDeleteCategories(categoriesToDelete)
-                    selectedCategoryIds = emptySet()
+                    categoriesToDelete = (expenseCategories + incomeCategories).filter { it.id in selectedCategoryIds }
+                    showDeleteDialog = true
                 }
             )
         }
@@ -134,6 +137,43 @@ fun CategoriesScreen(
                 }
             }
         }
+    }
+
+    // Diálogo de confirmación de borrado
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { 
+                Text(
+                    text = "Delete Category", 
+                    color = DarkBrownText,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                ) 
+            },
+            text = { 
+                Text(
+                    text = "Are you sure you want to delete the selected categories?",
+                    color = DarkBrownText
+                ) 
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteCategories(categoriesToDelete)
+                        selectedCategoryIds = emptySet()
+                        showDeleteDialog = false
+                    }
+                ) {
+                    Text("Delete", color = Color.Red, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel", color = DarkBrownText)
+                }
+            },
+            containerColor = BeigeHeader
+        )
     }
 }
 

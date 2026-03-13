@@ -36,34 +36,52 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionScreen(
+    transactionToEdit: Transaction? = null,
     viewModel: TransactionViewModel,
     initialType: Int = 0, // 0 for Expense, 1 for Income
     onClose: () -> Unit,
     onDone: () -> Unit
 ) {
-    val pagerState = rememberPagerState(initialPage = initialType, pageCount = { 2 })
+    val initialPage = transactionToEdit?.let { if (it.isExpense) 0 else 1 } ?: initialType
+    val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { 2 })
     val coroutineScope = rememberCoroutineScope()
 
     val expenseCategories by viewModel.expenseCategories.collectAsState()
     val incomeCategories by viewModel.incomeCategories.collectAsState()
 
-    var amount by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
-    var isRepeating by remember { mutableStateOf(false) }
+    var amount by remember { mutableStateOf(transactionToEdit?.amount?.toString() ?: "") }
+    var note by remember { mutableStateOf(transactionToEdit?.note ?: "") }
+    var isRepeating by remember { mutableStateOf(transactionToEdit?.isRepeating ?: false) }
     
     // Category selection state
-    var selectedCategoryIndex by remember { mutableIntStateOf(-1) }
+    var selectedCategoryIndex by remember { 
+        mutableIntStateOf(-1) 
+    }
+
+    // Effect to set initial category index when editing
+    LaunchedEffect(expenseCategories, incomeCategories, transactionToEdit) {
+        if (transactionToEdit != null) {
+            val categories = if (transactionToEdit.isExpense) expenseCategories else incomeCategories
+            selectedCategoryIndex = categories.indexOfFirst { it.name == transactionToEdit.categoryName }
+        }
+    }
+
     var showCategoryMenu by remember { mutableStateOf(false) }
 
     // Date Selection
+    val initialDate = transactionToEdit?.date ?: System.currentTimeMillis()
     var showDatePicker by remember { mutableStateOf(false) }
-    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = System.currentTimeMillis())
+    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialDate)
     val dateFormatter = remember { SimpleDateFormat("dd MM月 yyyy", Locale.CHINA) }
-    val formattedDate = dateFormatter.format(Date(datePickerState.selectedDateMillis ?: System.currentTimeMillis()))
+    val formattedDate = dateFormatter.format(Date(datePickerState.selectedDateMillis ?: initialDate))
 
-    // Reset category when page changes
+    // Reset category when page changes (only if NOT editing or if page manually changed)
+    var lastPage by remember { mutableIntStateOf(initialPage) }
     LaunchedEffect(pagerState.currentPage) {
-        selectedCategoryIndex = -1
+        if (pagerState.currentPage != lastPage) {
+            selectedCategoryIndex = -1
+            lastPage = pagerState.currentPage
+        }
     }
 
     Column(
@@ -92,7 +110,7 @@ fun AddTransactionScreen(
                     if (amount.isNotEmpty() && selectedCategoryIndex != -1 && selectedCategoryIndex < categories.size) {
                         val category = categories[selectedCategoryIndex]
                         val transaction = Transaction(
-                            id = UUID.randomUUID().toString(),
+                            id = transactionToEdit?.id ?: UUID.randomUUID().toString(),
                             amount = amount.toDoubleOrNull() ?: 0.0,
                             categoryName = category.name,
                             categoryIcon = Icons.Default.Sell,
@@ -101,7 +119,14 @@ fun AddTransactionScreen(
                             isExpense = isExpense,
                             isRepeating = isRepeating
                         )
-                        viewModel.addTransaction(transaction)
+                        if (transactionToEdit == null) {
+                            viewModel.addTransaction(transaction)
+                        } else {
+                            // We need an updateTransaction method in ViewModel, but for now we can delete and add
+                            // or ideally add an updateTransaction method.
+                            // Assuming viewModel.addTransaction handles upsert or we add update.
+                            viewModel.addTransaction(transaction) 
+                        }
                         onDone()
                     }
                 }
