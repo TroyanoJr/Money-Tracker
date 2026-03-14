@@ -1,11 +1,13 @@
 package net.micode.spendingtracker.ui.screens
 
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import net.micode.spendingtracker.model.Category
@@ -15,11 +17,18 @@ import net.micode.spendingtracker.viewmodel.TransactionViewModel
 
 /**
  * Main dashboard screen that hosts the navigation and the swipable pages.
+ * Now supports automatic report view on device rotation.
  */
 @Composable
 fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    
     val pagerState = rememberPagerState(pageCount = { 4 })
     val coroutineScope = rememberCoroutineScope()
+    
+    // Navigation State
+    var currentScreen by remember { mutableStateOf("dashboard") } // "dashboard", "settings", or "csv_export"
     
     // UI States for Categories
     var selectedCategorySubTab by remember { mutableIntStateOf(0) }
@@ -33,117 +42,142 @@ fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
 
     val expenseCategories by viewModel.expenseCategories.collectAsState()
     val incomeCategories by viewModel.incomeCategories.collectAsState()
+    val categories by viewModel.categories.collectAsState()
     
     val selectedPeriod by viewModel.selectedPeriod.collectAsState()
     val selectedDate by viewModel.selectedDate.collectAsState()
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            TopNavigation(
-                selectedTabIndex = pagerState.currentPage,
-                onTabSelected = { index ->
-                    coroutineScope.launch {
-                        pagerState.animateScrollToPage(index)
-                    }
-                },
-                onAddClick = {
-                    when (pagerState.currentPage) {
-                        1 -> {
-                            transactionToEdit = null
-                            initialTransactionType = 0
-                            showAddTransaction = true
-                        }
-                        2 -> {
-                            categoryToEdit = null
-                            showAddCategory = true
-                        }
-                    }
-                },
-                selectedPeriod = selectedPeriod,
-                selectedDate = selectedDate,
-                onPeriodSelected = { viewModel.setPeriod(it) }
+    // DETECT ORIENTATION: If landscape, show ReportsScreen
+    if (isLandscape) {
+        ReportsScreen(viewModel = viewModel)
+    } else {
+        when (currentScreen) {
+            "settings" -> SettingsScreen(onBack = { currentScreen = "dashboard" })
+            "csv_export" -> CsvExportScreen(
+                categories = categories.map { it.name },
+                onClose = { currentScreen = "dashboard" },
+                onExport = { start, end, negate, cat, sort, sep ->
+                    // Aquí irá la lógica de generación real del archivo
+                    currentScreen = "dashboard"
+                }
             )
+            else -> {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        TopNavigation(
+                            selectedTabIndex = pagerState.currentPage,
+                            onTabSelected = { index ->
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(index)
+                                }
+                            },
+                            onAddClick = {
+                                when (pagerState.currentPage) {
+                                    1 -> {
+                                        transactionToEdit = null
+                                        initialTransactionType = 0
+                                        showAddTransaction = true
+                                    }
+                                    2 -> {
+                                        categoryToEdit = null
+                                        showAddCategory = true
+                                    }
+                                }
+                            },
+                            onSettingsClick = {
+                                currentScreen = "settings"
+                            },
+                            selectedPeriod = selectedPeriod,
+                            selectedDate = selectedDate,
+                            onPeriodSelected = { viewModel.setPeriod(it) }
+                        )
 
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.weight(1f)
-            ) { page ->
-                when (page) {
-                    0 -> SpendingScreen(
-                        viewModel = viewModel,
-                        onAddExpense = {
-                            transactionToEdit = null
-                            initialTransactionType = 0
-                            showAddTransaction = true
-                        },
-                        onAddIncome = {
-                            transactionToEdit = null
-                            initialTransactionType = 1
-                            showAddTransaction = true
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.weight(1f)
+                        ) { page ->
+                            when (page) {
+                                0 -> SpendingScreen(
+                                    viewModel = viewModel,
+                                    onAddExpense = {
+                                        transactionToEdit = null
+                                        initialTransactionType = 0
+                                        showAddTransaction = true
+                                    },
+                                    onAddIncome = {
+                                        transactionToEdit = null
+                                        initialTransactionType = 1
+                                        showAddTransaction = true
+                                    }
+                                )
+                                1 -> TransactionsScreen(
+                                    viewModel = viewModel,
+                                    onEditTransaction = { transaction ->
+                                        transactionToEdit = transaction
+                                        showAddTransaction = true
+                                    },
+                                    onDeleteTransactions = { transactions ->
+                                        viewModel.deleteTransactions(transactions)
+                                    },
+                                    onExportCsv = {
+                                        currentScreen = "csv_export"
+                                    }
+                                )
+                                2 -> CategoriesScreen(
+                                    expenseCategories = expenseCategories,
+                                    incomeCategories = incomeCategories,
+                                    selectedSubTab = selectedCategorySubTab,
+                                    onSubTabChanged = { selectedCategorySubTab = it },
+                                    onEditCategory = { category ->
+                                        categoryToEdit = category
+                                        showAddCategory = true
+                                    },
+                                    onDeleteCategories = { categories ->
+                                        viewModel.deleteCategories(categories)
+                                    }
+                                )
+                                3 -> AccountsScreen()
+                            }
                         }
-                    )
-                    1 -> TransactionsScreen(
-                        viewModel = viewModel,
-                        onEditTransaction = { transaction ->
-                            transactionToEdit = transaction
-                            showAddTransaction = true
-                        },
-                        onDeleteTransactions = { transactions ->
-                            viewModel.deleteTransactions(transactions)
-                        }
-                    )
-                    2 -> CategoriesScreen(
-                        expenseCategories = expenseCategories,
-                        incomeCategories = incomeCategories,
-                        selectedSubTab = selectedCategorySubTab,
-                        onSubTabChanged = { selectedCategorySubTab = it },
-                        onEditCategory = { category ->
-                            categoryToEdit = category
-                            showAddCategory = true
-                        },
-                        onDeleteCategories = { categories ->
-                            viewModel.deleteCategories(categories)
-                        }
-                    )
-                    3 -> AccountsScreen()
+                    }
+
+                    if (showAddCategory) {
+                        AddCategoryScreen(
+                            categoryToEdit = categoryToEdit,
+                            isExpense = selectedCategorySubTab == 0,
+                            onClose = { 
+                                showAddCategory = false
+                                categoryToEdit = null
+                            },
+                            onDone = { category ->
+                                if (categoryToEdit == null) {
+                                    viewModel.addCategory(category)
+                                } else {
+                                    viewModel.updateCategory(category)
+                                }
+                                showAddCategory = false 
+                                categoryToEdit = null
+                            }
+                        )
+                    }
+
+                    if (showAddTransaction) {
+                        AddTransactionScreen(
+                            transactionToEdit = transactionToEdit,
+                            viewModel = viewModel,
+                            initialType = initialTransactionType,
+                            onClose = { 
+                                showAddTransaction = false
+                                transactionToEdit = null
+                            },
+                            onDone = { 
+                                showAddTransaction = false
+                                transactionToEdit = null
+                            }
+                        )
+                    }
                 }
             }
-        }
-
-        if (showAddCategory) {
-            AddCategoryScreen(
-                categoryToEdit = categoryToEdit,
-                isExpense = selectedCategorySubTab == 0,
-                onClose = { 
-                    showAddCategory = false
-                    categoryToEdit = null
-                },
-                onDone = { category ->
-                    if (categoryToEdit == null) {
-                        viewModel.addCategory(category)
-                    } else {
-                        viewModel.updateCategory(category)
-                    }
-                    showAddCategory = false 
-                    categoryToEdit = null
-                }
-            )
-        }
-
-        if (showAddTransaction) {
-            AddTransactionScreen(
-                transactionToEdit = transactionToEdit,
-                viewModel = viewModel,
-                initialType = initialTransactionType,
-                onClose = { 
-                    showAddTransaction = false
-                    transactionToEdit = null
-                },
-                onDone = { 
-                    showAddTransaction = false
-                    transactionToEdit = null
-                }
-            )
         }
     }
 }

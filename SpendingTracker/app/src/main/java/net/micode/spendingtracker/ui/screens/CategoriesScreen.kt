@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import net.micode.spendingtracker.model.Category
+import net.micode.spendingtracker.ui.components.CategorySelectionToolbar
 import net.micode.spendingtracker.ui.theme.BeigeHeader
 import net.micode.spendingtracker.ui.theme.DarkBrownText
 
@@ -174,40 +175,6 @@ fun CategoriesScreen(
             },
             containerColor = BeigeHeader
         )
-    }
-}
-
-@Composable
-fun CategorySelectionToolbar(
-    selectedCount: Int,
-    onClearSelection: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(BeigeHeader)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconButton(onClick = onClearSelection) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Clear Selection", tint = DarkBrownText)
-        }
-        Text(
-            text = "$selectedCount selected",
-            color = DarkBrownText,
-            fontSize = 18.sp,
-            modifier = Modifier.weight(1f).padding(start = 8.dp)
-        )
-        if (selectedCount == 1) {
-            IconButton(onClick = onEdit) {
-                Icon(Icons.Default.Edit, contentDescription = "Edit Category", tint = DarkBrownText)
-            }
-        }
-        IconButton(onClick = onDelete) {
-            Icon(Icons.Default.Delete, contentDescription = "Delete Categories", tint = DarkBrownText)
-        }
     }
 }
 

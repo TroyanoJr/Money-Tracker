@@ -8,5 +8,6 @@ data class Category(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val iconName: String, // String representation of the icon
-    val isExpense: Boolean
+    val isExpense: Boolean,
+    val color: Int? = null // ARGB color for charts, nullable for backward compatibility
 )

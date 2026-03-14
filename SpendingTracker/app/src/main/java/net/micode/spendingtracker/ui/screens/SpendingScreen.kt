@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,6 +50,9 @@ fun SpendingScreen(
     val expensesByCategory by viewModel.expensesByCategory.collectAsState()
     val heatmapData by viewModel.heatmapData.collectAsState()
     val selectedPeriod by viewModel.selectedPeriod.collectAsState()
+    
+    // Incomplete transactions data
+    val incompleteCount by viewModel.incompleteTransactionsCount.collectAsState()
     
     var showHeatmap by remember { mutableStateOf(false) }
 
@@ -90,6 +94,29 @@ fun SpendingScreen(
                         .clickable { viewModel.nextPeriod() }
                         .padding(4.dp)
                 )
+            }
+
+            // Incomplete Transactions Notice (Requested Chalk-style warning)
+            if (incompleteCount > 0) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
+                        .border(1.dp, ChalkWhite.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+                        .background(Color.White.copy(alpha = 0.05f))
+                        .clickable { /* Logic to open pending list later */ }
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = ChalkRed, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = "You have $incompleteCount transactions pending to classify",
+                        color = ChalkWhite,
+                        fontSize = 14.sp,
+                        fontFamily = FontFamily.Cursive
+                    )
+                }
             }
 
             // Visual balance bar

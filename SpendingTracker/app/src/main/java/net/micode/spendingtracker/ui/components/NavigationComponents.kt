@@ -30,11 +30,13 @@ fun TopNavigation(
     selectedTabIndex: Int,
     onTabSelected: (Int) -> Unit,
     onAddClick: () -> Unit,
+    onSettingsClick: () -> Unit, // New callback
     selectedPeriod: Period,
     selectedDate: Long,
     onPeriodSelected: (Period) -> Unit
 ) {
-    var showMenu by remember { mutableStateOf(false) }
+    var showPeriodMenu by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
     
     val dateFormatter = remember(selectedPeriod) {
         when (selectedPeriod) {
@@ -48,7 +50,6 @@ fun TopNavigation(
     val dateText = dateFormatter.format(Date(selectedDate))
 
     Column(modifier = Modifier.background(BeigeHeader)) {
-        // Top bar section containing the month selector and options menu.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -56,43 +57,53 @@ fun TopNavigation(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Month display box with a simple border.
             Box {
                 Box(
                     modifier = Modifier
                         .border(1.dp, Color.Gray)
-                        .clickable { showMenu = true }
+                        .clickable { showPeriodMenu = true }
                         .padding(horizontal = 16.dp, vertical = 4.dp)
                 ) {
                     Text(dateText, color = DarkBrownText)
                 }
                 
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
-                ) {
+                DropdownMenu(expanded = showPeriodMenu, onDismissRequest = { showPeriodMenu = false }) {
                     Period.values().forEach { period ->
                         DropdownMenuItem(
                             text = { Text(period.name) },
                             onClick = {
                                 onPeriodSelected(period)
-                                showMenu = false
+                                showPeriodMenu = false
                             }
                         )
                     }
                 }
             }
             
-            // Icons for adding new entries and the overflow menu.
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onAddClick) {
                     Icon(Icons.Default.Add, contentDescription = "Add", tint = DarkBrownText)
                 }
-                Icon(Icons.Default.MoreVert, contentDescription = "More", tint = DarkBrownText)
+                Box {
+                    IconButton(onClick = { showOverflowMenu = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "More", tint = DarkBrownText)
+                    }
+                    DropdownMenu(
+                        expanded = showOverflowMenu,
+                        onDismissRequest = { showOverflowMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Settings") },
+                            onClick = {
+                                showOverflowMenu = false
+                                onSettingsClick()
+                            }
+                        )
+                    }
+                }
             }
         }
         
-        // Tab row that distributes space equally among the navigation items.
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceAround
@@ -104,7 +115,6 @@ fun TopNavigation(
                 "Accounts" to Icons.Default.People
             )
             
-            // Loop through each tab to create the TabItem component.
             tabs.forEachIndexed { index, pair ->
                 val (label, icon) = pair
                 TabItem(
@@ -118,9 +128,6 @@ fun TopNavigation(
     }
 }
 
-/**
- * Individual tab item that changes color and shows an indicator when selected.
- */
 @Composable
 fun TabItem(
     text: String,
@@ -128,27 +135,16 @@ fun TabItem(
     selected: Boolean,
     modifier: Modifier = Modifier
 ) {
-    // Determine the color based on the selected state.
     val color = if (selected) DarkBrownText else Color.Gray.copy(alpha = 0.6f)
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier.padding(vertical = 8.dp)
     ) {
-        // Icon for the tab.
         Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
-        // Label for the tab.
         Text(text, fontSize = 10.sp, color = color, maxLines = 1)
-        // Selection indicator (the line below the text).
         if (selected) {
-            Box(
-                Modifier
-                    .padding(top = 4.dp)
-                    .height(2.dp)
-                    .width(40.dp)
-                    .background(DarkBrownText)
-            )
+            Box(Modifier.padding(top = 4.dp).height(2.dp).width(40.dp).background(DarkBrownText))
         } else {
-            // Empty space to maintain the same layout height for non-selected tabs.
             Spacer(Modifier.height(6.dp))
         }
     }

@@ -19,7 +19,8 @@ data class Transaction(
     val date: Long, // Timestamp
     val note: String,
     val isExpense: Boolean,
-    val isRepeating: Boolean = false
+    val isRepeating: Boolean = false,
+    val isComplete: Boolean = true // New field to track if the transaction needs more info
 ) {
     // Secondary constructor for Room to use, as it doesn't know how to handle ImageVector
     constructor(
@@ -29,6 +30,7 @@ data class Transaction(
         date: Long,
         note: String,
         isExpense: Boolean,
-        isRepeating: Boolean = false
-    ) : this(id, amount, categoryName, Icons.Default.Sell, date, note, isExpense, isRepeating)
+        isRepeating: Boolean = false,
+        isComplete: Boolean = true
+    ) : this(id, amount, categoryName, Icons.Default.Sell, date, note, isExpense, isRepeating, isComplete)
 }

@@ -49,19 +49,14 @@ fun AddTransactionScreen(
     val expenseCategories by viewModel.expenseCategories.collectAsState()
     val incomeCategories by viewModel.incomeCategories.collectAsState()
     
-    // Obtener la fecha seleccionada actualmente en el dashboard
     val currentDashboardDate by viewModel.selectedDate.collectAsState()
 
     var amount by remember { mutableStateOf(transactionToEdit?.amount?.toString() ?: "") }
     var note by remember { mutableStateOf(transactionToEdit?.note ?: "") }
     var isRepeating by remember { mutableStateOf(transactionToEdit?.isRepeating ?: false) }
     
-    // Category selection state
-    var selectedCategoryIndex by remember { 
-        mutableIntStateOf(-1) 
-    }
+    var selectedCategoryIndex by remember { mutableIntStateOf(-1) }
 
-    // Effect to set initial category index when editing
     LaunchedEffect(expenseCategories, incomeCategories, transactionToEdit) {
         if (transactionToEdit != null) {
             val categories = if (transactionToEdit.isExpense) expenseCategories else incomeCategories
@@ -71,15 +66,12 @@ fun AddTransactionScreen(
 
     var showCategoryMenu by remember { mutableStateOf(false) }
 
-    // Date Selection
-    // Usamos la fecha del dashboard si no estamos editando
     val initialDate = transactionToEdit?.date ?: currentDashboardDate
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialDate)
     val dateFormatter = remember { SimpleDateFormat("dd MM月 yyyy", Locale.CHINA) }
     val formattedDate = dateFormatter.format(Date(datePickerState.selectedDateMillis ?: initialDate))
 
-    // Reset category when page changes (only if NOT editing or if page manually changed)
     var lastPage by remember { mutableIntStateOf(initialPage) }
     LaunchedEffect(pagerState.currentPage) {
         if (pagerState.currentPage != lastPage) {
@@ -93,7 +85,6 @@ fun AddTransactionScreen(
             .fillMaxSize()
             .background(BeigeHeader)
     ) {
-        // Toolbar
         Row(
             modifier = Modifier.fillMaxWidth().padding(8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -126,7 +117,6 @@ fun AddTransactionScreen(
                             isRepeating = isRepeating
                         )
                         
-                        // Guardar transacción
                         if (transactionToEdit == null) {
                             viewModel.addTransaction(transaction)
                         } else {
@@ -139,7 +129,6 @@ fun AddTransactionScreen(
             )
         }
 
-        // Swipeable Type Selector (EXPENSE / INCOME)
         Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
             horizontalArrangement = Arrangement.Center
@@ -165,7 +154,6 @@ fun AddTransactionScreen(
             Column(modifier = Modifier.fillMaxSize()) {
                 SectionHeader(title = stringResource(R.string.transaction_details))
 
-                // Date
                 CategoryRow(label = stringResource(R.string.date), labelColor = Color(0xFF1976D2)) {
                     Text(
                         text = formattedDate,
@@ -176,13 +164,16 @@ fun AddTransactionScreen(
                 }
                 HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
 
-                // Category Selection
                 CategoryRow(label = stringResource(R.string.category), labelColor = Color(0xFF1976D2)) {
                     Box(modifier = Modifier.fillMaxSize().clickable { showCategoryMenu = true }, contentAlignment = Alignment.CenterStart) {
                         val categoryText = if (selectedCategoryIndex != -1 && selectedCategoryIndex < categories.size) categories[selectedCategoryIndex].name else stringResource(R.string.not_selected)
                         Text(text = categoryText, color = if (selectedCategoryIndex != -1) DarkBrownText else Color.Gray, fontSize = 16.sp)
                         
-                        DropdownMenu(expanded = showCategoryMenu, onDismissRequest = { showCategoryMenu = false }) {
+                        // CORRECCIÓN: Solo expandir el menú si la página actual coincide con el índice del Pager
+                        DropdownMenu(
+                            expanded = showCategoryMenu && pagerState.currentPage == page, 
+                            onDismissRequest = { showCategoryMenu = false }
+                        ) {
                             categories.forEachIndexed { index, category ->
                                 DropdownMenuItem(
                                     text = { Text(category.name) },
@@ -198,7 +189,6 @@ fun AddTransactionScreen(
                 }
                 HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
 
-                // Amount
                 CategoryRow(label = stringResource(R.string.amount), labelColor = Color(0xFF1976D2)) {
                     BasicTextField(
                         value = amount,
@@ -217,7 +207,6 @@ fun AddTransactionScreen(
                 Spacer(modifier = Modifier.height(24.dp))
                 SectionHeader(title = stringResource(R.string.repeating_details))
 
-                // Repeat
                 CategoryRow(label = stringResource(R.string.repeat), labelColor = Color(0xFF1976D2)) {
                     Switch(checked = isRepeating, onCheckedChange = { isRepeating = it })
                 }
@@ -225,7 +214,6 @@ fun AddTransactionScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Note
                 CategoryRow(label = stringResource(R.string.note), labelColor = Color(0xFF1976D2)) {
                     BasicTextField(
                         value = note,
@@ -243,7 +231,6 @@ fun AddTransactionScreen(
         }
     }
 
-    // Date Picker Dialog
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },

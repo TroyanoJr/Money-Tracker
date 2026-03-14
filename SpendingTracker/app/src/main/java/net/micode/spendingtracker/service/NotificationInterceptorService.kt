@@ -11,49 +11,41 @@ import kotlinx.coroutines.launch
 import net.micode.spendingtracker.SpendingTrackerApp
 import net.micode.spendingtracker.model.Transaction
 import net.micode.spendingtracker.repository.TransactionRepository
+import net.micode.spendingtracker.util.PaymentAppConfig
 import net.micode.spendingtracker.util.PaymentParser
+import net.micode.spendingtracker.util.SettingsManager
 import java.util.UUID
 
 /**
  * Service that listens for system notifications.
- * Filters notifications from Alipay, WeChat, and ADB Shell.
  * Automatically adds detected transactions to the repository.
+ * Marks transactions as incomplete if merchant or category is missing.
  */
 class NotificationInterceptorService : NotificationListenerService() {
 
-    private val alipayPackage = "com.eg.android.AlipayGphone"
-    private val wechatPackage = "com.tencent.mm"
-    private val shellPackage = "com.android.shell"
-    
     private val serviceScope = CoroutineScope(Dispatchers.IO)
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         super.onNotificationPosted(sbn)
         
+        val settingsManager = SettingsManager(applicationContext)
+        if (!settingsManager.isAutoCaptureEnabled()) return
+
         val packageName = sbn?.packageName ?: return
-        
-        // Filter: Only process Alipay, WeChat, and ADB Shell
-        if (packageName != alipayPackage && packageName != wechatPackage && packageName != shellPackage) return
+        if (!PaymentAppConfig.isSupported(packageName)) return
 
         val extras = sbn.notification.extras
-        
         val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""
         val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
         val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString() ?: ""
         val subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString() ?: ""
         
         val fullContent = "$title $text $bigText $subText"
-
         val result = PaymentParser.parse(fullContent, sbn.postTime)
         
         if (result != null) {
-            val appName = when (packageName) {
-                alipayPackage -> "Alipay"
-                wechatPackage -> "WeChat"
-                else -> "ADB Test"
-            }
+            val appName = PaymentAppConfig.getAppName(packageName)
 
-            // Map category name to icon
             val icon = if (result.isExpense) {
                 when (result.category) {
                     "Food & Dining" -> Icons.Default.Restaurant
@@ -70,19 +62,19 @@ class NotificationInterceptorService : NotificationListenerService() {
             }
 
             val notePrefix = if (result.merchant != null) "${result.merchant} - " else ""
-            val finalNote = "${notePrefix}Auto-detectado ($appName)"
+            val finalNote = "${notePrefix}Auto-detected ($appName)"
 
             val newTransaction = Transaction(
                 id = UUID.randomUUID().toString(),
                 amount = result.amount,
-                categoryName = result.category,
+                categoryName = if (result.isComplete) result.category else "Pending",
                 categoryIcon = icon,
                 date = result.timestamp,
                 note = finalNote,
-                isExpense = result.isExpense
+                isExpense = result.isExpense,
+                isComplete = result.isComplete
             )
 
-            // Persist to database
             serviceScope.launch {
                 val database = (application as SpendingTrackerApp).database
                 val repository = TransactionRepository.getInstance(
