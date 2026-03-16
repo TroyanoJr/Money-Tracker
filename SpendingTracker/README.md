@@ -26,11 +26,25 @@ The app is built around a "Blackboard" concept:
 - **Architecture:** MVVM (Model-View-ViewModel)
 
 ## 📸 Screenshots
-1. The Main Dashboard
-   <p align="center">
+### 🏠 Main Views
+<p align="center">
   <img src="Screenshots/Main dashBoard.png" width="30%" />
   <img src="Screenshots/Show all Transactions.png" width="30%" />
   <img src="Screenshots/Calendar Heatmap.png" width="30%" />
+</p>
+
+### 📊 Data Insights & Graphics
+<p align="center">
+  <img src="Screenshots/Pie chart Graphic.png" width="45%" />
+  <img src="Screenshots/Bar chart graph.png" width="45%" />
+</p>
+
+### 🛠 Tools & Data Entry
+<p align="center">
+  <img src="Screenshots/Add Transactions.png" width="23%" />
+  <img src="Screenshots/Add Category.png" width="23%" />
+  <img src="Screenshots/Select color.png" width="23%" />
+  <img src="Screenshots/Export doc.png" width="23%" />
 </p>
 
 ## ⚙️ Installation
