@@ -26,7 +26,10 @@ The app is built around a "Blackboard" concept:
 - **Architecture:** MVVM (Model-View-ViewModel)
 
 ## 📸 Screenshots
-*(Placeholder: Add your beautiful screenshots of the Blackboard UI, the improved Yearly Heatmap, and the Landscape Reports here)*
+1. The Main Dashboard
+   <p align="center">
+  <img src="screenshots/dashboard.png" width="30%" />
+</p>
 
 ## ⚙️ Installation
 1. Clone this repository:
