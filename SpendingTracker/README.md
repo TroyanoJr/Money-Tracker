@@ -47,6 +47,14 @@ The app is built around a "Blackboard" concept:
   <img src="Screenshots/Export doc.png" width="23%" />
 </p>
 
+## ⚠️ Current Limitations & Known Issues
+- **Payment Parser (Prototype):** The automated payment parsing logic (`parserPayment`) is currently in **Beta**. It is an early prototype and may not be fully efficient across all banking or payment applications yet.
+- **Rotation State Loss:** Due to the automatic switch to "Reports View" in landscape mode, any unsaved data in the "Add Transaction" or "Add Category" screens may be lost if the device is rotated during entry.
+- **Hardcoded Date Formats:** Some parts of the app use specific hardcoded locales (e.g., `Locale.CHINA`) for date formatting, which may not align with every user's system settings.
+- **Fixed Category Icons:** The ability to choose custom icons is currently disabled; a default placeholder icon is used while the full picker is under development.
+- **Keyboard Overlap:** On small-screen devices, the software keyboard might overlap input fields in modal screens (IME padding refinements are ongoing).
+- **Data Persistence:** Currently, data is only stored locally. Uninstalling the app without a manual CSV export will result in data loss.
+
 ## ⚙️ Installation
 1. Clone this repository:
    ```bash
