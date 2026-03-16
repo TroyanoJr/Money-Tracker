@@ -19,7 +19,7 @@ enum class FilterType {
 }
 
 enum class SortOrder {
-    DATE, AMOUNT, CATEGORY
+    DATE_ASC, DATE_DESC, AMOUNT_ASC, AMOUNT_DESC, CATEGORY
 }
 
 data class CashFlowPoint(
@@ -207,30 +207,51 @@ class TransactionViewModel(private val repository: TransactionRepository) : View
         startDate: Long,
         endDate: Long,
         useNegativeForExpense: Boolean,
-        categoryFilter: Set<String>?,
-        sortOrder: SortOrder
+        categoryName: String,
+        sortBy: String,
+        separatorName: String
     ): String {
         val allTransactions = repository.allTransactions.first()
-        var filtered = allTransactions.filter { it.date in startDate..endDate }
         
-        if (categoryFilter != null && categoryFilter.isNotEmpty()) {
-            filtered = filtered.filter { it.categoryName in categoryFilter }
+        // Normalize dates to start and end of day
+        val startCal = Calendar.getInstance().apply { timeInMillis = startDate; set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0) }
+        val endCal = Calendar.getInstance().apply { timeInMillis = endDate; set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59) }
+        
+        var filtered = allTransactions.filter { it.date in startCal.timeInMillis..endCal.timeInMillis }
+        
+        if (categoryName != "All Categories") {
+            filtered = filtered.filter { it.categoryName == categoryName }
         }
         
-        filtered = when (sortOrder) {
-            SortOrder.DATE -> filtered.sortedBy { it.date }
-            SortOrder.AMOUNT -> filtered.sortedBy { it.amount }
-            SortOrder.CATEGORY -> filtered.sortedBy { it.categoryName }
+        filtered = when (sortBy) {
+            "Date (Newest First)" -> filtered.sortedByDescending { it.date }
+            "Date (Oldest First)" -> filtered.sortedBy { it.date }
+            "Amount (Highest First)" -> filtered.sortedByDescending { it.amount }
+            "Amount (Lowest First)" -> filtered.sortedBy { it.amount }
+            else -> filtered.sortedByDescending { it.date }
+        }
+        
+        val separator = when (separatorName) {
+            "Comma" -> ","
+            "Semicolon" -> ";"
+            "Tab" -> "\t"
+            else -> ","
         }
         
         val sb = StringBuilder()
-        sb.append("Date,Type,Category,Amount,Note\n")
+        sb.append(listOf("Date", "Type", "Category", "Amount").joinToString(separator)).append("\n")
         
-        val df = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+        val df = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
         filtered.forEach { trans ->
             val amount = if (trans.isExpense && useNegativeForExpense) -trans.amount else trans.amount
             val type = if (trans.isExpense) "Expense" else "Income"
-            sb.append("${df.format(Date(trans.date))},$type,${trans.categoryName},$amount,${trans.note}\n")
+            val row = listOf(
+                df.format(Date(trans.date)),
+                type,
+                trans.categoryName,
+                String.format(Locale.US, "%.2f", amount)
+            )
+            sb.append(row.joinToString(separator)).append("\n")
         }
         
         return sb.toString()

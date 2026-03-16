@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -96,7 +97,7 @@ fun SpendingScreen(
                 )
             }
 
-            // Incomplete Transactions Notice (Requested Chalk-style warning)
+            // Incomplete Transactions Notice
             if (incompleteCount > 0) {
                 Row(
                     modifier = Modifier
@@ -309,9 +310,11 @@ fun YearlyHeatmap(data: Map<Long, Double>) {
     val weeks = mutableListOf<List<Long?>>()
     var currentWeek = mutableListOf<Long?>()
     
-    val firstDay = Calendar.getInstance().apply { timeInMillis = sortedDays.first() }
-    val startPadding = (firstDay.get(Calendar.DAY_OF_WEEK) - firstDay.firstDayOfWeek + 7) % 7
+    val calendar = Calendar.getInstance()
+    calendar.timeInMillis = sortedDays.first()
     
+    // Iniciar siempre en Lunes para consistencia visual (Estilo GitHub)
+    val startPadding = (calendar.get(Calendar.DAY_OF_WEEK) - Calendar.MONDAY + 7) % 7
     repeat(startPadding) { currentWeek.add(null) }
     
     sortedDays.forEach { timestamp ->
@@ -326,80 +329,115 @@ fun YearlyHeatmap(data: Map<Long, Double>) {
         weeks.add(currentWeek)
     }
 
-    val daysOfWeekLabels = remember {
-        val names = mutableListOf<String>()
-        val tempCal = Calendar.getInstance()
-        tempCal.set(Calendar.DAY_OF_WEEK, tempCal.firstDayOfWeek)
-        for (i in 0 until 7) {
-            names.add(SimpleDateFormat("E", Locale.CHINA).format(tempCal.time).take(1))
-            tempCal.add(Calendar.DAY_OF_YEAR, 1)
-        }
-        names
-    }
+    val daysOfWeekLabels = listOf("M", "T", "W", "T", "F", "S", "S")
 
-    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+    Column(modifier = Modifier.padding(vertical = 12.dp)) {
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(2.dp)
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
         ) {
+            // Etiquetas de días a la izquierda
             item {
-                Column(modifier = Modifier.padding(top = 16.dp, end = 4.dp)) {
+                Column(modifier = Modifier.padding(top = 22.dp, end = 8.dp)) {
                     daysOfWeekLabels.forEachIndexed { index, day ->
-                        Box(modifier = Modifier.size(10.dp), contentAlignment = Alignment.Center) {
-                            if (index % 2 == 1) { 
-                                Text(day, color = Color.Gray, fontSize = 7.sp)
+                        Box(modifier = Modifier.size(12.dp), contentAlignment = Alignment.Center) {
+                            if (index == 0 || index == 2 || index == 4 || index == 6) { 
+                                Text(day, color = Color.Gray, fontSize = 8.sp, fontWeight = FontWeight.Bold)
                             }
                         }
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(3.dp))
                     }
                 }
             }
 
-            items(weeks) { week ->
-                Column {
-                    val firstDayOfThisWeek = week.find { it != null }
-                    val monthText = if (firstDayOfThisWeek != null) {
-                        val cal = Calendar.getInstance().apply { timeInMillis = firstDayOfThisWeek }
-                        if (cal.get(Calendar.DAY_OF_MONTH) <= 7) {
-                            SimpleDateFormat("MMM", Locale.CHINA).format(cal.time)
-                        } else ""
-                    } else ""
-                    
-                    Text(
-                        text = monthText,
-                        color = Color.Gray,
-                        fontSize = 9.sp,
-                        modifier = Modifier.height(16.dp),
-                        maxLines = 1
-                    )
+            itemsIndexed(weeks) { index, week ->
+                val firstNonNullDay = week.find { it != null }
+                var monthLabel = ""
+                var isNewMonth = false
+                
+                if (firstNonNullDay != null) {
+                    val cal = Calendar.getInstance().apply { timeInMillis = firstNonNullDay }
+                    // Si el día 1 del mes cae en esta semana, ponemos la etiqueta
+                    if (cal.get(Calendar.DAY_OF_MONTH) <= 7) {
+                        monthLabel = SimpleDateFormat("MMM", Locale.getDefault()).format(cal.time)
+                        isNewMonth = true
+                    }
+                }
 
-                    week.forEach { timestamp ->
-                        if (timestamp == null) {
-                            Box(modifier = Modifier.size(10.dp))
-                        } else {
-                            val balance = data[timestamp] ?: 0.0
-                            val color = when {
-                                balance > 0 -> {
-                                    val alpha = (0.3f + (balance / maxProfit) * 0.7f).toFloat().coerceIn(0.3f, 1.0f)
-                                    ChalkGreen.copy(alpha = alpha)
+                Row {
+                    // Separador vertical sutil al inicio de cada mes
+                    if (isNewMonth && index > 0) {
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .height(115.dp)
+                                .padding(top = 22.dp)
+                                .background(ChalkWhite.copy(alpha = 0.2f))
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+
+                    Column {
+                        // Nombre del mes centrado sobre la semana
+                        Text(
+                            text = monthLabel,
+                            color = ChalkWhite.copy(alpha = 0.6f),
+                            fontSize = 10.sp,
+                            modifier = Modifier.height(22.dp),
+                            maxLines = 1,
+                            fontFamily = FontFamily.Cursive
+                        )
+
+                        week.forEach { timestamp ->
+                            if (timestamp == null) {
+                                Box(modifier = Modifier.size(12.dp))
+                            } else {
+                                val balance = data[timestamp] ?: 0.0
+                                val color = when {
+                                    balance > 0 -> {
+                                        val intensity = (balance / maxProfit).coerceIn(0.0, 1.0)
+                                        ChalkGreen.copy(alpha = (0.3f + intensity * 0.7f).toFloat())
+                                    }
+                                    balance < 0 -> {
+                                        val intensity = (Math.abs(balance) / maxLoss).coerceIn(0.0, 1.0)
+                                        ChalkRed.copy(alpha = (0.3f + intensity * 0.7f).toFloat())
+                                    }
+                                    else -> Color.DarkGray.copy(alpha = 0.2f)
                                 }
-                                balance < 0 -> {
-                                    val alpha = (0.3f + (Math.abs(balance) / maxLoss) * 0.7f).toFloat().coerceIn(0.3f, 1.0f)
-                                    ChalkRed.copy(alpha = alpha)
-                                }
-                                else -> Color.DarkGray.copy(alpha = 0.2f)
+                                
+                                // Borde especial para el primer y último día del rango
+                                val isStartOrEnd = timestamp == sortedDays.first() || timestamp == sortedDays.last()
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .background(color)
+                                        .then(
+                                            if (isStartOrEnd) Modifier.border(1.dp, ChalkWhite, RoundedCornerShape(2.dp))
+                                            else Modifier
+                                        )
+                                )
                             }
-                            Box(
-                                modifier = Modifier
-                                    .size(10.dp)
-                                    .clip(RoundedCornerShape(1.dp))
-                                    .background(color)
-                            )
+                            Spacer(modifier = Modifier.height(3.dp))
                         }
-                        Spacer(modifier = Modifier.height(2.dp))
                     }
                 }
             }
+        }
+        
+        // Rango de fechas al pie para mayor claridad
+        if (sortedDays.isNotEmpty()) {
+            val startStr = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(sortedDays.first()))
+            val endStr = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(sortedDays.last()))
+            Text(
+                text = "$startStr - $endStr",
+                color = Color.Gray,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Cursive,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                textAlign = TextAlign.End
+            )
         }
     }
 }

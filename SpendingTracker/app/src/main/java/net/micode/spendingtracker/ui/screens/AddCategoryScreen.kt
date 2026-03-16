@@ -22,6 +22,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -42,124 +44,142 @@ fun AddCategoryScreen(
     var categoryName by remember { mutableStateOf(categoryToEdit?.name ?: "") }
     var selectedColor by remember { mutableStateOf(categoryToEdit?.color?.let { Color(it) }) }
     var showColorPicker by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
 
     val labelBlue = Color(0xFF1976D2)
 
-    Column(
+    Surface(
         modifier = Modifier
             .fillMaxSize()
-            .background(BeigeHeader)
+            .pointerInput(Unit) { }, // Bloquea toques al fondo
+        color = BeigeHeader
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onClose) {
-                Icon(Icons.Default.Close, contentDescription = "Close", tint = DarkBrownText)
-            }
-            Text(
-                text = "Done",
-                color = DarkBrownText,
-                fontSize = 18.sp,
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
                 modifier = Modifier
-                    .padding(end = 16.dp)
-                    .clickable { 
-                        if (categoryName.isNotBlank()) {
-                            val category = categoryToEdit?.copy(
-                                name = categoryName,
-                                color = selectedColor?.toArgb()
-                            ) ?: Category(
-                                name = categoryName,
-                                iconName = "Sell",
-                                isExpense = isExpense,
-                                color = selectedColor?.toArgb()
-                            )
-                            onDone(category)
-                        } else {
-                            onClose()
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = {
+                    focusManager.clearFocus()
+                    onClose()
+                }) {
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = DarkBrownText)
+                }
+                Text(
+                    text = "Done",
+                    color = DarkBrownText,
+                    fontSize = 18.sp,
+                    modifier = Modifier
+                        .padding(end = 16.dp)
+                        .clickable { 
+                            if (categoryName.isNotBlank()) {
+                                val category = categoryToEdit?.copy(
+                                    name = categoryName,
+                                    color = selectedColor?.toArgb()
+                                ) ?: Category(
+                                    name = categoryName,
+                                    iconName = "Sell",
+                                    isExpense = isExpense,
+                                    color = selectedColor?.toArgb()
+                                )
+                                focusManager.clearFocus()
+                                onDone(category)
+                            } else {
+                                focusManager.clearFocus()
+                                onClose()
+                            }
                         }
-                    }
-            )
-        }
-
-        SectionHeader(title = "Category Details")
-
-        Column(modifier = Modifier.fillMaxWidth()) {
-            CategoryRow(label = "Name", labelColor = labelBlue) {
-                BasicTextField(
-                    value = categoryName,
-                    onValueChange = { categoryName = it },
-                    textStyle = TextStyle(fontSize = 16.sp, color = DarkBrownText),
-                    modifier = Modifier.fillMaxWidth(),
-                    decorationBox = { innerTextField ->
-                        if (categoryName.isEmpty()) {
-                            Text("Name", color = Color.LightGray, fontSize = 16.sp)
-                        }
-                        innerTextField()
-                    }
                 )
             }
-            HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
 
-            CategoryRow(label = "Icon", labelColor = labelBlue) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Sell,
-                        contentDescription = "Current Icon",
-                        tint = DarkBrownText,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Icon(
-                        Icons.Default.Cancel,
-                        contentDescription = "Clear Icon",
-                        tint = Color.Gray,
-                        modifier = Modifier.size(20.dp)
+            SectionHeader(title = "Category Details")
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                CategoryRow(label = "Name", labelColor = labelBlue) {
+                    BasicTextField(
+                        value = categoryName,
+                        onValueChange = { categoryName = it },
+                        textStyle = TextStyle(fontSize = 16.sp, color = DarkBrownText),
+                        modifier = Modifier.fillMaxWidth(),
+                        decorationBox = { innerTextField ->
+                            if (categoryName.isEmpty()) {
+                                Text("Name", color = Color.LightGray, fontSize = 16.sp)
+                            }
+                            innerTextField()
+                        }
                     )
                 }
-            }
-            HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
+                HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
 
-            CategoryRow(label = "Chart Colour", labelColor = labelBlue) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { showColorPicker = true }
+                CategoryRow(label = "Icon", labelColor = labelBlue) {
+                    Row(
+                        modifier = Modifier.clickable { focusManager.clearFocus() },
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (selectedColor == null) {
-                            Text(text = "Not Entered", color = Color.LightGray, fontSize = 16.sp)
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .size(width = 40.dp, height = 20.dp)
-                                    .background(selectedColor!!)
-                            )
-                        }
-                    }
-                    
-                    if (selectedColor != null) {
-                        IconButton(
-                            onClick = { selectedColor = null },
+                        Icon(
+                            Icons.Default.Sell,
+                            contentDescription = "Current Icon",
+                            tint = DarkBrownText,
                             modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Icon(
+                            Icons.Default.Cancel,
+                            contentDescription = "Clear Icon",
+                            tint = Color.Gray,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
+
+                CategoryRow(label = "Chart Colour", labelColor = labelBlue) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { 
+                                    focusManager.clearFocus()
+                                    showColorPicker = true 
+                                }
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Cancel,
-                                contentDescription = "Clear Color",
-                                tint = Color.Gray
-                            )
+                            if (selectedColor == null) {
+                                Text(text = "Not Entered", color = Color.LightGray, fontSize = 16.sp)
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .size(width = 40.dp, height = 20.dp)
+                                        .background(selectedColor!!)
+                                )
+                            }
+                        }
+                        
+                        if (selectedColor != null) {
+                            IconButton(
+                                onClick = { 
+                                    focusManager.clearFocus()
+                                    selectedColor = null 
+                                },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Cancel,
+                                    contentDescription = "Clear Color",
+                                    tint = Color.Gray
+                                )
+                            }
                         }
                     }
                 }
+                HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
             }
-            HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
         }
     }
 
@@ -191,13 +211,11 @@ fun TwoLevelColorPickerDialog(
         Color(0xFF795548), Color(0xFF9E9E9E), Color(0xFF607D8B)
     )
 
-    // Generar espectros basados en el color primario
     val shades = remember(selectedPrimaryColor) {
         selectedPrimaryColor?.let { color ->
             listOf(
                 color.copy(alpha = 0.1f), color.copy(alpha = 0.2f), color.copy(alpha = 0.4f),
                 color.copy(alpha = 0.6f), color.copy(alpha = 0.8f), color,
-                // Variaciones de brillo/oscuridad simuladas
                 Color(android.graphics.Color.HSVToColor(FloatArray(3).apply {
                     android.graphics.Color.colorToHSV(color.toArgb(), this)
                     this[2] *= 0.8f
@@ -228,7 +246,6 @@ fun TwoLevelColorPickerDialog(
         },
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                // Page indicator (the dots)
                 Row(modifier = Modifier.padding(bottom = 16.dp)) {
                     Box(modifier = Modifier.size(8.dp).background(if (currentLevel == 1) Color.Gray else Color.LightGray, CircleShape))
                     Spacer(Modifier.width(4.dp))

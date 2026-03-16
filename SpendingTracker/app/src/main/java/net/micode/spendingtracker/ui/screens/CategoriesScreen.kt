@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -32,6 +33,7 @@ import net.micode.spendingtracker.ui.theme.DarkBrownText
 /**
  * Screen that displays a list of financial categories.
  * Supports multi-selection, deletion and editing.
+ * Protected "Pending" category cannot be modified.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -112,22 +114,29 @@ fun CategoriesScreen(
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 items(listToDisplay) { category ->
                     val isSelected = selectedCategoryIds.contains(category.id)
+                    val isPending = category.name == "Pending"
+                    
                     CategoryItem(
                         category = category,
                         isSelected = isSelected,
+                        isProtected = isPending,
                         onClick = {
-                            if (selectedCategoryIds.isEmpty()) {
-                                onEditCategory(category)
-                            } else {
-                                selectedCategoryIds = if (isSelected) {
-                                    selectedCategoryIds - category.id
+                            if (!isPending) {
+                                if (selectedCategoryIds.isEmpty()) {
+                                    onEditCategory(category)
                                 } else {
-                                    selectedCategoryIds + category.id
+                                    selectedCategoryIds = if (isSelected) {
+                                        selectedCategoryIds - category.id
+                                    } else {
+                                        selectedCategoryIds + category.id
+                                    }
                                 }
                             }
                         },
                         onLongClick = {
-                            selectedCategoryIds = selectedCategoryIds + category.id
+                            if (!isPending) {
+                                selectedCategoryIds = selectedCategoryIds + category.id
+                            }
                         }
                     )
                     HorizontalDivider(
@@ -219,6 +228,7 @@ fun CategoryTabButton(
 fun CategoryItem(
     category: Category,
     isSelected: Boolean,
+    isProtected: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
@@ -228,7 +238,7 @@ fun CategoryItem(
             .background(if (isSelected) Color(0xFFE0F7FA) else Color.Transparent)
             .combinedClickable(
                 onClick = onClick,
-                onLongClick = onLongClick
+                onLongClick = if (isProtected) null else onLongClick
             )
             .padding(vertical = 12.dp, horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -236,14 +246,23 @@ fun CategoryItem(
         Icon(
             imageVector = Icons.Default.Sell,
             contentDescription = null,
-            tint = DarkBrownText,
+            tint = if (isProtected) DarkBrownText.copy(alpha = 0.5f) else DarkBrownText,
             modifier = Modifier.size(24.dp)
         )
         Spacer(Modifier.width(16.dp))
         Text(
             text = category.name,
-            color = DarkBrownText,
-            fontSize = 16.sp
+            color = if (isProtected) DarkBrownText.copy(alpha = 0.5f) else DarkBrownText,
+            fontSize = 16.sp,
+            modifier = Modifier.weight(1f)
         )
+        if (isProtected) {
+            Icon(
+                imageVector = Icons.Default.Lock,
+                contentDescription = "Protected",
+                tint = Color.Gray,
+                modifier = Modifier.size(16.dp)
+            )
+        }
     }
 }

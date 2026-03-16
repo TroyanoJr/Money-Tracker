@@ -15,7 +15,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -23,15 +24,15 @@ import net.micode.spendingtracker.ui.theme.BeigeHeader
 import net.micode.spendingtracker.ui.theme.DarkBrownText
 import java.text.SimpleDateFormat
 import java.util.*
-import android.app.DatePickerDialog
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CsvExportScreen(
     categories: List<String>,
     onClose: () -> Unit,
     onExport: (startDate: Long, endDate: Long, negateExpense: Boolean, category: String, sortBy: String, separator: String) -> Unit
 ) {
-    val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     var startDate by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var endDate by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var negateExpense by remember { mutableStateOf(true) }
@@ -43,29 +44,56 @@ fun CsvExportScreen(
     var showSortDialog by remember { mutableStateOf(false) }
     var showSeparatorDialog by remember { mutableStateOf(false) }
 
+    var showStartDatePicker by remember { mutableStateOf(false) }
+    var showEndDatePicker by remember { mutableStateOf(false) }
+
     val dateFormatter = remember { SimpleDateFormat("dd MM月 yyyy", Locale.CHINA) }
 
+    val datePickerColors = DatePickerDefaults.colors(
+        containerColor = BeigeHeader,
+        titleContentColor = DarkBrownText,
+        headlineContentColor = DarkBrownText,
+        weekdayContentColor = DarkBrownText,
+        subheadContentColor = DarkBrownText,
+        yearContentColor = DarkBrownText,
+        currentYearContentColor = DarkBrownText,
+        selectedYearContentColor = Color.White,
+        selectedYearContainerColor = DarkBrownText,
+        dayContentColor = DarkBrownText,
+        selectedDayContentColor = Color.White,
+        selectedDayContainerColor = DarkBrownText,
+        todayContentColor = DarkBrownText,
+        todayDateBorderColor = DarkBrownText,
+        navigationContentColor = DarkBrownText
+    )
+
     Surface(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) { }, // Bloquea toques al fondo
         color = BeigeHeader
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Header
             Row(
                 modifier = Modifier.fillMaxWidth().padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onClose) {
+                IconButton(onClick = { 
+                    focusManager.clearFocus()
+                    onClose() 
+                }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = DarkBrownText)
                 }
                 Spacer(Modifier.width(8.dp))
                 Text("Export to CSV", color = DarkBrownText, fontSize = 20.sp, fontWeight = FontWeight.Medium)
             }
 
-            // Export Button
             Box(modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
                 Button(
-                    onClick = { onExport(startDate, endDate, negateExpense, selectedCategory, sortBy, separator) },
+                    onClick = { 
+                        focusManager.clearFocus()
+                        onExport(startDate, endDate, negateExpense, selectedCategory, sortBy, separator) 
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
                     shape = RoundedCornerShape(4.dp),
                     modifier = Modifier.width(180.dp)
@@ -80,23 +108,17 @@ fun CsvExportScreen(
                     CsvOptionRow(
                         label = "Start Date", 
                         value = dateFormatter.format(Date(startDate)), 
-                        onClick = {
-                            val calendar = Calendar.getInstance().apply { timeInMillis = startDate }
-                            DatePickerDialog(context, { _, y, m, d ->
-                                calendar.set(y, m, d)
-                                startDate = calendar.timeInMillis
-                            }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
+                        onClick = { 
+                            focusManager.clearFocus()
+                            showStartDatePicker = true 
                         }
                     )
                     CsvOptionRow(
                         label = "End Date", 
                         value = dateFormatter.format(Date(endDate)), 
-                        onClick = {
-                            val calendar = Calendar.getInstance().apply { timeInMillis = endDate }
-                            DatePickerDialog(context, { _, y, m, d ->
-                                calendar.set(y, m, d)
-                                endDate = calendar.timeInMillis
-                            }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
+                        onClick = { 
+                            focusManager.clearFocus()
+                            showEndDatePicker = true 
                         }, 
                         isLast = true
                     )
@@ -107,10 +129,73 @@ fun CsvExportScreen(
                 SectionHeaderWithHelp("Options")
                 CsvTable {
                     CsvToggleRow(label = "Negate Expense", checked = negateExpense, onCheckedChange = { negateExpense = it })
-                    CsvOptionRow(label = "Category", value = selectedCategory, onClick = { showCategoryDialog = true })
-                    CsvOptionRow(label = "Sort By", value = sortBy, onClick = { showSortDialog = true })
-                    CsvOptionRow(label = "Separator", value = separator, onClick = { showSeparatorDialog = true }, isLast = true)
+                    CsvOptionRow(label = "Category", value = selectedCategory, onClick = { 
+                        focusManager.clearFocus()
+                        showCategoryDialog = true 
+                    })
+                    CsvOptionRow(label = "Sort By", value = sortBy, onClick = { 
+                        focusManager.clearFocus()
+                        showSortDialog = true 
+                    })
+                    CsvOptionRow(label = "Separator", value = separator, onClick = { 
+                        focusManager.clearFocus()
+                        showSeparatorDialog = true 
+                    }, isLast = true)
                 }
+            }
+        }
+    }
+
+    if (showStartDatePicker) {
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = startDate)
+        DatePickerDialog(
+            onDismissRequest = { showStartDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { startDate = it }
+                    showStartDatePicker = false
+                }) { Text("OK", color = DarkBrownText) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showStartDatePicker = false }) { Text("CANCEL", color = DarkBrownText) }
+            },
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Surface(color = BeigeHeader, shape = RoundedCornerShape(16.dp)) {
+                DatePicker(
+                    state = datePickerState, 
+                    colors = datePickerColors,
+                    showModeToggle = false,
+                    title = {},
+                    headline = {}
+                )
+            }
+        }
+    }
+
+    if (showEndDatePicker) {
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = endDate)
+        DatePickerDialog(
+            onDismissRequest = { showEndDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { endDate = it }
+                    showEndDatePicker = false
+                }) { Text("OK", color = DarkBrownText) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEndDatePicker = false }) { Text("CANCEL", color = DarkBrownText) }
+            },
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Surface(color = BeigeHeader, shape = RoundedCornerShape(16.dp)) {
+                DatePicker(
+                    state = datePickerState, 
+                    colors = datePickerColors,
+                    showModeToggle = false,
+                    title = {},
+                    headline = {}
+                )
             }
         }
     }
@@ -150,7 +235,7 @@ fun CsvExportScreen(
 fun CsvTable(content: @Composable ColumnScope.() -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 1.dp).border(0.5.dp, Color.LightGray),
-        color = Color.White
+        color = Color.White 
     ) {
         Column(content = content)
     }
@@ -161,7 +246,7 @@ fun SectionHeaderWithHelp(title: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFE0E0E0))
+            .background(Color(0xFFE0E0E0)) 
             .padding(horizontal = 16.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically

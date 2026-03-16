@@ -1,5 +1,6 @@
 package net.micode.spendingtracker.ui.screens
 
+import android.content.Intent
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
@@ -8,12 +9,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import net.micode.spendingtracker.model.Category
 import net.micode.spendingtracker.model.Transaction
 import net.micode.spendingtracker.ui.components.TopNavigation
 import net.micode.spendingtracker.viewmodel.TransactionViewModel
+import java.io.File
 
 /**
  * Main dashboard screen that hosts the navigation and the swipable pages.
@@ -23,9 +27,10 @@ import net.micode.spendingtracker.viewmodel.TransactionViewModel
 fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     
     val pagerState = rememberPagerState(pageCount = { 4 })
-    val coroutineScope = rememberCoroutineScope()
     
     // Navigation State
     var currentScreen by remember { mutableStateOf("dashboard") } // "dashboard", "settings", or "csv_export"
@@ -57,8 +62,25 @@ fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
                 categories = categories.map { it.name },
                 onClose = { currentScreen = "dashboard" },
                 onExport = { start, end, negate, cat, sort, sep ->
-                    // Aquí irá la lógica de generación real del archivo
-                    currentScreen = "dashboard"
+                    coroutineScope.launch {
+                        val csvContent = viewModel.generateCsvString(start, end, negate, cat, sort, sep)
+                        val file = File(context.cacheDir, "transactions_export.csv")
+                        file.writeText(csvContent)
+                        
+                        val uri = FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.fileprovider",
+                            file
+                        )
+                        
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/csv"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(Intent.createChooser(intent, "Share CSV"))
+                        currentScreen = "dashboard"
+                    }
                 }
             )
             else -> {

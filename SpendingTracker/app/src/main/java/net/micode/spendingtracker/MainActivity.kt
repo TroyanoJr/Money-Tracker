@@ -9,11 +9,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.core.app.NotificationManagerCompat
 import net.micode.spendingtracker.ui.screens.DashboardScreen
 import net.micode.spendingtracker.viewmodel.TransactionViewModel
 import net.micode.spendingtracker.viewmodel.TransactionViewModelFactory
 import net.micode.spendingtracker.repository.TransactionRepository
+import net.micode.spendingtracker.ui.theme.SpendingTrackerTheme
 
 class MainActivity : ComponentActivity() {
     
@@ -32,8 +32,8 @@ class MainActivity : ComponentActivity() {
         checkNotificationPermission()
 
         setContent {
-            MaterialTheme {
-                Surface {
+            SpendingTrackerTheme {
+                Surface(color = MaterialTheme.colorScheme.background) {
                     DashboardScreen(viewModel = viewModel)
                 }
             }

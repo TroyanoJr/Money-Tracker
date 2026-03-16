@@ -73,6 +73,17 @@ object PaymentParser {
         val isComplete: Boolean
     )
 
+    /**
+     * Resource Saving: Check if the notification content even mentions money or transactions.
+     * This avoids expensive Regex parsing for non-financial notifications.
+     */
+    fun mightBePayment(content: String): Boolean {
+        val lower = content.lowercase()
+        // Check for currency symbols or financial keywords
+        val financialMarkers = listOf("¥", "$", "€", "£", "pay", "pago", "付", "金额", "amount", "debit", "credit")
+        return financialMarkers.any { lower.contains(it) } || (expenseKeywords + incomeKeywords).any { lower.contains(it.lowercase()) }
+    }
+
     fun parse(content: String, postTime: Long = System.currentTimeMillis()): ParseResult? {
         val lowerContent = content.lowercase()
         

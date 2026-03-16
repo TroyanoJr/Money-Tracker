@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.filled.List
@@ -14,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.micode.spendingtracker.ui.theme.BeigeHeader
@@ -30,7 +32,7 @@ fun TopNavigation(
     selectedTabIndex: Int,
     onTabSelected: (Int) -> Unit,
     onAddClick: () -> Unit,
-    onSettingsClick: () -> Unit, // New callback
+    onSettingsClick: () -> Unit,
     selectedPeriod: Period,
     selectedDate: Long,
     onPeriodSelected: (Period) -> Unit
@@ -60,17 +62,21 @@ fun TopNavigation(
             Box {
                 Box(
                     modifier = Modifier
-                        .border(1.dp, Color.Gray)
+                        .border(1.dp, DarkBrownText.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
                         .clickable { showPeriodMenu = true }
                         .padding(horizontal = 16.dp, vertical = 4.dp)
                 ) {
-                    Text(dateText, color = DarkBrownText)
+                    Text(dateText, color = DarkBrownText, fontWeight = FontWeight.Medium)
                 }
                 
-                DropdownMenu(expanded = showPeriodMenu, onDismissRequest = { showPeriodMenu = false }) {
+                DropdownMenu(
+                    expanded = showPeriodMenu, 
+                    onDismissRequest = { showPeriodMenu = false },
+                    modifier = Modifier.background(BeigeHeader)
+                ) {
                     Period.values().forEach { period ->
                         DropdownMenuItem(
-                            text = { Text(period.name) },
+                            text = { Text(period.name, color = DarkBrownText) },
                             onClick = {
                                 onPeriodSelected(period)
                                 showPeriodMenu = false
@@ -90,10 +96,11 @@ fun TopNavigation(
                     }
                     DropdownMenu(
                         expanded = showOverflowMenu,
-                        onDismissRequest = { showOverflowMenu = false }
+                        onDismissRequest = { showOverflowMenu = false },
+                        modifier = Modifier.background(BeigeHeader)
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Settings") },
+                            text = { Text("Settings", color = DarkBrownText) },
                             onClick = {
                                 showOverflowMenu = false
                                 onSettingsClick()
@@ -135,13 +142,13 @@ fun TabItem(
     selected: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val color = if (selected) DarkBrownText else Color.Gray.copy(alpha = 0.6f)
+    val color = if (selected) DarkBrownText else DarkBrownText.copy(alpha = 0.4f)
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier.padding(vertical = 8.dp)
     ) {
         Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
-        Text(text, fontSize = 10.sp, color = color, maxLines = 1)
+        Text(text, fontSize = 10.sp, color = color, maxLines = 1, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
         if (selected) {
             Box(Modifier.padding(top = 4.dp).height(2.dp).width(40.dp).background(DarkBrownText))
         } else {

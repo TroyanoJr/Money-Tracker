@@ -41,6 +41,8 @@ fun TransactionsScreen(
     val categories by viewModel.categories.collectAsState()
     val totalIncome by viewModel.totalIncome.collectAsState()
     val totalExpense by viewModel.totalExpense.collectAsState()
+    val activeFilter by viewModel.activeFilterType.collectAsState()
+    val filterCategoryName by viewModel.filterCategoryName.collectAsState()
 
     var selectedTransactionIds by remember { mutableStateOf(setOf<String>()) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -134,74 +136,102 @@ fun TransactionsScreen(
     if (showExportDialog) {
         AlertDialog(
             onDismissRequest = { showExportDialog = false },
-            title = { Text("Export Data", fontWeight = FontWeight.Bold) },
+            title = { Text("Export Data", fontWeight = FontWeight.Bold, color = DarkBrownText) },
             text = {
                 Column {
                     ListItem(
-                        headlineContent = { Text("CSV Format") },
+                        headlineContent = { Text("CSV Format", color = DarkBrownText) },
                         modifier = Modifier.clickable { 
                             showExportDialog = false
                             onExportCsv()
-                        }
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )
                     ListItem(
-                        headlineContent = { Text("PDF Format") },
-                        modifier = Modifier.clickable { showExportDialog = false }
+                        headlineContent = { Text("PDF Format", color = DarkBrownText) },
+                        modifier = Modifier.clickable { showExportDialog = false },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )
                 }
             },
-            confirmButton = { TextButton(onClick = { showExportDialog = false }) { Text("CANCEL") } }
+            confirmButton = { TextButton(onClick = { showExportDialog = false }) { Text("CANCEL", color = DarkBrownText) } },
+            containerColor = BeigeHeader,
+            shape = RoundedCornerShape(4.dp)
         )
     }
 
     if (showFilterDialog) {
         AlertDialog(
             onDismissRequest = { showFilterDialog = false },
-            title = { Text("Filter Transactions", fontWeight = FontWeight.Bold) },
+            title = { 
+                Text(
+                    "Category Filter", 
+                    fontSize = 20.sp, 
+                    fontWeight = FontWeight.Normal,
+                    color = DarkBrownText
+                ) 
+            },
             text = {
-                Column(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
+                Column(modifier = Modifier.fillMaxWidth().heightIn(max = 450.dp)) {
                     LazyColumn {
                         item {
-                            ListItem(
-                                headlineContent = { Text("All Categories") },
-                                modifier = Modifier.clickable { 
+                            FilterOptionRow(
+                                label = "All Categories",
+                                selected = activeFilter == FilterType.ALL,
+                                onClick = {
                                     viewModel.setFilter(FilterType.ALL)
-                                    showFilterDialog = false 
+                                    showFilterDialog = false
                                 }
                             )
                         }
                         item {
-                            ListItem(
-                                headlineContent = { Text("All Expense") },
-                                modifier = Modifier.clickable { 
+                            FilterOptionRow(
+                                label = "All Expense",
+                                selected = activeFilter == FilterType.ONLY_EXPENSE,
+                                onClick = {
                                     viewModel.setFilter(FilterType.ONLY_EXPENSE)
-                                    showFilterDialog = false 
+                                    showFilterDialog = false
                                 }
                             )
                         }
                         item {
-                            ListItem(
-                                headlineContent = { Text("All Income") },
-                                modifier = Modifier.clickable { 
+                            FilterOptionRow(
+                                label = "All Income",
+                                selected = activeFilter == FilterType.ONLY_INCOME,
+                                onClick = {
                                     viewModel.setFilter(FilterType.ONLY_INCOME)
-                                    showFilterDialog = false 
+                                    showFilterDialog = false
                                 }
                             )
                         }
-                        item { HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) }
                         items(categories) { category ->
-                            ListItem(
-                                headlineContent = { Text(category.name) },
-                                modifier = Modifier.clickable { 
+                            FilterOptionRow(
+                                label = category.name,
+                                selected = activeFilter == FilterType.BY_CATEGORY && filterCategoryName == category.name,
+                                onClick = {
                                     viewModel.setFilter(FilterType.BY_CATEGORY, category.name)
-                                    showFilterDialog = false 
+                                    showFilterDialog = false
                                 }
                             )
                         }
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { showFilterDialog = false }) { Text("CANCEL") } }
+            confirmButton = {
+                TextButton(onClick = { showFilterDialog = false }) {
+                    Text("CANCEL", color = DarkBrownText)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    viewModel.setFilter(FilterType.ALL)
+                    showFilterDialog = false
+                }) {
+                    Text("CLEAR FILTER", color = DarkBrownText)
+                }
+            },
+            containerColor = BeigeHeader,
+            shape = RoundedCornerShape(4.dp)
         )
     }
 
@@ -221,6 +251,33 @@ fun TransactionsScreen(
                 TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel", color = DarkBrownText) }
             },
             containerColor = BeigeHeader
+        )
+    }
+}
+
+@Composable
+fun FilterOptionRow(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = onClick,
+            colors = RadioButtonDefaults.colors(selectedColor = DarkBrownText)
+        )
+        Spacer(Modifier.width(16.dp))
+        Text(
+            text = label,
+            fontSize = 16.sp,
+            color = DarkBrownText
         )
     }
 }
