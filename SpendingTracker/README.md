@@ -28,7 +28,7 @@ The app is built around a "Blackboard" concept:
 ## 📸 Screenshots
 1. The Main Dashboard
    <p align="center">
-  <img src="screenshots/dashboard.png" width="30%" />
+  <img src="screenshots/Main dashBoard.png" width="30%" />
 </p>
 
 ## ⚙️ Installation
