@@ -26,7 +26,34 @@ The app is built around a "Blackboard" concept:
 - **Architecture:** MVVM (Model-View-ViewModel)
 
 ## 📸 Screenshots
-*(Placeholder: Add your beautiful screenshots of the Blackboard UI, the improved Yearly Heatmap, and the Landscape Reports here)*
+### 🏠 Main Views
+<p align="center">
+  <img src="Screenshots/Main dashBoard.png" width="30%" />
+  <img src="Screenshots/Show all Transactions.png" width="30%" />
+  <img src="Screenshots/Calendar Heatmap.png" width="30%" />
+</p>
+
+### 📊 Data Insights & Graphics
+<p align="center">
+  <img src="Screenshots/Pie chart Graphic.png" width="45%" />
+  <img src="Screenshots/Bar chart graph.png" width="45%" />
+</p>
+
+### 🛠 Tools & Data Entry
+<p align="center">
+  <img src="Screenshots/Add Transactions.png" width="23%" />
+  <img src="Screenshots/Add Category.png" width="23%" />
+  <img src="Screenshots/Select color.png" width="23%" />
+  <img src="Screenshots/Export doc.png" width="23%" />
+</p>
+
+## ⚠️ Current Limitations & Known Issues
+- **Payment Parser (Prototype):** The automated payment parsing logic (`parserPayment`) is currently in **Beta**. It is an early prototype and may not be fully efficient across all banking or payment applications yet.
+- **Rotation State Loss:** Due to the automatic switch to "Reports View" in landscape mode, any unsaved data in the "Add Transaction" or "Add Category" screens may be lost if the device is rotated during entry.
+- **Hardcoded Date Formats:** Some parts of the app use specific hardcoded locales (e.g., `Locale.CHINA`) for date formatting, which may not align with every user's system settings.
+- **Fixed Category Icons:** The ability to choose custom icons is currently disabled; a default placeholder icon is used while the full picker is under development.
+- **Keyboard Overlap:** On small-screen devices, the software keyboard might overlap input fields in modal screens (IME padding refinements are ongoing).
+- **Data Persistence:** Currently, data is only stored locally. Uninstalling the app without a manual CSV export will result in data loss.
 
 ## ⚙️ Installation
 1. Clone this repository:
