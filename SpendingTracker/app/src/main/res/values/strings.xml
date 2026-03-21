@@ -20,4 +20,24 @@
     <string name="transactions">Transactions</string>
     <string name="categories">Categories</string>
     <string name="accounts">Accounts</string>
+
+    <!-- Category Screen -->
+    <string name="category_details">Category Details</string>
+    <string name="name">Name</string>
+    <string name="icon">Icon</string>
+    <string name="chart_colour">Chart Colour</string>
+    <string name="not_entered">Not Entered</string>
+    <string name="color_picker">Color Picker</string>
+    <string name="select">Select</string>
+
+    <!-- Export Screen -->
+    <string name="export_to_csv">Export to CSV</string>
+    <string name="export_now">Export Now</string>
+    <string name="date_range">Date Range</string>
+    <string name="start_date">Start Date</string>
+    <string name="end_date">End Date</string>
+    <string name="options">Options</string>
+    <string name="negate_expense">Negate Expense</string>
+    <string name="sort_by">Sort By</string>
+    <string name="separator">Separator</string>
 </resources>

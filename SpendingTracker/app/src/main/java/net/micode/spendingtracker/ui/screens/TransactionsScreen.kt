@@ -43,6 +43,7 @@ fun TransactionsScreen(
     val totalExpense by viewModel.totalExpense.collectAsState()
     val activeFilter by viewModel.activeFilterType.collectAsState()
     val filterCategoryName by viewModel.filterCategoryName.collectAsState()
+    val currencySymbol by viewModel.currencySymbol.collectAsState()
 
     var selectedTransactionIds by remember { mutableStateOf(setOf<String>()) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -78,8 +79,8 @@ fun TransactionsScreen(
                 .padding(horizontal = 8.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            TotalBox(amount = totalIncome, labelColor = Color(0xFF4CAF50), modifier = Modifier.weight(1f))
-            TotalBox(amount = totalExpense, labelColor = Color(0xFFE57373), modifier = Modifier.weight(1f))
+            TotalBox(amount = totalIncome, symbol = currencySymbol, labelColor = Color(0xFF4CAF50), modifier = Modifier.weight(1f))
+            TotalBox(amount = totalExpense, symbol = currencySymbol, labelColor = Color(0xFFE57373), modifier = Modifier.weight(1f))
         }
 
         Box(modifier = Modifier.weight(1f)) {
@@ -93,6 +94,7 @@ fun TransactionsScreen(
                         val isSelected = selectedTransactionIds.contains(transaction.id)
                         TransactionItem(
                             transaction = transaction,
+                            symbol = currencySymbol,
                             isSelected = isSelected,
                             onClick = {
                                 if (selectedTransactionIds.isEmpty()) {
@@ -283,7 +285,7 @@ fun FilterOptionRow(
 }
 
 @Composable
-fun TotalBox(amount: Double, labelColor: Color, modifier: Modifier = Modifier) {
+fun TotalBox(amount: Double, symbol: String, labelColor: Color, modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier.height(40.dp),
         color = labelColor.copy(alpha = 0.15f),
@@ -291,7 +293,7 @@ fun TotalBox(amount: Double, labelColor: Color, modifier: Modifier = Modifier) {
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
-                text = String.format(Locale.getDefault(), "¥ %.2f", amount),
+                text = String.format(Locale.getDefault(), "%s %.2f", symbol, amount),
                 color = labelColor,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium
@@ -304,11 +306,12 @@ fun TotalBox(amount: Double, labelColor: Color, modifier: Modifier = Modifier) {
 @Composable
 fun TransactionItem(
     transaction: Transaction,
+    symbol: String,
     isSelected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
-    val dateFormatter = remember { SimpleDateFormat("EEEE, dd MM月 yyyy", Locale.CHINA) }
+    val dateFormatter = remember { SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.getDefault()) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -324,7 +327,7 @@ fun TransactionItem(
             Text(text = dateFormatter.format(Date(transaction.date)), color = Color.Gray, fontSize = 12.sp)
         }
         Text(
-            text = String.format(Locale.getDefault(), "¥ %.2f", transaction.amount),
+            text = String.format(Locale.getDefault(), "%s %.2f", symbol, transaction.amount),
             color = if (transaction.isExpense) Color(0xFFD32F2F) else Color(0xFF388E3C),
             fontSize = 18.sp,
             fontWeight = FontWeight.Medium

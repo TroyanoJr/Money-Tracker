@@ -7,6 +7,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -21,7 +22,7 @@ import java.io.File
 
 /**
  * Main dashboard screen that hosts the navigation and the swipable pages.
- * Now supports automatic report view on device rotation.
+ * Now supports automatic report view on device rotation with state persistence.
  */
 @Composable
 fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
@@ -32,18 +33,18 @@ fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
     
     val pagerState = rememberPagerState(pageCount = { 4 })
     
-    // Navigation State
-    var currentScreen by remember { mutableStateOf("dashboard") } // "dashboard", "settings", or "csv_export"
+    // Navigation State - Cambiado a rememberSaveable
+    var currentScreen by rememberSaveable { mutableStateOf("dashboard") } 
     
-    // UI States for Categories
-    var selectedCategorySubTab by remember { mutableIntStateOf(0) }
-    var showAddCategory by remember { mutableStateOf(false) }
+    // UI States for Categories - Cambiado a rememberSaveable
+    var selectedCategorySubTab by rememberSaveable { mutableIntStateOf(0) }
+    var showAddCategory by rememberSaveable { mutableStateOf(false) }
     var categoryToEdit by remember { mutableStateOf<Category?>(null) }
     
-    // UI States for Transactions
-    var showAddTransaction by remember { mutableStateOf(false) }
+    // UI States for Transactions - Cambiado a rememberSaveable
+    var showAddTransaction by rememberSaveable { mutableStateOf(false) }
     var transactionToEdit by remember { mutableStateOf<Transaction?>(null) }
-    var initialTransactionType by remember { mutableIntStateOf(0) }
+    var initialTransactionType by rememberSaveable { mutableIntStateOf(0) }
 
     val expenseCategories by viewModel.expenseCategories.collectAsState()
     val incomeCategories by viewModel.incomeCategories.collectAsState()

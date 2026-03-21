@@ -18,6 +18,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -41,10 +43,21 @@ fun AddCategoryScreen(
     onClose: () -> Unit,
     onDone: (Category) -> Unit
 ) {
-    var categoryName by remember { mutableStateOf(categoryToEdit?.name ?: "") }
-    var selectedColor by remember { mutableStateOf(categoryToEdit?.color?.let { Color(it) }) }
-    var showColorPicker by remember { mutableStateOf(false) }
+    // Saver personalizado para el tipo Color (lo guarda como Int ARGB)
+    val colorSaver = Saver<Color?, Int>(
+        save = { it?.toArgb() ?: 0 },
+        restore = { if (it != 0) Color(it) else null }
+    )
+
+    var categoryName by rememberSaveable { mutableStateOf(categoryToEdit?.name ?: "") }
+    var selectedColor by rememberSaveable(stateSaver = colorSaver) { 
+        mutableStateOf(categoryToEdit?.color?.let { Color(it) }) 
+    }
+    var showColorPicker by rememberSaveable { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
+
+    // Validación del nombre
+    val isNameValid by remember { derivedStateOf { categoryName.isNotBlank() } }
 
     val labelBlue = Color(0xFF1976D2)
 
@@ -70,26 +83,24 @@ fun AddCategoryScreen(
                 }
                 Text(
                     text = "Done",
-                    color = DarkBrownText,
+                    color = if (isNameValid) DarkBrownText else DarkBrownText.copy(alpha = 0.3f),
                     fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
                     modifier = Modifier
                         .padding(end = 16.dp)
-                        .clickable { 
-                            if (categoryName.isNotBlank()) {
+                        .clickable(enabled = isNameValid) { 
+                            if (isNameValid) {
                                 val category = categoryToEdit?.copy(
-                                    name = categoryName,
+                                    name = categoryName.trim(),
                                     color = selectedColor?.toArgb()
                                 ) ?: Category(
-                                    name = categoryName,
+                                    name = categoryName.trim(),
                                     iconName = "Sell",
                                     isExpense = isExpense,
                                     color = selectedColor?.toArgb()
                                 )
                                 focusManager.clearFocus()
                                 onDone(category)
-                            } else {
-                                focusManager.clearFocus()
-                                onClose()
                             }
                         }
                 )
@@ -98,7 +109,11 @@ fun AddCategoryScreen(
             SectionHeader(title = "Category Details")
 
             Column(modifier = Modifier.fillMaxWidth()) {
-                CategoryRow(label = "Name", labelColor = labelBlue) {
+                // Feedback visual: la etiqueta cambia a rojo si está vacío
+                CategoryRow(
+                    label = "Name", 
+                    labelColor = if (isNameValid) labelBlue else Color.Red.copy(alpha = 0.7f)
+                ) {
                     BasicTextField(
                         value = categoryName,
                         onValueChange = { categoryName = it },
@@ -199,9 +214,9 @@ fun TwoLevelColorPickerDialog(
     onDismiss: () -> Unit,
     onColorSelected: (Color) -> Unit
 ) {
-    var currentLevel by remember { mutableIntStateOf(1) } // 1: Primaries, 2: Shades
-    var selectedPrimaryColor by remember { mutableStateOf<Color?>(null) }
-    var tempSelectedColor by remember { mutableStateOf<Color?>(null) }
+    var currentLevel by rememberSaveable { mutableIntStateOf(1) }
+    var selectedPrimaryColor by rememberSaveable(stateSaver = Saver<Color?, Int>(save = { it?.toArgb() ?: 0 }, restore = { if (it != 0) Color(it) else null })) { mutableStateOf<Color?>(null) }
+    var tempSelectedColor by rememberSaveable(stateSaver = Saver<Color?, Int>(save = { it?.toArgb() ?: 0 }, restore = { if (it != 0) Color(it) else null })) { mutableStateOf<Color?>(null) }
 
     val primaries = listOf(
         Color(0xFFF44336), Color(0xFFE91E63), Color(0xFF9C27B0), Color(0xFF673AB7),

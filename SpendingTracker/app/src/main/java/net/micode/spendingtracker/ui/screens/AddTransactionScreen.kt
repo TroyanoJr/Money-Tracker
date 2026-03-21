@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -36,6 +37,51 @@ import net.micode.spendingtracker.viewmodel.TransactionViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * Evaluates basic math expressions (addition and subtraction).
+ * Returns null if the expression is invalid or incomplete.
+ */
+fun evaluateMathExpression(input: String): Double? {
+    if (input.isBlank()) return null
+    try {
+        // Clean the input: replace comma with dot, remove spaces
+        val cleanInput = input.replace(",", ".").replace(" ", "")
+        
+        // Simple regex to check if it's just a valid number first
+        cleanInput.toDoubleOrNull()?.let { return it }
+
+        // Tokenize by + and - but keep the operators
+        val tokens = mutableListOf<String>()
+        var currentNumber = ""
+        
+        for (char in cleanInput) {
+            if (char == '+' || char == '-') {
+                if (currentNumber.isNotEmpty()) tokens.add(currentNumber)
+                tokens.add(char.toString())
+                currentNumber = ""
+            } else {
+                currentNumber += char
+            }
+        }
+        if (currentNumber.isNotEmpty()) tokens.add(currentNumber)
+        
+        if (tokens.isEmpty() || tokens.last() == "+" || tokens.last() == "-") return null
+
+        var result = tokens[0].toDoubleOrNull() ?: return null
+        
+        var i = 1
+        while (i < tokens.size) {
+            val op = tokens[i]
+            val nextVal = tokens.getOrNull(i + 1)?.toDoubleOrNull() ?: return null
+            result = if (op == "+") result + nextVal else result - nextVal
+            i += 2
+        }
+        return result
+    } catch (e: Exception) {
+        return null
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionScreen(
@@ -55,28 +101,33 @@ fun AddTransactionScreen(
     
     val currentDashboardDate by viewModel.selectedDate.collectAsState()
 
-    var amount by remember { mutableStateOf(transactionToEdit?.amount?.toString() ?: "") }
-    var note by remember { mutableStateOf(transactionToEdit?.note ?: "") }
-    var isRepeating by remember { mutableStateOf(transactionToEdit?.isRepeating ?: false) }
-    
-    var selectedCategoryIndex by remember { mutableIntStateOf(-1) }
+    var amount by rememberSaveable { mutableStateOf(transactionToEdit?.amount?.toString() ?: "") }
+    var note by rememberSaveable { mutableStateOf(transactionToEdit?.note ?: "") }
+    var isRepeating by rememberSaveable { mutableStateOf(transactionToEdit?.isRepeating ?: false) }
+    var selectedCategoryIndex by rememberSaveable { mutableIntStateOf(-1) }
+
+    // Calculadora inteligente: evalúa la expresión en tiempo real
+    val calculatedAmount by remember(amount) { derivedStateOf { evaluateMathExpression(amount) } }
+    val isAmountValid by remember(calculatedAmount) { derivedStateOf { calculatedAmount != null } }
+    val isCategorySelected by remember { derivedStateOf { selectedCategoryIndex != -1 } }
+    val isFormValid by remember { derivedStateOf { isAmountValid && isCategorySelected } }
 
     LaunchedEffect(expenseCategories, incomeCategories, transactionToEdit) {
-        if (transactionToEdit != null) {
+        if (transactionToEdit != null && selectedCategoryIndex == -1) {
             val categories = if (transactionToEdit.isExpense) expenseCategories else incomeCategories
             selectedCategoryIndex = categories.indexOfFirst { it.name == transactionToEdit.categoryName }
         }
     }
 
-    var showCategoryMenu by remember { mutableStateOf(false) }
+    var showCategoryMenu by rememberSaveable { mutableStateOf(false) }
 
     val initialDate = transactionToEdit?.date ?: currentDashboardDate
-    var showDatePicker by remember { mutableStateOf(false) }
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialDate)
     val dateFormatter = remember { SimpleDateFormat("dd MM月 yyyy", Locale.CHINA) }
     val formattedDate = dateFormatter.format(Date(datePickerState.selectedDateMillis ?: initialDate))
 
-    var lastPage by remember { mutableIntStateOf(initialPage) }
+    var lastPage by rememberSaveable { mutableIntStateOf(initialPage) }
     LaunchedEffect(pagerState.currentPage) {
         if (pagerState.currentPage != lastPage) {
             selectedCategoryIndex = -1
@@ -87,7 +138,7 @@ fun AddTransactionScreen(
     Surface(
         modifier = Modifier
             .fillMaxSize()
-            .pointerInput(Unit) { }, // Bloquea toques al fondo
+            .pointerInput(Unit) { },
         color = BeigeHeader
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -104,20 +155,20 @@ fun AddTransactionScreen(
                 }
                 Text(
                     text = stringResource(R.string.done),
-                    color = DarkBrownText,
+                    color = if (isFormValid) DarkBrownText else DarkBrownText.copy(alpha = 0.3f),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(end = 16.dp).clickable {
+                    modifier = Modifier.padding(end = 16.dp).clickable(enabled = isFormValid) {
                         val isExpense = pagerState.currentPage == 0
                         val categories = if (isExpense) expenseCategories else incomeCategories
                         
-                        if (amount.isNotEmpty() && selectedCategoryIndex != -1 && selectedCategoryIndex < categories.size) {
+                        if (isFormValid && selectedCategoryIndex < categories.size) {
                             val category = categories[selectedCategoryIndex]
                             val selectedTimestamp = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
                             
                             val transaction = Transaction(
                                 id = transactionToEdit?.id ?: UUID.randomUUID().toString(),
-                                amount = amount.toDoubleOrNull() ?: 0.0,
+                                amount = calculatedAmount ?: 0.0, // Guarda el resultado de la operación
                                 categoryName = category.name,
                                 categoryIcon = Icons.Default.Sell,
                                 date = selectedTimestamp,
@@ -132,7 +183,6 @@ fun AddTransactionScreen(
                             } else {
                                 viewModel.updateTransaction(transaction) 
                             }
-
                             onDone()
                         }
                     }
@@ -183,7 +233,7 @@ fun AddTransactionScreen(
                     }
                     HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
 
-                    CategoryRow(label = stringResource(R.string.category), labelColor = Color(0xFF1976D2)) {
+                    CategoryRow(label = stringResource(R.string.category), labelColor = if (isCategorySelected) Color(0xFF1976D2) else Color.Red.copy(alpha = 0.7f)) {
                         Box(modifier = Modifier.fillMaxSize().clickable { 
                             focusManager.clearFocus()
                             showCategoryMenu = true 
@@ -211,11 +261,14 @@ fun AddTransactionScreen(
                     }
                     HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
 
-                    CategoryRow(label = stringResource(R.string.amount), labelColor = Color(0xFF1976D2)) {
+                    CategoryRow(
+                        label = stringResource(R.string.amount), 
+                        labelColor = if (isAmountValid) Color(0xFF1976D2) else Color.Red.copy(alpha = 0.7f)
+                    ) {
                         BasicTextField(
                             value = amount,
                             onValueChange = { amount = it },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text), // Cambiado a Text para permitir + y -
                             textStyle = TextStyle(fontSize = 16.sp, color = DarkBrownText),
                             modifier = Modifier.fillMaxWidth(),
                             decorationBox = { innerTextField ->

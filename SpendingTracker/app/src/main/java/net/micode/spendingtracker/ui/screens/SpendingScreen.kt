@@ -5,7 +5,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -22,11 +21,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.micode.spendingtracker.R
 import net.micode.spendingtracker.ui.components.ChalkButton
 import net.micode.spendingtracker.ui.components.DottedDivider
 import net.micode.spendingtracker.ui.theme.*
@@ -35,10 +36,6 @@ import net.micode.spendingtracker.viewmodel.TransactionViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
-/**
- * Screen that shows the financial overview (Blackboard style).
- * Shows Total Income, Total Expenses with category breakdown, and the final Balance.
- */
 @Composable
 fun SpendingScreen(
     viewModel: TransactionViewModel,
@@ -51,10 +48,9 @@ fun SpendingScreen(
     val expensesByCategory by viewModel.expensesByCategory.collectAsState()
     val heatmapData by viewModel.heatmapData.collectAsState()
     val selectedPeriod by viewModel.selectedPeriod.collectAsState()
+    val currencySymbol by viewModel.currencySymbol.collectAsState()
     
-    // Incomplete transactions data
     val incompleteCount by viewModel.incompleteTransactionsCount.collectAsState()
-    
     var showHeatmap by remember { mutableStateOf(false) }
 
     Column(
@@ -68,7 +64,6 @@ fun SpendingScreen(
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Period Navigation Arrows
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -97,7 +92,6 @@ fun SpendingScreen(
                 )
             }
 
-            // Incomplete Transactions Notice
             if (incompleteCount > 0) {
                 Row(
                     modifier = Modifier
@@ -105,7 +99,7 @@ fun SpendingScreen(
                         .padding(bottom = 16.dp)
                         .border(1.dp, ChalkWhite.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
                         .background(Color.White.copy(alpha = 0.05f))
-                        .clickable { /* Logic to open pending list later */ }
+                        .clickable { }
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -120,7 +114,6 @@ fun SpendingScreen(
                 }
             }
 
-            // Visual balance bar
             val total = totalIncome + totalExpense
             val incomeWeight = if (total > 0) (totalIncome / total).toFloat() else 0.5f
             val expenseWeight = if (total > 0) (totalExpense / total).toFloat() else 0.5f
@@ -141,16 +134,15 @@ fun SpendingScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Scrollable list for the blackboard content
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item {
-                    BalanceRow("Income", "¥ ${String.format("%.2f", totalIncome)}", ChalkGreen)
+                    BalanceRow("Income", "$currencySymbol ${String.format("%.2f", totalIncome)}", ChalkGreen)
                 }
                 item {
-                    BalanceRow("Expense", "¥ ${String.format("%.2f", totalExpense)}", ChalkRed)
+                    BalanceRow("Expense", "$currencySymbol ${String.format("%.2f", totalExpense)}", ChalkRed)
                 }
                 items(expensesByCategory) { (name, amount) ->
                     Row(
@@ -160,16 +152,15 @@ fun SpendingScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(name, color = ChalkWhite, fontSize = 20.sp, fontFamily = FontFamily.Cursive)
-                        Text("¥ ${String.format("%.2f", amount)}", color = ChalkWhite, fontSize = 20.sp, fontFamily = FontFamily.Cursive)
+                        Text("$currencySymbol ${String.format("%.2f", amount)}", color = ChalkWhite, fontSize = 20.sp, fontFamily = FontFamily.Cursive)
                     }
                 }
                 item {
                     DottedDivider(modifier = Modifier.padding(vertical = 16.dp))
-                    BalanceRow("Balance", "¥ ${String.format("%.2f", balance)}", ChalkBlue)
+                    BalanceRow("Balance", "$currencySymbol ${String.format("%.2f", balance)}", ChalkBlue)
                 }
             }
 
-            // Heatmap Button
             Text(
                 text = "Show Heatmap",
                 color = ChalkWhite,
@@ -182,7 +173,6 @@ fun SpendingScreen(
                     .padding(horizontal = 12.dp, vertical = 4.dp)
             )
 
-            // Action buttons
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
@@ -223,7 +213,6 @@ fun HeatmapDialog(data: Map<Long, Double>, period: Period, onDismiss: () -> Unit
         },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
-                // Visual Legend
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -238,7 +227,6 @@ fun HeatmapDialog(data: Map<Long, Double>, period: Period, onDismiss: () -> Unit
                     YearlyHeatmap(data)
                 } else {
                     if (period == Period.MONTH || period == Period.WEEK) {
-                        // Day of week initials
                         Row(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
                             val days = listOf("M", "T", "W", "T", "F", "S", "S")
                             days.forEach { day ->
@@ -313,7 +301,6 @@ fun YearlyHeatmap(data: Map<Long, Double>) {
     val calendar = Calendar.getInstance()
     calendar.timeInMillis = sortedDays.first()
     
-    // Iniciar siempre en Lunes para consistencia visual (Estilo GitHub)
     val startPadding = (calendar.get(Calendar.DAY_OF_WEEK) - Calendar.MONDAY + 7) % 7
     repeat(startPadding) { currentWeek.add(null) }
     
@@ -336,7 +323,6 @@ fun YearlyHeatmap(data: Map<Long, Double>) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(3.dp)
         ) {
-            // Etiquetas de días a la izquierda
             item {
                 Column(modifier = Modifier.padding(top = 22.dp, end = 8.dp)) {
                     daysOfWeekLabels.forEachIndexed { index, day ->
@@ -357,7 +343,6 @@ fun YearlyHeatmap(data: Map<Long, Double>) {
                 
                 if (firstNonNullDay != null) {
                     val cal = Calendar.getInstance().apply { timeInMillis = firstNonNullDay }
-                    // Si el día 1 del mes cae en esta semana, ponemos la etiqueta
                     if (cal.get(Calendar.DAY_OF_MONTH) <= 7) {
                         monthLabel = SimpleDateFormat("MMM", Locale.getDefault()).format(cal.time)
                         isNewMonth = true
@@ -365,7 +350,6 @@ fun YearlyHeatmap(data: Map<Long, Double>) {
                 }
 
                 Row {
-                    // Separador vertical sutil al inicio de cada mes
                     if (isNewMonth && index > 0) {
                         Box(
                             modifier = Modifier
@@ -378,7 +362,6 @@ fun YearlyHeatmap(data: Map<Long, Double>) {
                     }
 
                     Column {
-                        // Nombre del mes centrado sobre la semana
                         Text(
                             text = monthLabel,
                             color = ChalkWhite.copy(alpha = 0.6f),
@@ -405,7 +388,6 @@ fun YearlyHeatmap(data: Map<Long, Double>) {
                                     else -> Color.DarkGray.copy(alpha = 0.2f)
                                 }
                                 
-                                // Borde especial para el primer y último día del rango
                                 val isStartOrEnd = timestamp == sortedDays.first() || timestamp == sortedDays.last()
 
                                 Box(
@@ -426,7 +408,6 @@ fun YearlyHeatmap(data: Map<Long, Double>) {
             }
         }
         
-        // Rango de fechas al pie para mayor claridad
         if (sortedDays.isNotEmpty()) {
             val startStr = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(sortedDays.first()))
             val endStr = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(sortedDays.last()))

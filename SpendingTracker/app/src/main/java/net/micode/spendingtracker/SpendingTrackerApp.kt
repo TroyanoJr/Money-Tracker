@@ -4,6 +4,10 @@ import android.app.Application
 import androidx.room.Room
 import net.micode.spendingtracker.data.AppDatabase
 
+/**
+ * Custom Application class.
+ * Configured for production stability and data integrity.
+ */
 class SpendingTrackerApp : Application() {
     lateinit var database: AppDatabase
         private set
@@ -15,7 +19,8 @@ class SpendingTrackerApp : Application() {
             AppDatabase::class.java,
             "spending-tracker-db"
         )
-        .fallbackToDestructiveMigration() // Evita crashes al cambiar el modelo de datos
+        // Eliminado: fallbackToDestructiveMigration() para proteger los datos del usuario.
+        // A partir de ahora, los cambios en el esquema requerirán objetos Migration específicos.
         .build()
     }
 }

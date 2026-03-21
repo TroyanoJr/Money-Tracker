@@ -7,6 +7,7 @@ import kotlinx.coroutines.launch
 import net.micode.spendingtracker.model.Category
 import net.micode.spendingtracker.model.Transaction
 import net.micode.spendingtracker.repository.TransactionRepository
+import net.micode.spendingtracker.util.SettingsManager
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -36,7 +37,10 @@ data class CategoryReportItem(
     val percentage: Float
 )
 
-class TransactionViewModel(private val repository: TransactionRepository) : ViewModel() {
+class TransactionViewModel(
+    private val repository: TransactionRepository,
+    private val settingsManager: SettingsManager
+) : ViewModel() {
     
     // UI States for Filtering
     private val _selectedPeriod = MutableStateFlow(Period.MONTH)
@@ -44,6 +48,10 @@ class TransactionViewModel(private val repository: TransactionRepository) : View
 
     private val _selectedDate = MutableStateFlow(System.currentTimeMillis())
     val selectedDate: StateFlow<Long> = _selectedDate.asStateFlow()
+
+    // Currency State
+    private val _currencySymbol = MutableStateFlow(settingsManager.getCurrencySymbol())
+    val currencySymbol: StateFlow<String> = _currencySymbol.asStateFlow()
 
     // Transaction Filtering States
     private val _activeFilterType = MutableStateFlow(FilterType.ALL)
@@ -55,7 +63,7 @@ class TransactionViewModel(private val repository: TransactionRepository) : View
     // Categorías desde la base de datos
     val categories: StateFlow<List<Category>> = repository.allCategories
         .onEach { list ->
-            if (list.isEmpty()) {
+            if (list.isEmpty() && !settingsManager.hasSeededCategories()) {
                 seedDefaultCategories()
             }
         }
@@ -133,6 +141,10 @@ class TransactionViewModel(private val repository: TransactionRepository) : View
         _filterCategoryName.value = categoryName
     }
 
+    fun refreshCurrency() {
+        _currencySymbol.value = settingsManager.getCurrencySymbol()
+    }
+
     private fun seedDefaultCategories() {
         viewModelScope.launch {
             val defaults = listOf(
@@ -147,6 +159,7 @@ class TransactionViewModel(private val repository: TransactionRepository) : View
                 Category(name = "Pending", iconName = "Sell", isExpense = true, color = -0x616162)
             )
             defaults.forEach { repository.insertCategory(it) }
+            settingsManager.setHasSeededCategories(true)
         }
     }
 
@@ -157,7 +170,7 @@ class TransactionViewModel(private val repository: TransactionRepository) : View
         when (period) {
             Period.YEAR -> {
                 val year = calendar.get(Calendar.YEAR)
-                val df = SimpleDateFormat("MMM", Locale.CHINA)
+                val df = SimpleDateFormat("MMM", Locale.getDefault())
                 for (month in 0..11) {
                     calendar.set(year, month, 1)
                     val startTime = calendar.timeInMillis
@@ -188,7 +201,7 @@ class TransactionViewModel(private val repository: TransactionRepository) : View
                 }
             }
             else -> {
-                val df = SimpleDateFormat("dd/MM", Locale.CHINA)
+                val df = SimpleDateFormat("dd/MM", Locale.getDefault())
                 calendar.add(Calendar.DAY_OF_YEAR, -6)
                 for (i in 0..6) {
                     val startTime = calendar.apply { set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0) }.timeInMillis

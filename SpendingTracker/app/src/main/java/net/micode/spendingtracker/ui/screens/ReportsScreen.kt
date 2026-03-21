@@ -41,6 +41,7 @@ fun ReportsScreen(viewModel: TransactionViewModel) {
     val categoryData by viewModel.categoryReportData.collectAsState()
     val selectedPeriod by viewModel.selectedPeriod.collectAsState()
     val selectedDate by viewModel.selectedDate.collectAsState()
+    val currencySymbol by viewModel.currencySymbol.collectAsState()
 
     var reportMode by remember { mutableStateOf("Categories") }
     var unitMode by remember { mutableStateOf("Cash") }
@@ -48,10 +49,10 @@ fun ReportsScreen(viewModel: TransactionViewModel) {
 
     val dateFormatter = remember(selectedPeriod) {
         when (selectedPeriod) {
-            net.micode.spendingtracker.viewmodel.Period.DAY -> SimpleDateFormat("yyyy-MM-dd", Locale.CHINA)
-            net.micode.spendingtracker.viewmodel.Period.WEEK -> SimpleDateFormat("'Week' w, yyyy", Locale.CHINA)
-            net.micode.spendingtracker.viewmodel.Period.MONTH -> SimpleDateFormat("MM月 yyyy", Locale.CHINA)
-            net.micode.spendingtracker.viewmodel.Period.YEAR -> SimpleDateFormat("yyyy", Locale.CHINA)
+            net.micode.spendingtracker.viewmodel.Period.DAY -> SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            net.micode.spendingtracker.viewmodel.Period.WEEK -> SimpleDateFormat("'Week' w, yyyy", Locale.getDefault())
+            net.micode.spendingtracker.viewmodel.Period.MONTH -> SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+            net.micode.spendingtracker.viewmodel.Period.YEAR -> SimpleDateFormat("yyyy", Locale.getDefault())
         }
     }
     val dateText = dateFormatter.format(Date(selectedDate))
@@ -77,7 +78,7 @@ fun ReportsScreen(viewModel: TransactionViewModel) {
                 }
 
                 if (reportMode == "Categories") {
-                    UnitToggle(unitMode) { unitMode = it }
+                    UnitToggle(unitMode, currencySymbol) { unitMode = it }
                 }
             }
         }
@@ -88,12 +89,12 @@ fun ReportsScreen(viewModel: TransactionViewModel) {
                 .padding(top = 45.dp, bottom = 55.dp, start = 50.dp, end = 20.dp)
         ) {
             if (reportMode == "Cash Flow") {
-                CashFlowChart(data = cashFlowData)
+                CashFlowChart(data = cashFlowData, symbol = currencySymbol)
             } else {
                 if (chartType == "Bar") {
-                    BarChart(data = categoryData, usePercentage = unitMode == "Percentage")
+                    BarChart(data = categoryData, symbol = currencySymbol, usePercentage = unitMode == "Percentage")
                 } else {
-                    PieChart(data = categoryData, usePercentage = unitMode == "Percentage")
+                    PieChart(data = categoryData, symbol = currencySymbol, usePercentage = unitMode == "Percentage")
                 }
             }
         }
@@ -153,9 +154,9 @@ fun CategoryLegend(data: List<CategoryReportItem>) {
 }
 
 @Composable
-fun UnitToggle(currentUnit: String, onUnitChange: (String) -> Unit) {
+fun UnitToggle(currentUnit: String, symbol: String, onUnitChange: (String) -> Unit) {
     Row(modifier = Modifier.border(0.5.dp, Color.Gray, RoundedCornerShape(2.dp))) {
-        listOf("%", "¥").forEach { unit ->
+        listOf("%", symbol).forEach { unit ->
             val label = if (unit == "%") "Percentage" else "Cash"
             Box(
                 modifier = Modifier
@@ -202,7 +203,7 @@ fun ChartTypeToggle(currentType: String, onTypeChange: (String) -> Unit) {
 }
 
 @Composable
-fun CashFlowChart(data: List<CashFlowPoint>) {
+fun CashFlowChart(data: List<CashFlowPoint>, symbol: String) {
     if (data.isEmpty()) return
     val maxVal = (data.maxOfOrNull { it.income.coerceAtLeast(it.expense) } ?: 1.0).coerceAtLeast(1.0)
     
@@ -216,7 +217,7 @@ fun CashFlowChart(data: List<CashFlowPoint>) {
             drawLine(Color.Gray.copy(alpha = 0.2f), Offset(0f, y), Offset(chartWidth, y), strokeWidth = 1f)
             
             drawContext.canvas.nativeCanvas.drawText(
-                "¥${String.format("%.0f", i * maxVal / gridLines)}",
+                "$symbol${String.format("%.0f", i * maxVal / gridLines)}",
                 -10f, y + 10f,
                 Paint().apply { color = android.graphics.Color.GRAY; textSize = 24f; textAlign = Paint.Align.RIGHT }
             )
@@ -255,7 +256,7 @@ fun CashFlowChart(data: List<CashFlowPoint>) {
 }
 
 @Composable
-fun BarChart(data: List<CategoryReportItem>, usePercentage: Boolean) {
+fun BarChart(data: List<CategoryReportItem>, symbol: String, usePercentage: Boolean) {
     if (data.isEmpty()) return
     val maxVal = data.maxOfOrNull { it.amount } ?: 1.0
     
@@ -273,7 +274,7 @@ fun BarChart(data: List<CategoryReportItem>, usePercentage: Boolean) {
             
             drawRect(color = Color(item.color), topLeft = Offset(x, y), size = Size(barWidth, barH))
             
-            val label = if (usePercentage) "${(item.percentage * 100).toInt()}%" else "¥${String.format("%.0f", item.amount)}"
+            val label = if (usePercentage) "${(item.percentage * 100).toInt()}%" else "$symbol${String.format("%.0f", item.amount)}"
             drawContext.canvas.nativeCanvas.drawText(
                 label, x + barWidth / 2, y - 10f,
                 Paint().apply { color = android.graphics.Color.WHITE; textSize = 22f; textAlign = Paint.Align.CENTER }
@@ -288,7 +289,7 @@ fun BarChart(data: List<CategoryReportItem>, usePercentage: Boolean) {
 }
 
 @Composable
-fun PieChart(data: List<CategoryReportItem>, usePercentage: Boolean) {
+fun PieChart(data: List<CategoryReportItem>, symbol: String, usePercentage: Boolean) {
     if (data.isEmpty()) return
     Canvas(modifier = Modifier.fillMaxSize()) {
         val radius = size.minDimension / 2.2f
@@ -312,7 +313,7 @@ fun PieChart(data: List<CategoryReportItem>, usePercentage: Boolean) {
                 val x = center.x + labelRad * cos(Math.toRadians(angle.toDouble())).toFloat()
                 val y = center.y + labelRad * sin(Math.toRadians(angle.toDouble())).toFloat()
                 
-                val label = if (usePercentage) "${(item.percentage * 100).toInt()}%" else "¥${String.format("%.0f", item.amount)}"
+                val label = if (usePercentage) "${(item.percentage * 100).toInt()}%" else "$symbol${String.format("%.0f", item.amount)}"
                 drawContext.canvas.nativeCanvas.drawText(
                     label, x, y,
                     Paint().apply { color = android.graphics.Color.WHITE; textSize = 22f; textAlign = Paint.Align.CENTER }
