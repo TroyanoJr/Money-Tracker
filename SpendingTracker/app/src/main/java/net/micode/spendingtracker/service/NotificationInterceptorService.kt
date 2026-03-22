@@ -90,7 +90,8 @@ class NotificationInterceptorService : NotificationListenerService() {
                 val database = (application as SpendingTrackerApp).database
                 val repository = TransactionRepository.getInstance(
                     database.transactionDao(),
-                    database.categoryDao()
+                    database.categoryDao(),
+                    database.periodSummaryDao()
                 )
                 repository.insertTransaction(newTransaction)
             }

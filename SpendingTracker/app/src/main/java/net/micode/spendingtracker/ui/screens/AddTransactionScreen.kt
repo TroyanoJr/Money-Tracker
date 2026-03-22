@@ -37,6 +37,38 @@ import net.micode.spendingtracker.viewmodel.TransactionViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
+private fun utcDatePickerMillisToLocalStartOfDay(utcMillis: Long): Long {
+    val utcCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+        timeInMillis = utcMillis
+    }
+    val localCalendar = Calendar.getInstance().apply {
+        set(Calendar.YEAR, utcCalendar.get(Calendar.YEAR))
+        set(Calendar.MONTH, utcCalendar.get(Calendar.MONTH))
+        set(Calendar.DAY_OF_MONTH, utcCalendar.get(Calendar.DAY_OF_MONTH))
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+    return localCalendar.timeInMillis
+}
+
+private fun localToUtcDatePickerMillis(localMillis: Long): Long {
+    val localCalendar = Calendar.getInstance().apply {
+        timeInMillis = localMillis
+    }
+    val utcCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+        set(Calendar.YEAR, localCalendar.get(Calendar.YEAR))
+        set(Calendar.MONTH, localCalendar.get(Calendar.MONTH))
+        set(Calendar.DAY_OF_MONTH, localCalendar.get(Calendar.DAY_OF_MONTH))
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+    return utcCalendar.timeInMillis
+}
+
 /**
  * Evaluates basic math expressions (addition and subtraction).
  * Returns null if the expression is invalid or incomplete.
@@ -122,10 +154,19 @@ fun AddTransactionScreen(
     var showCategoryMenu by rememberSaveable { mutableStateOf(false) }
 
     val initialDate = transactionToEdit?.date ?: currentDashboardDate
+    val initialDateUtc = remember(initialDate) { localToUtcDatePickerMillis(initialDate) }
+
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
-    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialDate)
-    val dateFormatter = remember { SimpleDateFormat("dd MM月 yyyy", Locale.CHINA) }
-    val formattedDate = dateFormatter.format(Date(datePickerState.selectedDateMillis ?: initialDate))
+    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialDateUtc)
+    val dateFormatter = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+    
+    val selectedLocalDateMillis = remember(datePickerState.selectedDateMillis) {
+        datePickerState.selectedDateMillis?.let {
+            utcDatePickerMillisToLocalStartOfDay(it)
+        } ?: initialDate
+    }
+
+    val formattedDate = dateFormatter.format(Date(selectedLocalDateMillis))
 
     var lastPage by rememberSaveable { mutableIntStateOf(initialPage) }
     LaunchedEffect(pagerState.currentPage) {
@@ -164,7 +205,7 @@ fun AddTransactionScreen(
                         
                         if (isFormValid && selectedCategoryIndex < categories.size) {
                             val category = categories[selectedCategoryIndex]
-                            val selectedTimestamp = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
+                            val selectedTimestamp = selectedLocalDateMillis
                             
                             val transaction = Transaction(
                                 id = transactionToEdit?.id ?: UUID.randomUUID().toString(),

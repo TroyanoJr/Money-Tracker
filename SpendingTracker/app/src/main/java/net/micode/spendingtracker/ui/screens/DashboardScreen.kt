@@ -2,6 +2,7 @@ package net.micode.spendingtracker.ui.screens
 
 import android.content.Intent
 import android.content.res.Configuration
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -58,7 +59,17 @@ fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
         ReportsScreen(viewModel = viewModel)
     } else {
         when (currentScreen) {
-            "settings" -> SettingsScreen(onBack = { currentScreen = "dashboard" })
+            "settings" -> {
+                val leaveSettings = {
+                    viewModel.refreshCurrency()
+                    currentScreen = "dashboard"
+                }
+                BackHandler(onBack = leaveSettings)
+                SettingsScreen(
+                    onBack = leaveSettings,
+                    onCurrencyChanged = { viewModel.refreshCurrency() }
+                )
+            }
             "csv_export" -> CsvExportScreen(
                 categories = categories.map { it.name },
                 onClose = { currentScreen = "dashboard" },
@@ -112,7 +123,8 @@ fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
                             },
                             selectedPeriod = selectedPeriod,
                             selectedDate = selectedDate,
-                            onPeriodSelected = { viewModel.setPeriod(it) }
+                            onPeriodSelected = { viewModel.setPeriod(it) },
+                            onDateSelected = { viewModel.setDate(it) }
                         )
 
                         HorizontalPager(

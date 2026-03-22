@@ -21,6 +21,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
 import net.micode.spendingtracker.model.Transaction
 import net.micode.spendingtracker.ui.components.CategorySelectionToolbar
 import net.micode.spendingtracker.ui.theme.BeigeHeader
@@ -37,7 +39,7 @@ fun TransactionsScreen(
     onDeleteTransactions: (List<Transaction>) -> Unit,
     onExportCsv: () -> Unit
 ) {
-    val transactions by viewModel.transactions.collectAsState()
+    val pagedTransactions = viewModel.pagedTransactions.collectAsLazyPagingItems()
     val categories by viewModel.categories.collectAsState()
     val totalIncome by viewModel.totalIncome.collectAsState()
     val totalExpense by viewModel.totalExpense.collectAsState()
@@ -62,12 +64,14 @@ fun TransactionsScreen(
                 selectedCount = selectedTransactionIds.size,
                 onClearSelection = { selectedTransactionIds = emptySet() },
                 onEdit = {
-                    val transaction = transactions.find { it.id == selectedTransactionIds.first() }
+                    val transaction = pagedTransactions.itemSnapshotList.items
+                        .find { it.id == selectedTransactionIds.first() }
                     transaction?.let { onEditTransaction(it) }
                     selectedTransactionIds = emptySet()
                 },
                 onDelete = {
-                    transactionsToDelete = transactions.filter { it.id in selectedTransactionIds }
+                    transactionsToDelete = pagedTransactions.itemSnapshotList.items
+                        .filter { it.id in selectedTransactionIds }
                     showDeleteDialog = true
                 }
             )
@@ -84,13 +88,35 @@ fun TransactionsScreen(
         }
 
         Box(modifier = Modifier.weight(1f)) {
-            if (transactions.isEmpty()) {
+            val isRefreshing = pagedTransactions.loadState.refresh is LoadState.Loading
+            val refreshError = pagedTransactions.loadState.refresh as? LoadState.Error
+            val isEmpty = !isRefreshing && refreshError == null && pagedTransactions.itemCount == 0
+
+            if (isRefreshing) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = DarkBrownText)
+                }
+            } else if (refreshError != null) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = "Could not load transactions", color = Color.Gray)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        TextButton(onClick = { pagedTransactions.retry() }) {
+                            Text("Retry", color = DarkBrownText)
+                        }
+                    }
+                }
+            } else if (isEmpty) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(text = "No transactions for this filter/period", color = Color.Gray)
                 }
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(transactions) { transaction ->
+                    items(
+                        count = pagedTransactions.itemCount,
+                        key = { index -> pagedTransactions[index]?.id ?: "placeholder-$index" }
+                    ) { index ->
+                        val transaction = pagedTransactions[index] ?: return@items
                         val isSelected = selectedTransactionIds.contains(transaction.id)
                         TransactionItem(
                             transaction = transaction,
@@ -106,6 +132,19 @@ fun TransactionsScreen(
                             onLongClick = { selectedTransactionIds = selectedTransactionIds + transaction.id }
                         )
                         HorizontalDivider(modifier = Modifier.padding(start = 56.dp), thickness = 0.5.dp, color = Color.LightGray)
+                    }
+
+                    if (pagedTransactions.loadState.append is LoadState.Loading) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(color = DarkBrownText)
+                            }
+                        }
                     }
                 }
             }

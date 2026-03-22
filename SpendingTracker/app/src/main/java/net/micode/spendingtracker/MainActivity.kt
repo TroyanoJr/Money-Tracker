@@ -10,8 +10,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import net.micode.spendingtracker.ui.screens.DashboardScreen
+import net.micode.spendingtracker.ui.screens.LockScreen
 import net.micode.spendingtracker.viewmodel.TransactionViewModel
 import net.micode.spendingtracker.viewmodel.TransactionViewModelFactory
 import net.micode.spendingtracker.repository.TransactionRepository
@@ -26,7 +28,8 @@ class MainActivity : ComponentActivity() {
         val app = application as SpendingTrackerApp
         val repository = TransactionRepository.getInstance(
             app.database.transactionDao(),
-            app.database.categoryDao()
+            app.database.categoryDao(),
+            app.database.periodSummaryDao()
         )
         TransactionViewModelFactory(repository, settingsManager)
     }
@@ -39,11 +42,24 @@ class MainActivity : ComponentActivity() {
         setContent {
             SpendingTrackerTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
-                    // Refrescar moneda cuando la pantalla vuelve a estar activa
-                    LaunchedEffect(Unit) {
-                        viewModel.refreshCurrency()
+                    val isPasscodeEnabled = remember { settingsManager.isPasscodeEnabled() }
+                    val correctPin = remember { settingsManager.getPasscode() }
+                    
+                    // State to track if the app is currently locked
+                    var isLocked by rememberSaveable { mutableStateOf(isPasscodeEnabled) }
+
+                    if (isLocked) {
+                        LockScreen(
+                            correctPin = correctPin,
+                            onUnlocked = { isLocked = false }
+                        )
+                    } else {
+                        // Refresh currency when the main screen is active
+                        LaunchedEffect(Unit) {
+                            viewModel.refreshCurrency()
+                        }
+                        DashboardScreen(viewModel = viewModel)
                     }
-                    DashboardScreen(viewModel = viewModel)
                 }
             }
         }
@@ -69,7 +85,6 @@ class MainActivity : ComponentActivity() {
                 prefs.edit().putBoolean("has_shown_active_toast", true).apply()
             }
         } else {
-            // Reset flag so it shows again once the user enables it
             prefs.edit().putBoolean("has_shown_active_toast", false).apply()
             
             if (!onlyShowIfDisabled || !hasShownActiveToast) {

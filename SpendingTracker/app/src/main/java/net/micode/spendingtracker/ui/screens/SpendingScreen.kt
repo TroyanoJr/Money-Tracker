@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,7 +53,7 @@ fun SpendingScreen(
     val currencySymbol by viewModel.currencySymbol.collectAsState()
     
     val incompleteCount by viewModel.incompleteTransactionsCount.collectAsState()
-    var showHeatmap by remember { mutableStateOf(false) }
+    var showHeatmap by rememberSaveable { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -71,25 +73,23 @@ fun SpendingScreen(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Previous Period",
-                    tint = ChalkWhite,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clickable { viewModel.previousPeriod() }
-                        .padding(4.dp)
-                )
+                IconButton(onClick = { viewModel.previousPeriod() }) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Previous Period",
+                        tint = ChalkWhite,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
                 Spacer(modifier = Modifier.width(48.dp))
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = "Next Period",
-                    tint = ChalkWhite,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clickable { viewModel.nextPeriod() }
-                        .padding(4.dp)
-                )
+                IconButton(onClick = { viewModel.nextPeriod() }) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "Next Period",
+                        tint = ChalkWhite,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
             }
 
             if (incompleteCount > 0) {

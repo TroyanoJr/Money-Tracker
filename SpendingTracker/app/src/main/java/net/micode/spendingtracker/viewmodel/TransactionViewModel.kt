@@ -1,10 +1,13 @@
 package net.micode.spendingtracker.viewmodel
 
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import net.micode.spendingtracker.model.Category
+import net.micode.spendingtracker.model.PeriodSummary
 import net.micode.spendingtracker.model.Transaction
 import net.micode.spendingtracker.repository.TransactionRepository
 import net.micode.spendingtracker.util.SettingsManager
@@ -37,10 +40,30 @@ data class CategoryReportItem(
     val percentage: Float
 )
 
+private data class DateRange(
+    val start: Long,
+    val end: Long
+)
+
 class TransactionViewModel(
     private val repository: TransactionRepository,
     private val settingsManager: SettingsManager
 ) : ViewModel() {
+    private data class PagingFilter(
+        val startDate: Long,
+        val endDate: Long,
+        val isExpense: Boolean?,
+        val categoryName: String?
+    )
+
+    private data class SummaryIdentity(
+        val key: String,
+        val period: Period,
+        val range: DateRange,
+        val filterType: FilterType,
+        val categoryName: String?
+    )
+
     
     // UI States for Filtering
     private val _selectedPeriod = MutableStateFlow(Period.MONTH)
@@ -81,29 +104,84 @@ class TransactionViewModel(
         .map { list -> list.filter { !it.isExpense } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Transacciones filtradas por periodo Y por tipo/categoría
-    val transactions: StateFlow<List<Transaction>> = combine(
-        repository.allTransactions,
+    private val selectedDateRange: StateFlow<DateRange> = combine(
         _selectedPeriod,
-        _selectedDate,
+        _selectedDate
+    ) { period, date ->
+        calculateDateRange(period, date)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = calculateDateRange(_selectedPeriod.value, _selectedDate.value)
+    )
+
+    private val periodTransactionsFlow: Flow<List<Transaction>> = selectedDateRange
+        .flatMapLatest { range ->
+            repository.getTransactionsByDateRange(range.start, range.end)
+        }
+
+    // Transacciones del periodo actual filtradas por tipo/categoría
+    val transactions: StateFlow<List<Transaction>> = combine(
+        periodTransactionsFlow,
         _activeFilterType,
         _filterCategoryName
-    ) { allTransactions, period, date, filterType, catName ->
-        val timeFiltered = filterTransactionsByPeriod(allTransactions, period, date)
-        
+    ) { periodTransactions, filterType, catName ->
         when (filterType) {
-            FilterType.ALL -> timeFiltered
-            FilterType.ONLY_EXPENSE -> timeFiltered.filter { it.isExpense }
-            FilterType.ONLY_INCOME -> timeFiltered.filter { !it.isExpense }
+            FilterType.ALL -> periodTransactions
+            FilterType.ONLY_EXPENSE -> periodTransactions.filter { it.isExpense }
+            FilterType.ONLY_INCOME -> periodTransactions.filter { !it.isExpense }
             FilterType.BY_CATEGORY -> if (catName != null) {
-                timeFiltered.filter { it.categoryName == catName }
-            } else timeFiltered
+                periodTransactions.filter { it.categoryName == catName }
+            } else periodTransactions
         }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
     )
+
+    private val summaryIdentity: Flow<SummaryIdentity> = combine(
+        selectedDateRange,
+        _selectedPeriod,
+        _activeFilterType,
+        _filterCategoryName
+    ) { range, period, filterType, categoryName ->
+        SummaryIdentity(
+            key = buildSummaryKey(period, range, filterType, categoryName),
+            period = period,
+            range = range,
+            filterType = filterType,
+            categoryName = categoryName
+        )
+    }.distinctUntilChanged()
+
+    private val currentPeriodSummary: StateFlow<PeriodSummary?> = summaryIdentity
+        .flatMapLatest { identity -> repository.getPeriodSummary(identity.key) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    private val pagingFilter: Flow<PagingFilter> = combine(
+        selectedDateRange,
+        _activeFilterType,
+        _filterCategoryName
+    ) { range, filterType, categoryName ->
+        when (filterType) {
+            FilterType.ALL -> PagingFilter(range.start, range.end, null, null)
+            FilterType.ONLY_EXPENSE -> PagingFilter(range.start, range.end, true, null)
+            FilterType.ONLY_INCOME -> PagingFilter(range.start, range.end, false, null)
+            FilterType.BY_CATEGORY -> PagingFilter(range.start, range.end, null, categoryName)
+        }
+    }.distinctUntilChanged()
+
+    val pagedTransactions: Flow<PagingData<Transaction>> = pagingFilter
+        .flatMapLatest { filter ->
+            repository.getPagedTransactions(
+                startDate = filter.startDate,
+                endDate = filter.endDate,
+                isExpense = filter.isExpense,
+                categoryName = filter.categoryName
+            )
+        }
+        .cachedIn(viewModelScope)
 
     // Reporte de categorías con colores y porcentajes
     val categoryReportData: StateFlow<List<CategoryReportItem>> = combine(
@@ -128,11 +206,11 @@ class TransactionViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val cashFlowData: StateFlow<List<CashFlowPoint>> = combine(
-        repository.allTransactions,
+        periodTransactionsFlow,
         _selectedPeriod,
         _selectedDate
-    ) { allTransactions, period, date ->
-        calculateCashFlow(allTransactions, period, date)
+    ) { periodTransactions, period, date ->
+        calculateCashFlow(periodTransactions, period, date)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // UI Methods for Filtering
@@ -143,6 +221,45 @@ class TransactionViewModel(
 
     fun refreshCurrency() {
         _currencySymbol.value = settingsManager.getCurrencySymbol()
+    }
+
+    init {
+        viewModelScope.launch {
+            combine(
+                summaryIdentity,
+                repository.dataChanged.onStart { emit(Unit) }
+            ) { identity, _ -> identity }
+                .collect { identity ->
+                    val totals = repository.getSummaryTotals(
+                        startDate = identity.range.start,
+                        endDate = identity.range.end,
+                        isExpense = when (identity.filterType) {
+                            FilterType.ONLY_EXPENSE -> true
+                            FilterType.ONLY_INCOME -> false
+                            else -> null
+                        },
+                        categoryName = if (identity.filterType == FilterType.BY_CATEGORY) {
+                            identity.categoryName
+                        } else {
+                            null
+                        }
+                    )
+                    repository.upsertPeriodSummary(
+                        PeriodSummary(
+                            summaryKey = identity.key,
+                            period = identity.period.name,
+                            startDate = identity.range.start,
+                            endDate = identity.range.end,
+                            filterType = identity.filterType.name,
+                            categoryName = identity.categoryName,
+                            totalIncome = totals.totalIncome,
+                            totalExpense = totals.totalExpense,
+                            balance = totals.totalIncome - totals.totalExpense,
+                            updatedAt = System.currentTimeMillis()
+                        )
+                    )
+                }
+        }
     }
 
     private fun seedDefaultCategories() {
@@ -224,13 +341,13 @@ class TransactionViewModel(
         sortBy: String,
         separatorName: String
     ): String {
-        val allTransactions = repository.allTransactions.first()
-        
         // Normalize dates to start and end of day
         val startCal = Calendar.getInstance().apply { timeInMillis = startDate; set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0) }
         val endCal = Calendar.getInstance().apply { timeInMillis = endDate; set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59) }
-        
-        var filtered = allTransactions.filter { it.date in startCal.timeInMillis..endCal.timeInMillis }
+
+        var filtered = repository
+            .getTransactionsByDateRange(startCal.timeInMillis, endCal.timeInMillis)
+            .first()
         
         if (categoryName != "All Categories") {
             filtered = filtered.filter { it.categoryName == categoryName }
@@ -272,11 +389,11 @@ class TransactionViewModel(
 
     // Heatmap data
     val heatmapData: StateFlow<Map<Long, Double>> = combine(
-        repository.allTransactions,
+        periodTransactionsFlow,
         _selectedPeriod,
         _selectedDate
-    ) { allTransactions, period, date ->
-        calculateHeatmapData(allTransactions, period, date)
+    ) { periodTransactions, period, date ->
+        calculateHeatmapData(periodTransactions, period, date)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -314,6 +431,7 @@ class TransactionViewModel(
     }
 
     fun setPeriod(period: Period) { _selectedPeriod.value = period }
+    fun setDate(dateMillis: Long) { _selectedDate.value = dateMillis }
     fun nextPeriod() { _selectedDate.value = adjustDate(_selectedDate.value, _selectedPeriod.value, 1) }
     fun previousPeriod() { _selectedDate.value = adjustDate(_selectedDate.value, _selectedPeriod.value, -1) }
 
@@ -328,41 +446,79 @@ class TransactionViewModel(
         return calendar.timeInMillis
     }
 
-    private fun filterTransactionsByPeriod(transactions: List<Transaction>, period: Period, dateMillis: Long): List<Transaction> {
-        val calendar = Calendar.getInstance().apply { timeInMillis = dateMillis }
-        val targetYear = calendar.get(Calendar.YEAR)
-        val targetMonth = calendar.get(Calendar.MONTH)
-        val targetDay = calendar.get(Calendar.DAY_OF_YEAR)
-        val targetWeek = calendar.get(Calendar.WEEK_OF_YEAR)
-        return transactions.filter {
-            val transCal = Calendar.getInstance().apply { timeInMillis = it.date }
-            when (period) {
-                Period.DAY -> transCal.get(Calendar.YEAR) == targetYear && transCal.get(Calendar.DAY_OF_YEAR) == targetDay
-                Period.WEEK -> transCal.get(Calendar.YEAR) == targetYear && transCal.get(Calendar.WEEK_OF_YEAR) == targetWeek
-                Period.MONTH -> transCal.get(Calendar.YEAR) == targetYear && transCal.get(Calendar.MONTH) == targetMonth
-                Period.YEAR -> transCal.get(Calendar.YEAR) == targetYear
+    private fun calculateDateRange(period: Period, dateMillis: Long): DateRange {
+        val startCalendar = Calendar.getInstance().apply {
+            timeInMillis = dateMillis
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val endCalendar = startCalendar.clone() as Calendar
+
+        when (period) {
+            Period.DAY -> Unit
+            Period.WEEK -> {
+                startCalendar.set(Calendar.DAY_OF_WEEK, startCalendar.firstDayOfWeek)
+                endCalendar.timeInMillis = startCalendar.timeInMillis
+                endCalendar.add(Calendar.DAY_OF_WEEK, 6)
+            }
+            Period.MONTH -> {
+                startCalendar.set(Calendar.DAY_OF_MONTH, 1)
+                endCalendar.timeInMillis = startCalendar.timeInMillis
+                endCalendar.set(Calendar.DAY_OF_MONTH, endCalendar.getActualMaximum(Calendar.DAY_OF_MONTH))
+            }
+            Period.YEAR -> {
+                startCalendar.set(Calendar.MONTH, Calendar.JANUARY)
+                startCalendar.set(Calendar.DAY_OF_MONTH, 1)
+                endCalendar.timeInMillis = startCalendar.timeInMillis
+                endCalendar.set(Calendar.MONTH, Calendar.DECEMBER)
+                endCalendar.set(Calendar.DAY_OF_MONTH, 31)
             }
         }
+
+        endCalendar.set(Calendar.HOUR_OF_DAY, 23)
+        endCalendar.set(Calendar.MINUTE, 59)
+        endCalendar.set(Calendar.SECOND, 59)
+        endCalendar.set(Calendar.MILLISECOND, 999)
+
+        return DateRange(
+            start = startCalendar.timeInMillis,
+            end = endCalendar.timeInMillis
+        )
+    }
+
+    private fun buildSummaryKey(
+        period: Period,
+        range: DateRange,
+        filterType: FilterType,
+        categoryName: String?
+    ): String {
+        val categoryPart = categoryName ?: "__all__"
+        return "${period.name}_${range.start}_${range.end}_${filterType.name}_$categoryPart"
     }
 
     val incompleteTransactionsCount: StateFlow<Int> = repository.allTransactions
         .map { list -> list.count { !it.isComplete } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    val totalExpense: StateFlow<Double> = transactions
-        .map { list -> list.filter { it.isExpense }.sumOf { it.amount } }
+    val totalExpense: StateFlow<Double> = combine(currentPeriodSummary, transactions) { summary, list ->
+        summary?.totalExpense ?: list.filter { it.isExpense }.sumOf { it.amount }
+    }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
-    val totalIncome: StateFlow<Double> = transactions
-        .map { list -> list.filter { !it.isExpense }.sumOf { it.amount } }
+    val totalIncome: StateFlow<Double> = combine(currentPeriodSummary, transactions) { summary, list ->
+        summary?.totalIncome ?: list.filter { !it.isExpense }.sumOf { it.amount }
+    }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
-    val balance: StateFlow<Double> = transactions
-        .map { list -> 
+    val balance: StateFlow<Double> = combine(currentPeriodSummary, transactions) { summary, list ->
+        summary?.balance ?: run {
             val income = list.filter { !it.isExpense }.sumOf { it.amount }
             val expense = list.filter { it.isExpense }.sumOf { it.amount }
             income - expense
         }
+    }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
     val expensesByCategory: StateFlow<List<Pair<String, Double>>> = transactions

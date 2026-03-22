@@ -35,17 +35,18 @@ fun TopNavigation(
     onSettingsClick: () -> Unit,
     selectedPeriod: Period,
     selectedDate: Long,
-    onPeriodSelected: (Period) -> Unit
+    onPeriodSelected: (Period) -> Unit,
+    onDateSelected: (Long) -> Unit
 ) {
     var showPeriodMenu by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     
     val dateFormatter = remember(selectedPeriod) {
         when (selectedPeriod) {
-            Period.DAY -> SimpleDateFormat("yyyy-MM-dd", Locale.CHINA)
-            Period.WEEK -> SimpleDateFormat("'Week' w, yyyy", Locale.CHINA)
-            Period.MONTH -> SimpleDateFormat("MM月", Locale.CHINA)
-            Period.YEAR -> SimpleDateFormat("yyyy", Locale.CHINA)
+            Period.DAY -> SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            Period.WEEK -> SimpleDateFormat("'Week' w, yyyy", Locale.getDefault())
+            Period.MONTH -> SimpleDateFormat("MMM yyyy", Locale.getDefault())
+            Period.YEAR -> SimpleDateFormat("yyyy", Locale.getDefault())
         }
     }
     

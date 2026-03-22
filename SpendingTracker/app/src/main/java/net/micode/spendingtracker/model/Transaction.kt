@@ -23,7 +23,10 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.CASCADE // Este es el cambio clave
         )
     ],
-    indices = [Index(value = ["categoryName"])] // Mejora rendimiento de búsqueda
+    indices = [
+        Index(value = ["categoryName"]),
+        Index(value = ["date"])
+    ] // Mejora rendimiento de búsqueda
 )
 data class Transaction(
     @PrimaryKey val id: String,

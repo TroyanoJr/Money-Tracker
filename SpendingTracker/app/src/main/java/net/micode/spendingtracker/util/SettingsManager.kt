@@ -14,6 +14,9 @@ class SettingsManager(context: Context) {
         const val KEY_CURRENCY_SYMBOL = "currency_symbol"
         const val KEY_CURRENCY_CODE = "currency_code"
         const val KEY_HAS_SEEDED_CATEGORIES = "has_seeded_categories"
+        const val KEY_PASSCODE_ENABLED = "passcode_enabled"
+        const val KEY_LOCK_TYPE = "lock_type"
+        const val KEY_PASSCODE_VALUE = "passcode_value"
     }
 
     /**
@@ -68,5 +71,29 @@ class SettingsManager(context: Context) {
 
     fun hasSeededCategories(): Boolean {
         return prefs.getBoolean(KEY_HAS_SEEDED_CATEGORIES, false)
+    }
+
+    fun isPasscodeEnabled(): Boolean {
+        return prefs.getBoolean(KEY_PASSCODE_ENABLED, false)
+    }
+
+    fun setPasscodeEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PASSCODE_ENABLED, enabled).apply()
+    }
+
+    fun getLockType(): String {
+        return prefs.getString(KEY_LOCK_TYPE, "PIN") ?: "PIN"
+    }
+
+    fun setLockType(type: String) {
+        prefs.edit().putString(KEY_LOCK_TYPE, type).apply()
+    }
+
+    fun getPasscode(): String {
+        return prefs.getString(KEY_PASSCODE_VALUE, "") ?: ""
+    }
+
+    fun setPasscode(passcode: String) {
+        prefs.edit().putString(KEY_PASSCODE_VALUE, passcode).apply()
     }
 }

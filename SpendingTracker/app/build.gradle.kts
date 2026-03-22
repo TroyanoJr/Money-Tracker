@@ -34,6 +34,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -51,7 +52,11 @@ dependencies {
     // Room
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.room.paging)
     ksp(libs.androidx.room.compiler)
+    implementation(libs.sqlcipher)
+    implementation(libs.androidx.paging.runtime.ktx)
+    implementation(libs.androidx.paging.compose)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
