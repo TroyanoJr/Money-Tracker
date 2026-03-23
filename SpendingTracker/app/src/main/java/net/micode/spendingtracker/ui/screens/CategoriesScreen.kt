@@ -29,6 +29,7 @@ import net.micode.spendingtracker.model.Category
 import net.micode.spendingtracker.ui.components.CategorySelectionToolbar
 import net.micode.spendingtracker.ui.theme.BeigeHeader
 import net.micode.spendingtracker.ui.theme.DarkBrownText
+import net.micode.spendingtracker.util.IconCatalog
 
 /**
  * Screen that displays a list of financial categories.
@@ -244,7 +245,7 @@ fun CategoryItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = Icons.Default.Sell,
+            imageVector = IconCatalog.getIconByName(category.iconName),
             contentDescription = null,
             tint = if (isProtected) DarkBrownText.copy(alpha = 0.5f) else DarkBrownText,
             modifier = Modifier.size(24.dp)

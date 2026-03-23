@@ -12,12 +12,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,7 +30,10 @@ import net.micode.spendingtracker.model.Transaction
 import net.micode.spendingtracker.ui.components.CategorySelectionToolbar
 import net.micode.spendingtracker.ui.theme.BeigeHeader
 import net.micode.spendingtracker.ui.theme.DarkBrownText
+import net.micode.spendingtracker.util.IconCatalog
+import net.micode.spendingtracker.util.PdfExporter
 import net.micode.spendingtracker.viewmodel.FilterType
+import net.micode.spendingtracker.viewmodel.Period
 import net.micode.spendingtracker.viewmodel.TransactionViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -39,6 +45,7 @@ fun TransactionsScreen(
     onDeleteTransactions: (List<Transaction>) -> Unit,
     onExportCsv: () -> Unit
 ) {
+    val context = LocalContext.current
     val pagedTransactions = viewModel.pagedTransactions.collectAsLazyPagingItems()
     val categories by viewModel.categories.collectAsState()
     val totalIncome by viewModel.totalIncome.collectAsState()
@@ -46,6 +53,8 @@ fun TransactionsScreen(
     val activeFilter by viewModel.activeFilterType.collectAsState()
     val filterCategoryName by viewModel.filterCategoryName.collectAsState()
     val currencySymbol by viewModel.currencySymbol.collectAsState()
+    val selectedPeriod by viewModel.selectedPeriod.collectAsState()
+    val selectedDate by viewModel.selectedDate.collectAsState()
 
     var selectedTransactionIds by remember { mutableStateOf(setOf<String>()) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -118,8 +127,13 @@ fun TransactionsScreen(
                     ) { index ->
                         val transaction = pagedTransactions[index] ?: return@items
                         val isSelected = selectedTransactionIds.contains(transaction.id)
+                        
+                        val category = categories.find { it.name == transaction.categoryName }
+                        val icon = if (category != null) IconCatalog.getIconByName(category.iconName) else Icons.Default.Sell
+
                         TransactionItem(
                             transaction = transaction,
+                            icon = icon,
                             symbol = currencySymbol,
                             isSelected = isSelected,
                             onClick = {
@@ -190,7 +204,34 @@ fun TransactionsScreen(
                     )
                     ListItem(
                         headlineContent = { Text("PDF Format", color = DarkBrownText) },
-                        modifier = Modifier.clickable { showExportDialog = false },
+                        modifier = Modifier.clickable { 
+                            showExportDialog = false
+                            val periodLabel = run {
+                                val cal = Calendar.getInstance().apply { timeInMillis = selectedDate }
+                                when (selectedPeriod) {
+                                    Period.DAY -> SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(cal.time)
+                                    Period.WEEK -> {
+                                        val start = cal.clone() as Calendar
+                                        start.set(Calendar.DAY_OF_WEEK, start.firstDayOfWeek)
+                                        val end = start.clone() as Calendar
+                                        end.add(Calendar.DAY_OF_WEEK, 6)
+                                        val sdf = SimpleDateFormat("MMM dd", Locale.getDefault())
+                                        "${sdf.format(start.time)} - ${sdf.format(end.time)}"
+                                    }
+                                    Period.MONTH -> SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(cal.time)
+                                    Period.YEAR -> SimpleDateFormat("yyyy", Locale.getDefault()).format(cal.time)
+                                }
+                            }
+                            PdfExporter.exportTransactionsToPdf(
+                                context = context,
+                                periodName = periodLabel,
+                                totalIncome = totalIncome,
+                                totalExpense = totalExpense,
+                                balance = totalIncome - totalExpense,
+                                currencySymbol = currencySymbol,
+                                transactions = pagedTransactions.itemSnapshotList.items.filterNotNull()
+                            )
+                        },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )
                 }
@@ -345,6 +386,7 @@ fun TotalBox(amount: Double, symbol: String, labelColor: Color, modifier: Modifi
 @Composable
 fun TransactionItem(
     transaction: Transaction,
+    icon: ImageVector,
     symbol: String,
     isSelected: Boolean,
     onClick: () -> Unit,
@@ -359,7 +401,7 @@ fun TransactionItem(
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(imageVector = transaction.categoryIcon, contentDescription = null, tint = DarkBrownText, modifier = Modifier.size(24.dp))
+        Icon(imageVector = icon, contentDescription = null, tint = DarkBrownText, modifier = Modifier.size(24.dp))
         Spacer(Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(text = transaction.categoryName, color = DarkBrownText, fontSize = 18.sp)

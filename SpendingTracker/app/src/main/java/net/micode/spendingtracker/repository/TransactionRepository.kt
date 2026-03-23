@@ -42,6 +42,7 @@ class TransactionRepository(
         endDate: Long,
         isExpense: Boolean?,
         categoryName: String?,
+        searchQuery: String? = null,
         pageSize: Int = 20
     ): Flow<PagingData<Transaction>> {
         return Pager(
@@ -55,7 +56,8 @@ class TransactionRepository(
                     startDate = startDate,
                     endDate = endDate,
                     isExpense = isExpense,
-                    categoryName = categoryName
+                    categoryName = categoryName,
+                    searchQuery = searchQuery
                 )
             }
         ).flow

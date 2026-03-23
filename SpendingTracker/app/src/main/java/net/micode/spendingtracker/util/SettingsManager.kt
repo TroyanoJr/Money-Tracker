@@ -17,6 +17,9 @@ class SettingsManager(context: Context) {
         const val KEY_PASSCODE_ENABLED = "passcode_enabled"
         const val KEY_LOCK_TYPE = "lock_type"
         const val KEY_PASSCODE_VALUE = "passcode_value"
+        const val KEY_BUDGET_MODE_ENABLED = "budget_mode_enabled"
+        const val KEY_MONTHLY_BUDGET_AMOUNT = "monthly_budget_amount"
+        const val KEY_INCLUDE_INCOME_IN_BUDGET = "include_income_in_budget"
     }
 
     /**
@@ -95,5 +98,29 @@ class SettingsManager(context: Context) {
 
     fun setPasscode(passcode: String) {
         prefs.edit().putString(KEY_PASSCODE_VALUE, passcode).apply()
+    }
+
+    fun isBudgetModeEnabled(): Boolean {
+        return prefs.getBoolean(KEY_BUDGET_MODE_ENABLED, false)
+    }
+
+    fun setBudgetModeEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_BUDGET_MODE_ENABLED, enabled).apply()
+    }
+
+    fun getMonthlyBudget(): Double {
+        return prefs.getFloat(KEY_MONTHLY_BUDGET_AMOUNT, 0f).toDouble()
+    }
+
+    fun setMonthlyBudget(amount: Double) {
+        prefs.edit().putFloat(KEY_MONTHLY_BUDGET_AMOUNT, amount.toFloat()).apply()
+    }
+
+    fun isIncludeIncomeInBudget(): Boolean {
+        return prefs.getBoolean(KEY_INCLUDE_INCOME_IN_BUDGET, false)
+    }
+
+    fun setIncludeIncomeInBudget(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_INCLUDE_INCOME_IN_BUDGET, enabled).apply()
     }
 }

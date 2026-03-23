@@ -22,6 +22,7 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
@@ -32,9 +33,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.micode.spendingtracker.model.Category
 import net.micode.spendingtracker.ui.components.CategoryRow
+import net.micode.spendingtracker.ui.components.IconPickerDialog
 import net.micode.spendingtracker.ui.components.SectionHeader
 import net.micode.spendingtracker.ui.theme.BeigeHeader
 import net.micode.spendingtracker.ui.theme.DarkBrownText
+import net.micode.spendingtracker.util.IconCatalog
 
 @Composable
 fun AddCategoryScreen(
@@ -50,10 +53,14 @@ fun AddCategoryScreen(
     )
 
     var categoryName by rememberSaveable { mutableStateOf(categoryToEdit?.name ?: "") }
+    var selectedIconName by rememberSaveable { mutableStateOf(categoryToEdit?.iconName ?: "Sell") }
     var selectedColor by rememberSaveable(stateSaver = colorSaver) { 
         mutableStateOf(categoryToEdit?.color?.let { Color(it) }) 
     }
+    
     var showColorPicker by rememberSaveable { mutableStateOf(false) }
+    var showIconPicker by rememberSaveable { mutableStateOf(false) }
+    
     val focusManager = LocalFocusManager.current
 
     // Validación del nombre
@@ -92,10 +99,11 @@ fun AddCategoryScreen(
                             if (isNameValid) {
                                 val category = categoryToEdit?.copy(
                                     name = categoryName.trim(),
+                                    iconName = selectedIconName,
                                     color = selectedColor?.toArgb()
                                 ) ?: Category(
                                     name = categoryName.trim(),
-                                    iconName = "Sell",
+                                    iconName = selectedIconName,
                                     isExpense = isExpense,
                                     color = selectedColor?.toArgb()
                                 )
@@ -109,7 +117,6 @@ fun AddCategoryScreen(
             SectionHeader(title = "Category Details")
 
             Column(modifier = Modifier.fillMaxWidth()) {
-                // Feedback visual: la etiqueta cambia a rojo si está vacío
                 CategoryRow(
                     label = "Name", 
                     labelColor = if (isNameValid) labelBlue else Color.Red.copy(alpha = 0.7f)
@@ -131,21 +138,30 @@ fun AddCategoryScreen(
 
                 CategoryRow(label = "Icon", labelColor = labelBlue) {
                     Row(
-                        modifier = Modifier.clickable { focusManager.clearFocus() },
+                        modifier = Modifier.fillMaxWidth().clickable { 
+                            focusManager.clearFocus()
+                            showIconPicker = true 
+                        },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            Icons.Default.Sell,
+                            imageVector = IconCatalog.getIconByName(selectedIconName),
                             contentDescription = "Current Icon",
                             tint = DarkBrownText,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = selectedIconName,
+                            color = DarkBrownText,
+                            modifier = Modifier.weight(1f),
+                            fontSize = 16.sp
+                        )
                         Icon(
-                            Icons.Default.Cancel,
-                            contentDescription = "Clear Icon",
+                            Icons.AutoMirrored.Filled.ArrowBack, // Using as a chevron replacement or similar
+                            contentDescription = null,
                             tint = Color.Gray,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(20.dp).rotate(180f)
                         )
                     }
                 }
@@ -196,6 +212,17 @@ fun AddCategoryScreen(
                 HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
             }
         }
+    }
+
+    if (showIconPicker) {
+        IconPickerDialog(
+            selectedIconName = selectedIconName,
+            onDismiss = { showIconPicker = false },
+            onIconSelected = { name ->
+                selectedIconName = name
+                showIconPicker = false
+            }
+        )
     }
 
     if (showColorPicker) {

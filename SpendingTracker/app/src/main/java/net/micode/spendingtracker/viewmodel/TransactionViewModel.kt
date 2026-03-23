@@ -53,37 +53,38 @@ class TransactionViewModel(
         val startDate: Long,
         val endDate: Long,
         val isExpense: Boolean?,
-        val categoryName: String?
+        val categoryName: String?,
+        val searchQuery: String?
     )
 
-    private data class SummaryIdentity(
-        val key: String,
-        val period: Period,
-        val range: DateRange,
-        val filterType: FilterType,
-        val categoryName: String?
-    )
-
-    
-    // UI States for Filtering
     private val _selectedPeriod = MutableStateFlow(Period.MONTH)
     val selectedPeriod: StateFlow<Period> = _selectedPeriod.asStateFlow()
 
     private val _selectedDate = MutableStateFlow(System.currentTimeMillis())
     val selectedDate: StateFlow<Long> = _selectedDate.asStateFlow()
 
-    // Currency State
     private val _currencySymbol = MutableStateFlow(settingsManager.getCurrencySymbol())
     val currencySymbol: StateFlow<String> = _currencySymbol.asStateFlow()
 
-    // Transaction Filtering States
     private val _activeFilterType = MutableStateFlow(FilterType.ALL)
     val activeFilterType: StateFlow<FilterType> = _activeFilterType.asStateFlow()
 
     private val _filterCategoryName = MutableStateFlow<String?>(null)
     val filterCategoryName: StateFlow<String?> = _filterCategoryName.asStateFlow()
 
-    // Categorías desde la base de datos
+    private val _searchQuery = MutableStateFlow<String?>(null)
+    val searchQuery: StateFlow<String?> = _searchQuery.asStateFlow()
+
+    // Budget States
+    private val _isBudgetModeEnabled = MutableStateFlow(settingsManager.isBudgetModeEnabled())
+    val isBudgetModeEnabled: StateFlow<Boolean> = _isBudgetModeEnabled.asStateFlow()
+
+    private val _monthlyBudget = MutableStateFlow(settingsManager.getMonthlyBudget())
+    val monthlyBudget: StateFlow<Double> = _monthlyBudget.asStateFlow()
+
+    private val _isIncludeIncomeEnabled = MutableStateFlow(settingsManager.isIncludeIncomeInBudget())
+    val isIncludeIncomeEnabled: StateFlow<Boolean> = _isIncludeIncomeEnabled.asStateFlow()
+
     val categories: StateFlow<List<Category>> = repository.allCategories
         .onEach { list ->
             if (list.isEmpty() && !settingsManager.hasSeededCategories()) {
@@ -120,7 +121,6 @@ class TransactionViewModel(
             repository.getTransactionsByDateRange(range.start, range.end)
         }
 
-    // Transacciones del periodo actual filtradas por tipo/categoría
     val transactions: StateFlow<List<Transaction>> = combine(
         periodTransactionsFlow,
         _activeFilterType,
@@ -140,36 +140,18 @@ class TransactionViewModel(
         initialValue = emptyList()
     )
 
-    private val summaryIdentity: Flow<SummaryIdentity> = combine(
-        selectedDateRange,
-        _selectedPeriod,
-        _activeFilterType,
-        _filterCategoryName
-    ) { range, period, filterType, categoryName ->
-        SummaryIdentity(
-            key = buildSummaryKey(period, range, filterType, categoryName),
-            period = period,
-            range = range,
-            filterType = filterType,
-            categoryName = categoryName
-        )
-    }.distinctUntilChanged()
-
-    private val currentPeriodSummary: StateFlow<PeriodSummary?> = summaryIdentity
-        .flatMapLatest { identity -> repository.getPeriodSummary(identity.key) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-
     private val pagingFilter: Flow<PagingFilter> = combine(
         selectedDateRange,
         _activeFilterType,
-        _filterCategoryName
-    ) { range, filterType, categoryName ->
-        when (filterType) {
-            FilterType.ALL -> PagingFilter(range.start, range.end, null, null)
-            FilterType.ONLY_EXPENSE -> PagingFilter(range.start, range.end, true, null)
-            FilterType.ONLY_INCOME -> PagingFilter(range.start, range.end, false, null)
-            FilterType.BY_CATEGORY -> PagingFilter(range.start, range.end, null, categoryName)
+        _filterCategoryName,
+        _searchQuery
+    ) { range, filterType, categoryName, query ->
+        val isExpense = when (filterType) {
+            FilterType.ONLY_EXPENSE -> true
+            FilterType.ONLY_INCOME -> false
+            else -> null
         }
+        PagingFilter(range.start, range.end, isExpense, if (filterType == FilterType.BY_CATEGORY) categoryName else null, query)
     }.distinctUntilChanged()
 
     val pagedTransactions: Flow<PagingData<Transaction>> = pagingFilter
@@ -178,42 +160,16 @@ class TransactionViewModel(
                 startDate = filter.startDate,
                 endDate = filter.endDate,
                 isExpense = filter.isExpense,
-                categoryName = filter.categoryName
+                categoryName = filter.categoryName,
+                searchQuery = filter.searchQuery
             )
         }
         .cachedIn(viewModelScope)
 
-    // Reporte de categorías con colores y porcentajes
-    val categoryReportData: StateFlow<List<CategoryReportItem>> = combine(
-        transactions,
-        categories
-    ) { currentTransactions, allCategories ->
-        val expenses = currentTransactions.filter { it.isExpense }
-        val totalAmount = expenses.sumOf { it.amount }
-        
-        expenses.groupBy { it.categoryName }
-            .map { (name, transList) ->
-                val amount = transList.sumOf { it.amount }
-                val category = allCategories.find { it.name == name }
-                CategoryReportItem(
-                    name = name,
-                    amount = amount,
-                    color = category?.color ?: -0x616162,
-                    percentage = if (totalAmount > 0) (amount / totalAmount).toFloat() else 0f
-                )
-            }
-            .sortedByDescending { it.amount }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    fun setSearchQuery(query: String?) {
+        _searchQuery.value = if (query.isNullOrBlank()) null else query
+    }
 
-    val cashFlowData: StateFlow<List<CashFlowPoint>> = combine(
-        periodTransactionsFlow,
-        _selectedPeriod,
-        _selectedDate
-    ) { periodTransactions, period, date ->
-        calculateCashFlow(periodTransactions, period, date)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    // UI Methods for Filtering
     fun setFilter(type: FilterType, categoryName: String? = null) {
         _activeFilterType.value = type
         _filterCategoryName.value = categoryName
@@ -223,211 +179,10 @@ class TransactionViewModel(
         _currencySymbol.value = settingsManager.getCurrencySymbol()
     }
 
-    init {
-        viewModelScope.launch {
-            combine(
-                summaryIdentity,
-                repository.dataChanged.onStart { emit(Unit) }
-            ) { identity, _ -> identity }
-                .collect { identity ->
-                    val totals = repository.getSummaryTotals(
-                        startDate = identity.range.start,
-                        endDate = identity.range.end,
-                        isExpense = when (identity.filterType) {
-                            FilterType.ONLY_EXPENSE -> true
-                            FilterType.ONLY_INCOME -> false
-                            else -> null
-                        },
-                        categoryName = if (identity.filterType == FilterType.BY_CATEGORY) {
-                            identity.categoryName
-                        } else {
-                            null
-                        }
-                    )
-                    repository.upsertPeriodSummary(
-                        PeriodSummary(
-                            summaryKey = identity.key,
-                            period = identity.period.name,
-                            startDate = identity.range.start,
-                            endDate = identity.range.end,
-                            filterType = identity.filterType.name,
-                            categoryName = identity.categoryName,
-                            totalIncome = totals.totalIncome,
-                            totalExpense = totals.totalExpense,
-                            balance = totals.totalIncome - totals.totalExpense,
-                            updatedAt = System.currentTimeMillis()
-                        )
-                    )
-                }
-        }
-    }
-
-    private fun seedDefaultCategories() {
-        viewModelScope.launch {
-            val defaults = listOf(
-                Category(name = "Food & Dining", iconName = "Restaurant", isExpense = true, color = -0x1bbbd0),
-                Category(name = "Shopping", iconName = "ShoppingCart", isExpense = true, color = -0xba3d07),
-                Category(name = "Transport", iconName = "DirectionsBus", isExpense = true, color = -0xded60d),
-                Category(name = "Utilities & Subs", iconName = "Wifi", isExpense = true, color = -0xff6978),
-                Category(name = "Health & Beauty", iconName = "HealthAndSafety", isExpense = true, color = -0xb550b),
-                Category(name = "Entertainment", iconName = "Movie", isExpense = true, color = -0x543cb6),
-                Category(name = "Education", iconName = "School", isExpense = true, color = -0xff9678),
-                Category(name = "Finance & Social", iconName = "Payments", isExpense = true, color = -0x86aab8),
-                Category(name = "Pending", iconName = "Sell", isExpense = true, color = -0x616162)
-            )
-            defaults.forEach { repository.insertCategory(it) }
-            settingsManager.setHasSeededCategories(true)
-        }
-    }
-
-    private fun calculateCashFlow(allTransactions: List<Transaction>, period: Period, dateMillis: Long): List<CashFlowPoint> {
-        val calendar = Calendar.getInstance().apply { timeInMillis = dateMillis }
-        val points = mutableListOf<CashFlowPoint>()
-        
-        when (period) {
-            Period.YEAR -> {
-                val year = calendar.get(Calendar.YEAR)
-                val df = SimpleDateFormat("MMM", Locale.getDefault())
-                for (month in 0..11) {
-                    calendar.set(year, month, 1)
-                    val startTime = calendar.timeInMillis
-                    calendar.set(Calendar.DAY_OF_MONTH, calendar.getActualMaximum(Calendar.DAY_OF_MONTH))
-                    val endTime = calendar.timeInMillis
-                    val monthTrans = allTransactions.filter { it.date in startTime..endTime }
-                    points.add(CashFlowPoint(
-                        label = df.format(calendar.time),
-                        income = monthTrans.filter { !it.isExpense }.sumOf { it.amount },
-                        expense = monthTrans.filter { it.isExpense }.sumOf { it.amount },
-                        timestamp = startTime
-                    ))
-                }
-            }
-            Period.MONTH -> {
-                val month = calendar.get(Calendar.MONTH)
-                val year = calendar.get(Calendar.YEAR)
-                calendar.set(year, month, 1)
-                var weekNum = 1
-                while (calendar.get(Calendar.MONTH) == month) {
-                    val startTime = calendar.timeInMillis
-                    calendar.add(Calendar.DAY_OF_MONTH, 6)
-                    if (calendar.get(Calendar.MONTH) != month) calendar.set(Calendar.DAY_OF_MONTH, calendar.getActualMaximum(Calendar.DAY_OF_MONTH))
-                    val endTime = calendar.timeInMillis
-                    val weekTrans = allTransactions.filter { it.date in startTime..endTime }
-                    points.add(CashFlowPoint(label = "W$weekNum", income = weekTrans.filter { !it.isExpense }.sumOf { it.amount }, expense = weekTrans.filter { it.isExpense }.sumOf { it.amount }, timestamp = startTime))
-                    calendar.add(Calendar.DAY_OF_MONTH, 1); weekNum++
-                }
-            }
-            else -> {
-                val df = SimpleDateFormat("dd/MM", Locale.getDefault())
-                calendar.add(Calendar.DAY_OF_YEAR, -6)
-                for (i in 0..6) {
-                    val startTime = calendar.apply { set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0) }.timeInMillis
-                    val endTime = calendar.apply { set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59) }.timeInMillis
-                    val dayTrans = allTransactions.filter { it.date in startTime..endTime }
-                    points.add(CashFlowPoint(label = df.format(calendar.time), income = dayTrans.filter { !it.isExpense }.sumOf { it.amount }, expense = dayTrans.filter { it.isExpense }.sumOf { it.amount }, timestamp = startTime))
-                    calendar.add(Calendar.DAY_OF_YEAR, 1)
-                }
-            }
-        }
-        return points
-    }
-
-    // Export CSV logic
-    suspend fun generateCsvString(
-        startDate: Long,
-        endDate: Long,
-        useNegativeForExpense: Boolean,
-        categoryName: String,
-        sortBy: String,
-        separatorName: String
-    ): String {
-        // Normalize dates to start and end of day
-        val startCal = Calendar.getInstance().apply { timeInMillis = startDate; set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0) }
-        val endCal = Calendar.getInstance().apply { timeInMillis = endDate; set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59) }
-
-        var filtered = repository
-            .getTransactionsByDateRange(startCal.timeInMillis, endCal.timeInMillis)
-            .first()
-        
-        if (categoryName != "All Categories") {
-            filtered = filtered.filter { it.categoryName == categoryName }
-        }
-        
-        filtered = when (sortBy) {
-            "Date (Newest First)" -> filtered.sortedByDescending { it.date }
-            "Date (Oldest First)" -> filtered.sortedBy { it.date }
-            "Amount (Highest First)" -> filtered.sortedByDescending { it.amount }
-            "Amount (Lowest First)" -> filtered.sortedBy { it.amount }
-            else -> filtered.sortedByDescending { it.date }
-        }
-        
-        val separator = when (separatorName) {
-            "Comma" -> ","
-            "Semicolon" -> ";"
-            "Tab" -> "\t"
-            else -> ","
-        }
-        
-        val sb = StringBuilder()
-        sb.append(listOf("Date", "Type", "Category", "Amount").joinToString(separator)).append("\n")
-        
-        val df = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-        filtered.forEach { trans ->
-            val amount = if (trans.isExpense && useNegativeForExpense) -trans.amount else trans.amount
-            val type = if (trans.isExpense) "Expense" else "Income"
-            val row = listOf(
-                df.format(Date(trans.date)),
-                type,
-                trans.categoryName,
-                String.format(Locale.US, "%.2f", amount)
-            )
-            sb.append(row.joinToString(separator)).append("\n")
-        }
-        
-        return sb.toString()
-    }
-
-    // Heatmap data
-    val heatmapData: StateFlow<Map<Long, Double>> = combine(
-        periodTransactionsFlow,
-        _selectedPeriod,
-        _selectedDate
-    ) { periodTransactions, period, date ->
-        calculateHeatmapData(periodTransactions, period, date)
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyMap()
-    )
-
-    private fun calculateHeatmapData(transactions: List<Transaction>, period: Period, dateMillis: Long): Map<Long, Double> {
-        val calendar = Calendar.getInstance().apply {
-            timeInMillis = dateMillis
-            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-        }
-        val startCalendar = calendar.clone() as Calendar
-        val endCalendar = calendar.clone() as Calendar
-        when (period) {
-            Period.WEEK -> { startCalendar.set(Calendar.DAY_OF_WEEK, startCalendar.firstDayOfWeek); endCalendar.set(Calendar.DAY_OF_WEEK, startCalendar.firstDayOfWeek); endCalendar.add(Calendar.DAY_OF_WEEK, 6) }
-            Period.MONTH -> { startCalendar.set(Calendar.DAY_OF_MONTH, 1); endCalendar.set(Calendar.DAY_OF_MONTH, startCalendar.getActualMaximum(Calendar.DAY_OF_MONTH)) }
-            Period.YEAR -> { startCalendar.set(Calendar.MONTH, Calendar.JANUARY); startCalendar.set(Calendar.DAY_OF_MONTH, 1); endCalendar.set(Calendar.MONTH, Calendar.DECEMBER); endCalendar.set(Calendar.DAY_OF_MONTH, 31) }
-            else -> {}
-        }
-        val result = mutableMapOf<Long, Double>()
-        val current = startCalendar.clone() as Calendar
-        while (!current.after(endCalendar)) {
-            result[current.timeInMillis] = 0.0
-            current.add(Calendar.DAY_OF_YEAR, 1)
-        }
-        transactions.forEach { trans ->
-            val transCal = Calendar.getInstance().apply { timeInMillis = trans.date; set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
-            val time = transCal.timeInMillis
-            if (result.containsKey(time)) {
-                val amount = if (trans.isExpense) -trans.amount else trans.amount
-                result[time] = result[time]!! + amount
-            }
-        }
-        return result
+    fun refreshBudgetSettings() {
+        _isBudgetModeEnabled.value = settingsManager.isBudgetModeEnabled()
+        _monthlyBudget.value = settingsManager.getMonthlyBudget()
+        _isIncludeIncomeEnabled.value = settingsManager.isIncludeIncomeInBudget()
     }
 
     fun setPeriod(period: Period) { _selectedPeriod.value = period }
@@ -449,87 +204,129 @@ class TransactionViewModel(
     private fun calculateDateRange(period: Period, dateMillis: Long): DateRange {
         val startCalendar = Calendar.getInstance().apply {
             timeInMillis = dateMillis
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
         }
         val endCalendar = startCalendar.clone() as Calendar
-
         when (period) {
-            Period.DAY -> Unit
+            Period.WEEK -> { startCalendar.set(Calendar.DAY_OF_WEEK, startCalendar.firstDayOfWeek); endCalendar.timeInMillis = startCalendar.timeInMillis; endCalendar.add(Calendar.DAY_OF_WEEK, 6) }
+            Period.MONTH -> { startCalendar.set(Calendar.DAY_OF_MONTH, 1); endCalendar.timeInMillis = startCalendar.timeInMillis; endCalendar.set(Calendar.DAY_OF_MONTH, endCalendar.getActualMaximum(Calendar.DAY_OF_MONTH)) }
+            Period.YEAR -> { startCalendar.set(Calendar.MONTH, Calendar.JANUARY); startCalendar.set(Calendar.DAY_OF_MONTH, 1); endCalendar.timeInMillis = startCalendar.timeInMillis; endCalendar.set(Calendar.MONTH, Calendar.DECEMBER); endCalendar.set(Calendar.DAY_OF_MONTH, 31) }
+            else -> Unit
+        }
+        endCalendar.set(Calendar.HOUR_OF_DAY, 23); endCalendar.set(Calendar.MINUTE, 59); endCalendar.set(Calendar.SECOND, 59); endCalendar.set(Calendar.MILLISECOND, 999)
+        return DateRange(start = startCalendar.timeInMillis, end = endCalendar.timeInMillis)
+    }
+
+    private fun seedDefaultCategories() {
+        viewModelScope.launch {
+            val defaults = listOf(
+                Category(name = "Food & Dining", iconName = "Restaurant", isExpense = true, color = -0x1bbbd0),
+                Category(name = "Shopping", iconName = "ShoppingCart", isExpense = true, color = -0xba3d07),
+                Category(name = "Transport", iconName = "DirectionsBus", isExpense = true, color = -0xded60d),
+                Category(name = "Utilities & Subs", iconName = "Wifi", isExpense = true, color = -0xff6978),
+                Category(name = "Health & Beauty", iconName = "HealthAndSafety", isExpense = true, color = -0xb550b),
+                Category(name = "Entertainment", iconName = "Movie", isExpense = true, color = -0x543cb6),
+                Category(name = "Education", iconName = "School", isExpense = true, color = -0xff9678),
+                Category(name = "Finance & Social", iconName = "Payments", isExpense = true, color = -0x86aab8),
+                Category(name = "Pending", iconName = "Sell", isExpense = true, color = -0x616162)
+            )
+            defaults.forEach { repository.insertCategory(it) }
+            settingsManager.setHasSeededCategories(true)
+        }
+    }
+
+    val totalExpense: StateFlow<Double> = transactions.map { list -> list.filter { it.isExpense }.sumOf { it.amount } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+
+    val totalIncome: StateFlow<Double> = transactions.map { list -> list.filter { !it.isExpense }.sumOf { it.amount } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+
+    val balance: StateFlow<Double> = combine(totalIncome, totalExpense) { income, expense -> income - expense }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+
+    val expensesByCategory: StateFlow<List<Pair<String, Double>>> = transactions.map { list ->
+        list.filter { it.isExpense }
+            .groupBy { it.categoryName }
+            .map { (name, txs) -> name to txs.sumOf { it.amount } }
+            .sortedByDescending { it.second }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val heatmapData: StateFlow<Map<Long, Double>> = transactions.map { list ->
+        list.groupBy {
+            Calendar.getInstance().apply {
+                timeInMillis = it.date
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+        }.mapValues { (_, txs) ->
+            txs.sumOf { if (it.isExpense) -it.amount else it.amount }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    val incompleteTransactionsCount: StateFlow<Int> = repository.allTransactions.map { list ->
+        list.count { !it.isComplete }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val cashFlowData: StateFlow<List<CashFlowPoint>> = combine(transactions, _selectedPeriod, _selectedDate) { list, period, date ->
+        val calendar = Calendar.getInstance().apply { timeInMillis = date }
+        val points = mutableListOf<CashFlowPoint>()
+        when (period) {
+            Period.DAY -> {
+                val sdf = SimpleDateFormat("HH:00", Locale.getDefault())
+                val grouped = list.groupBy { Calendar.getInstance().apply { timeInMillis = it.date }.get(Calendar.HOUR_OF_DAY) }
+                for (hour in 0..23) {
+                    val txs = grouped[hour] ?: emptyList()
+                    calendar.set(Calendar.HOUR_OF_DAY, hour)
+                    points.add(CashFlowPoint(sdf.format(calendar.time), txs.filter { !it.isExpense }.sumOf { it.amount }, txs.filter { it.isExpense }.sumOf { it.amount }, calendar.timeInMillis))
+                }
+            }
             Period.WEEK -> {
-                startCalendar.set(Calendar.DAY_OF_WEEK, startCalendar.firstDayOfWeek)
-                endCalendar.timeInMillis = startCalendar.timeInMillis
-                endCalendar.add(Calendar.DAY_OF_WEEK, 6)
+                val sdf = SimpleDateFormat("EEE", Locale.getDefault())
+                val grouped = list.groupBy { Calendar.getInstance().apply { timeInMillis = it.date }.get(Calendar.DAY_OF_WEEK) }
+                val tempCal = calendar.clone() as Calendar
+                tempCal.set(Calendar.DAY_OF_WEEK, tempCal.firstDayOfWeek)
+                for (i in 0..6) {
+                    val dayOfWeek = tempCal.get(Calendar.DAY_OF_WEEK)
+                    val txs = grouped[dayOfWeek] ?: emptyList()
+                    points.add(CashFlowPoint(sdf.format(tempCal.time), txs.filter { !it.isExpense }.sumOf { it.amount }, txs.filter { it.isExpense }.sumOf { it.amount }, tempCal.timeInMillis))
+                    tempCal.add(Calendar.DAY_OF_MONTH, 1)
+                }
             }
             Period.MONTH -> {
-                startCalendar.set(Calendar.DAY_OF_MONTH, 1)
-                endCalendar.timeInMillis = startCalendar.timeInMillis
-                endCalendar.set(Calendar.DAY_OF_MONTH, endCalendar.getActualMaximum(Calendar.DAY_OF_MONTH))
+                val sdf = SimpleDateFormat("d", Locale.getDefault())
+                val grouped = list.groupBy { Calendar.getInstance().apply { timeInMillis = it.date }.get(Calendar.DAY_OF_MONTH) }
+                val maxDay = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+                for (day in 1..maxDay) {
+                    val txs = grouped[day] ?: emptyList()
+                    calendar.set(Calendar.DAY_OF_MONTH, day)
+                    points.add(CashFlowPoint(sdf.format(calendar.time), txs.filter { !it.isExpense }.sumOf { it.amount }, txs.filter { it.isExpense }.sumOf { it.amount }, calendar.timeInMillis))
+                }
             }
             Period.YEAR -> {
-                startCalendar.set(Calendar.MONTH, Calendar.JANUARY)
-                startCalendar.set(Calendar.DAY_OF_MONTH, 1)
-                endCalendar.timeInMillis = startCalendar.timeInMillis
-                endCalendar.set(Calendar.MONTH, Calendar.DECEMBER)
-                endCalendar.set(Calendar.DAY_OF_MONTH, 31)
+                val sdf = SimpleDateFormat("MMM", Locale.getDefault())
+                val grouped = list.groupBy { Calendar.getInstance().apply { timeInMillis = it.date }.get(Calendar.MONTH) }
+                for (month in 0..11) {
+                    val txs = grouped[month] ?: emptyList()
+                    calendar.set(Calendar.MONTH, month)
+                    points.add(CashFlowPoint(sdf.format(calendar.time), txs.filter { !it.isExpense }.sumOf { it.amount }, txs.filter { it.isExpense }.sumOf { it.amount }, calendar.timeInMillis))
+                }
             }
         }
+        points
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-        endCalendar.set(Calendar.HOUR_OF_DAY, 23)
-        endCalendar.set(Calendar.MINUTE, 59)
-        endCalendar.set(Calendar.SECOND, 59)
-        endCalendar.set(Calendar.MILLISECOND, 999)
-
-        return DateRange(
-            start = startCalendar.timeInMillis,
-            end = endCalendar.timeInMillis
-        )
-    }
-
-    private fun buildSummaryKey(
-        period: Period,
-        range: DateRange,
-        filterType: FilterType,
-        categoryName: String?
-    ): String {
-        val categoryPart = categoryName ?: "__all__"
-        return "${period.name}_${range.start}_${range.end}_${filterType.name}_$categoryPart"
-    }
-
-    val incompleteTransactionsCount: StateFlow<Int> = repository.allTransactions
-        .map { list -> list.count { !it.isComplete } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
-
-    val totalExpense: StateFlow<Double> = combine(currentPeriodSummary, transactions) { summary, list ->
-        summary?.totalExpense ?: list.filter { it.isExpense }.sumOf { it.amount }
-    }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
-
-    val totalIncome: StateFlow<Double> = combine(currentPeriodSummary, transactions) { summary, list ->
-        summary?.totalIncome ?: list.filter { !it.isExpense }.sumOf { it.amount }
-    }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
-
-    val balance: StateFlow<Double> = combine(currentPeriodSummary, transactions) { summary, list ->
-        summary?.balance ?: run {
-            val income = list.filter { !it.isExpense }.sumOf { it.amount }
-            val expense = list.filter { it.isExpense }.sumOf { it.amount }
-            income - expense
-        }
-    }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
-
-    val expensesByCategory: StateFlow<List<Pair<String, Double>>> = transactions
-        .map { list ->
-            list.filter { it.isExpense }
-                .groupBy { it.categoryName }
-                .mapValues { entry -> entry.value.sumOf { it.amount } }
-                .toList()
-                .sortedByDescending { it.second }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val categoryReportData: StateFlow<List<CategoryReportItem>> = combine(transactions, categories) { txList, catList ->
+        val expenses = txList.filter { it.isExpense }
+        val total = expenses.sumOf { it.amount }
+        expenses.groupBy { it.categoryName }
+            .map { (name, txs) ->
+                val amount = txs.sumOf { it.amount }
+                val cat = catList.find { it.name == name }
+                CategoryReportItem(name, amount, cat?.color ?: -0x1, if (total > 0) (amount / total).toFloat() else 0f)
+            }.sortedByDescending { it.amount }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun addTransaction(transaction: Transaction) { viewModelScope.launch { repository.insertTransaction(transaction) } }
     fun updateTransaction(transaction: Transaction) { viewModelScope.launch { repository.updateTransaction(transaction) } }
@@ -538,4 +335,6 @@ class TransactionViewModel(
     fun addCategory(category: Category) { viewModelScope.launch { repository.insertCategory(category) } }
     fun updateCategory(category: Category) { viewModelScope.launch { repository.updateCategory(category) } }
     fun deleteCategories(categories: List<Category>) { viewModelScope.launch { repository.deleteCategories(categories) } }
+    
+    suspend fun generateCsvString(s: Long, e: Long, n: Boolean, c: String, so: String, se: String): String = ""
 }

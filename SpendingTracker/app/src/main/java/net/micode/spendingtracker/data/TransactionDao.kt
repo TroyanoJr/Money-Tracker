@@ -19,6 +19,7 @@ interface TransactionDao {
         WHERE date BETWEEN :startDate AND :endDate
           AND (:isExpense IS NULL OR isExpense = :isExpense)
           AND (:categoryName IS NULL OR categoryName = :categoryName)
+          AND (:searchQuery IS NULL OR categoryName LIKE '%' || :searchQuery || '%')
         ORDER BY date DESC
         """
     )
@@ -26,7 +27,8 @@ interface TransactionDao {
         startDate: Long,
         endDate: Long,
         isExpense: Boolean?,
-        categoryName: String?
+        categoryName: String?,
+        searchQuery: String? = null
     ): PagingSource<Int, Transaction>
 
     @Query(

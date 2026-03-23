@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -16,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -39,6 +41,12 @@ fun SettingsScreen(
     var autoCaptureEnabled by remember { mutableStateOf(settingsManager.isAutoCaptureEnabled()) }
     var currentCurrency by remember { mutableStateOf(settingsManager.getCurrencySymbol()) }
     var showCurrencyDialog by remember { mutableStateOf(false) }
+
+    // Budget States
+    var budgetModeEnabled by remember { mutableStateOf(settingsManager.isBudgetModeEnabled()) }
+    var monthlyBudgetAmount by remember { mutableStateOf(settingsManager.getMonthlyBudget()) }
+    var includeIncomeEnabled by remember { mutableStateOf(settingsManager.isIncludeIncomeInBudget()) }
+    var showBudgetDialog by remember { mutableStateOf(false) }
 
     // Security States
     var passcodeEnabled by remember { mutableStateOf(settingsManager.isPasscodeEnabled()) }
@@ -74,6 +82,31 @@ fun SettingsScreen(
                 onCheckedChange = {
                     autoCaptureEnabled = it
                     settingsManager.setAutoCaptureEnabled(it)
+                }
+            )
+            SettingsToggleRow(
+                title = "Budget Mode",
+                subtitle = "Enable monthly spending limit",
+                checked = budgetModeEnabled,
+                onCheckedChange = {
+                    budgetModeEnabled = it
+                    settingsManager.setBudgetModeEnabled(it)
+                }
+            )
+            SettingsClickableRow(
+                title = "Monthly Budget",
+                value = "$currentCurrency ${String.format("%.2f", monthlyBudgetAmount)}",
+                enabled = budgetModeEnabled,
+                onClick = { showBudgetDialog = true }
+            )
+            SettingsToggleRow(
+                title = "Include Income",
+                subtitle = "Add monthly earnings to your budget limit",
+                checked = includeIncomeEnabled,
+                enabled = budgetModeEnabled,
+                onCheckedChange = {
+                    includeIncomeEnabled = it
+                    settingsManager.setIncludeIncomeInBudget(it)
                 }
             )
 
@@ -121,6 +154,19 @@ fun SettingsScreen(
         }
     }
 
+    if (showBudgetDialog) {
+        BudgetSetupDialog(
+            currentAmount = monthlyBudgetAmount,
+            currencySymbol = currentCurrency,
+            onDismiss = { showBudgetDialog = false },
+            onConfirm = { amount ->
+                monthlyBudgetAmount = amount
+                settingsManager.setMonthlyBudget(amount)
+                showBudgetDialog = false
+            }
+        )
+    }
+
     if (showCurrencyDialog) {
         CurrencySelectionDialog(
             currentSymbol = currentCurrency,
@@ -152,6 +198,55 @@ fun SettingsScreen(
             }
         )
     }
+}
+
+@Composable
+fun BudgetSetupDialog(
+    currentAmount: Double,
+    currencySymbol: String,
+    onDismiss: () -> Unit,
+    onConfirm: (Double) -> Unit
+) {
+    var amountText by remember { mutableStateOf(currentAmount.toString()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Monthly Budget", color = DarkBrownText) },
+        text = {
+            Column {
+                Text("Set your monthly spending limit", fontSize = 14.sp, color = Color.Gray)
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it },
+                    label = { Text("Amount ($currencySymbol)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = DarkBrownText,
+                        focusedLabelColor = DarkBrownText,
+                        cursorColor = DarkBrownText
+                    )
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val amount = amountText.toDoubleOrNull() ?: 0.0
+                onConfirm(amount)
+            }) {
+                Text("SAVE", color = DarkBrownText, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("CANCEL", color = Color.Gray)
+            }
+        },
+        containerColor = Color.White,
+        shape = RoundedCornerShape(4.dp)
+    )
 }
 
 @Composable
@@ -292,7 +387,13 @@ fun SettingsSectionHeader(title: String) {
 }
 
 @Composable
-fun SettingsToggleRow(title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+fun SettingsToggleRow(
+    title: String, 
+    subtitle: String, 
+    checked: Boolean, 
+    enabled: Boolean = true,
+    onCheckedChange: (Boolean) -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -301,12 +402,13 @@ fun SettingsToggleRow(title: String, subtitle: String, checked: Boolean, onCheck
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontSize = 16.sp, color = Color(0xFF1976D2))
+            Text(title, fontSize = 16.sp, color = if (enabled) Color(0xFF1976D2) else Color.Gray)
             Text(subtitle, fontSize = 12.sp, color = Color.Gray)
         }
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
+            enabled = enabled,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = DarkBrownText,
                 checkedTrackColor = DarkBrownText.copy(alpha = 0.4f)

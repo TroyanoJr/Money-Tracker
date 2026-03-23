@@ -1,5 +1,6 @@
 package net.micode.spendingtracker.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -52,8 +54,17 @@ fun SpendingScreen(
     val selectedPeriod by viewModel.selectedPeriod.collectAsState()
     val currencySymbol by viewModel.currencySymbol.collectAsState()
     
+    val isBudgetEnabled by viewModel.isBudgetModeEnabled.collectAsState()
+    val monthlyBudget by viewModel.monthlyBudget.collectAsState()
+    val isIncludeIncomeEnabled by viewModel.isIncludeIncomeEnabled.collectAsState()
+
     val incompleteCount by viewModel.incompleteTransactionsCount.collectAsState()
     var showHeatmap by rememberSaveable { mutableStateOf(false) }
+
+    // Sync budget settings when screen is shown or budget state changes
+    LaunchedEffect(isBudgetEnabled, monthlyBudget, isIncludeIncomeEnabled) {
+        viewModel.refreshBudgetSettings()
+    }
 
     Column(
         modifier = Modifier
@@ -111,6 +122,59 @@ fun SpendingScreen(
                         fontSize = 14.sp,
                         fontFamily = FontFamily.Cursive
                     )
+                }
+            }
+
+            // Budget Section
+            AnimatedVisibility(visible = isBudgetEnabled && selectedPeriod == Period.MONTH) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
+                ) {
+                    val effectiveBudget = if (isIncludeIncomeEnabled) monthlyBudget + totalIncome else monthlyBudget
+                    val progress = if (effectiveBudget > 0) (totalExpense / effectiveBudget).toFloat() else 0f
+                    val remaining = effectiveBudget - totalExpense
+                    val progressColor = when {
+                        progress >= 1.0f -> ChalkRed
+                        progress >= 0.8f -> Color(0xFFFFD54F) // Chalk Yellow
+                        else -> ChalkWhite.copy(alpha = 0.8f)
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Text(
+                            text = if (isIncludeIncomeEnabled) "Dynamic Budget" else "Monthly Budget",
+                            color = ChalkWhite.copy(alpha = 0.6f),
+                            fontSize = 14.sp,
+                            fontFamily = FontFamily.Cursive
+                        )
+                        Text(
+                            text = "$currencySymbol ${String.format("%.2f", remaining)} left",
+                            color = progressColor,
+                            fontSize = 16.sp,
+                            fontFamily = FontFamily.Cursive,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(ChalkWhite.copy(alpha = 0.1f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(progress.coerceAtMost(1f))
+                                .fillMaxHeight()
+                                .background(progressColor)
+                        )
+                    }
                 }
             }
 

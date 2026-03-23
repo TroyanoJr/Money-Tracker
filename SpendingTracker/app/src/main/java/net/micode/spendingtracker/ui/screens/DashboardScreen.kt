@@ -34,18 +34,22 @@ fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
     
     val pagerState = rememberPagerState(pageCount = { 4 })
     
-    // Navigation State - Cambiado a rememberSaveable
+    // Navigation State
     var currentScreen by rememberSaveable { mutableStateOf("dashboard") } 
     
-    // UI States for Categories - Cambiado a rememberSaveable
+    // UI States for Categories
     var selectedCategorySubTab by rememberSaveable { mutableIntStateOf(0) }
     var showAddCategory by rememberSaveable { mutableStateOf(false) }
     var categoryToEdit by remember { mutableStateOf<Category?>(null) }
     
-    // UI States for Transactions - Cambiado a rememberSaveable
+    // UI States for Transactions
     var showAddTransaction by rememberSaveable { mutableStateOf(false) }
     var transactionToEdit by remember { mutableStateOf<Transaction?>(null) }
     var initialTransactionType by rememberSaveable { mutableIntStateOf(0) }
+
+    // Search State
+    var isSearchActive by rememberSaveable { mutableStateOf(false) }
+    val searchQuery by viewModel.searchQuery.collectAsState()
 
     val expenseCategories by viewModel.expenseCategories.collectAsState()
     val incomeCategories by viewModel.incomeCategories.collectAsState()
@@ -53,6 +57,22 @@ fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
     
     val selectedPeriod by viewModel.selectedPeriod.collectAsState()
     val selectedDate by viewModel.selectedDate.collectAsState()
+
+    // Handle back button when search is active
+    if (isSearchActive) {
+        BackHandler {
+            isSearchActive = false
+            viewModel.setSearchQuery(null)
+        }
+    }
+
+    // Reset search when changing tabs
+    LaunchedEffect(pagerState.currentPage) {
+        if (isSearchActive && pagerState.currentPage != 1) {
+            isSearchActive = false
+            viewModel.setSearchQuery(null)
+        }
+    }
 
     // DETECT ORIENTATION: If landscape, show ReportsScreen
     if (isLandscape) {
@@ -124,12 +144,21 @@ fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
                             selectedPeriod = selectedPeriod,
                             selectedDate = selectedDate,
                             onPeriodSelected = { viewModel.setPeriod(it) },
-                            onDateSelected = { viewModel.setDate(it) }
+                            onDateSelected = { viewModel.setDate(it) },
+                            isSearchActive = isSearchActive,
+                            searchQuery = searchQuery ?: "",
+                            onSearchQueryChange = { viewModel.setSearchQuery(it) },
+                            onToggleSearch = { active ->
+                                isSearchActive = active
+                                if (!active) viewModel.setSearchQuery(null)
+                            },
+                            showSearchOption = pagerState.currentPage == 1
                         )
 
                         HorizontalPager(
                             state = pagerState,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            userScrollEnabled = !isSearchActive
                         ) { page ->
                             when (page) {
                                 0 -> SpendingScreen(

@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import net.micode.spendingtracker.viewmodel.CashFlowPoint
 import net.micode.spendingtracker.viewmodel.CategoryReportItem
 import net.micode.spendingtracker.viewmodel.TransactionViewModel
+import net.micode.spendingtracker.viewmodel.Period
 import net.micode.spendingtracker.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -49,10 +50,10 @@ fun ReportsScreen(viewModel: TransactionViewModel) {
 
     val dateFormatter = remember(selectedPeriod) {
         when (selectedPeriod) {
-            net.micode.spendingtracker.viewmodel.Period.DAY -> SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            net.micode.spendingtracker.viewmodel.Period.WEEK -> SimpleDateFormat("'Week' w, yyyy", Locale.getDefault())
-            net.micode.spendingtracker.viewmodel.Period.MONTH -> SimpleDateFormat("MMMM yyyy", Locale.getDefault())
-            net.micode.spendingtracker.viewmodel.Period.YEAR -> SimpleDateFormat("yyyy", Locale.getDefault())
+            Period.DAY -> SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            Period.WEEK -> SimpleDateFormat("'Week' w, yyyy", Locale.getDefault())
+            Period.MONTH -> SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+            Period.YEAR -> SimpleDateFormat("yyyy", Locale.getDefault())
         }
     }
     val dateText = dateFormatter.format(Date(selectedDate))
