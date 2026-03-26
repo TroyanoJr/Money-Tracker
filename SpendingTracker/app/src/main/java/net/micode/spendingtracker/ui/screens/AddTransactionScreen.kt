@@ -30,6 +30,7 @@ import net.micode.spendingtracker.R
 import net.micode.spendingtracker.model.Transaction
 import net.micode.spendingtracker.ui.components.CategoryRow
 import net.micode.spendingtracker.ui.components.CategoryTabButton
+import net.micode.spendingtracker.ui.components.ChalkDatePickerDialog
 import net.micode.spendingtracker.ui.components.SectionHeader
 import net.micode.spendingtracker.ui.theme.BeigeHeader
 import net.micode.spendingtracker.ui.theme.DarkBrownText
@@ -37,52 +38,15 @@ import net.micode.spendingtracker.viewmodel.TransactionViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
-private fun utcDatePickerMillisToLocalStartOfDay(utcMillis: Long): Long {
-    val utcCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
-        timeInMillis = utcMillis
-    }
-    val localCalendar = Calendar.getInstance().apply {
-        set(Calendar.YEAR, utcCalendar.get(Calendar.YEAR))
-        set(Calendar.MONTH, utcCalendar.get(Calendar.MONTH))
-        set(Calendar.DAY_OF_MONTH, utcCalendar.get(Calendar.DAY_OF_MONTH))
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-    }
-    return localCalendar.timeInMillis
-}
-
-private fun localToUtcDatePickerMillis(localMillis: Long): Long {
-    val localCalendar = Calendar.getInstance().apply {
-        timeInMillis = localMillis
-    }
-    val utcCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
-        set(Calendar.YEAR, localCalendar.get(Calendar.YEAR))
-        set(Calendar.MONTH, localCalendar.get(Calendar.MONTH))
-        set(Calendar.DAY_OF_MONTH, localCalendar.get(Calendar.DAY_OF_MONTH))
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-    }
-    return utcCalendar.timeInMillis
-}
-
 /**
  * Evaluates basic math expressions (addition and subtraction).
- * Returns null if the expression is invalid or incomplete.
  */
 fun evaluateMathExpression(input: String): Double? {
     if (input.isBlank()) return null
     try {
-        // Clean the input: replace comma with dot, remove spaces
         val cleanInput = input.replace(",", ".").replace(" ", "")
-        
-        // Simple regex to check if it's just a valid number first
         cleanInput.toDoubleOrNull()?.let { return it }
 
-        // Tokenize by + and - but keep the operators
         val tokens = mutableListOf<String>()
         var currentNumber = ""
         
@@ -138,11 +102,10 @@ fun AddTransactionScreen(
     var isRepeating by rememberSaveable { mutableStateOf(transactionToEdit?.isRepeating ?: false) }
     var selectedCategoryIndex by rememberSaveable { mutableIntStateOf(-1) }
 
-    // Calculadora inteligente: evalúa la expresión en tiempo real
     val calculatedAmount by remember(amount) { derivedStateOf { evaluateMathExpression(amount) } }
     val isAmountValid by remember(calculatedAmount) { derivedStateOf { calculatedAmount != null } }
-    val isCategorySelected by remember { derivedStateOf { selectedCategoryIndex != -1 } }
-    val isFormValid by remember { derivedStateOf { isAmountValid && isCategorySelected } }
+    val isCategorySelected by remember(selectedCategoryIndex) { derivedStateOf { selectedCategoryIndex != -1 } }
+    val isFormValid by remember(isAmountValid, isCategorySelected) { derivedStateOf { isAmountValid && isCategorySelected } }
 
     LaunchedEffect(expenseCategories, incomeCategories, transactionToEdit) {
         if (transactionToEdit != null && selectedCategoryIndex == -1) {
@@ -153,19 +116,9 @@ fun AddTransactionScreen(
 
     var showCategoryMenu by rememberSaveable { mutableStateOf(false) }
 
-    val initialDate = transactionToEdit?.date ?: currentDashboardDate
-    val initialDateUtc = remember(initialDate) { localToUtcDatePickerMillis(initialDate) }
-
+    var selectedLocalDateMillis by rememberSaveable { mutableLongStateOf(transactionToEdit?.date ?: currentDashboardDate) }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
-    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialDateUtc)
     val dateFormatter = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
-    
-    val selectedLocalDateMillis = remember(datePickerState.selectedDateMillis) {
-        datePickerState.selectedDateMillis?.let {
-            utcDatePickerMillisToLocalStartOfDay(it)
-        } ?: initialDate
-    }
-
     val formattedDate = dateFormatter.format(Date(selectedLocalDateMillis))
 
     var lastPage by rememberSaveable { mutableIntStateOf(initialPage) }
@@ -205,14 +158,12 @@ fun AddTransactionScreen(
                         
                         if (isFormValid && selectedCategoryIndex < categories.size) {
                             val category = categories[selectedCategoryIndex]
-                            val selectedTimestamp = selectedLocalDateMillis
                             
                             val transaction = Transaction(
                                 id = transactionToEdit?.id ?: UUID.randomUUID().toString(),
-                                amount = calculatedAmount ?: 0.0, // Guarda el resultado de la operación
+                                amount = calculatedAmount ?: 0.0,
                                 categoryName = category.name,
-                                categoryIcon = Icons.Default.Sell,
-                                date = selectedTimestamp,
+                                date = selectedLocalDateMillis,
                                 note = note,
                                 isExpense = isExpense,
                                 isRepeating = isRepeating
@@ -309,7 +260,7 @@ fun AddTransactionScreen(
                         BasicTextField(
                             value = amount,
                             onValueChange = { amount = it },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text), // Cambiado a Text para permitir + y -
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                             textStyle = TextStyle(fontSize = 16.sp, color = DarkBrownText),
                             modifier = Modifier.fillMaxWidth(),
                             decorationBox = { innerTextField ->
@@ -359,47 +310,13 @@ fun AddTransactionScreen(
     }
 
     if (showDatePicker) {
-        val datePickerColors = DatePickerDefaults.colors(
-            containerColor = BeigeHeader,
-            titleContentColor = DarkBrownText,
-            headlineContentColor = DarkBrownText,
-            weekdayContentColor = DarkBrownText,
-            subheadContentColor = DarkBrownText,
-            yearContentColor = DarkBrownText,
-            currentYearContentColor = DarkBrownText,
-            selectedYearContentColor = Color.White,
-            selectedYearContainerColor = DarkBrownText,
-            dayContentColor = DarkBrownText,
-            selectedDayContentColor = Color.White,
-            selectedDayContainerColor = DarkBrownText,
-            todayContentColor = DarkBrownText,
-            todayDateBorderColor = DarkBrownText,
-            navigationContentColor = DarkBrownText
+        ChalkDatePickerDialog(
+            initialDateMillis = selectedLocalDateMillis,
+            onDateSelected = { 
+                selectedLocalDateMillis = it
+                showDatePicker = false
+            },
+            onDismiss = { showDatePicker = false }
         )
-
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = { 
-                TextButton(onClick = { showDatePicker = false }) { 
-                    Text(stringResource(R.string.ok), color = DarkBrownText) 
-                } 
-            },
-            dismissButton = { 
-                TextButton(onClick = { showDatePicker = false }) { 
-                    Text(stringResource(R.string.cancel), color = DarkBrownText) 
-                } 
-            },
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Surface(color = BeigeHeader, shape = RoundedCornerShape(16.dp)) {
-                DatePicker(
-                    state = datePickerState,
-                    colors = datePickerColors,
-                    showModeToggle = false,
-                    title = {},
-                    headline = {}
-                )
-            }
-        }
     }
 }

@@ -20,6 +20,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.micode.spendingtracker.ui.components.ChalkDatePickerDialog
 import net.micode.spendingtracker.ui.theme.BeigeHeader
 import net.micode.spendingtracker.ui.theme.DarkBrownText
 import java.text.SimpleDateFormat
@@ -47,30 +48,12 @@ fun CsvExportScreen(
     var showStartDatePicker by remember { mutableStateOf(false) }
     var showEndDatePicker by remember { mutableStateOf(false) }
 
-    val dateFormatter = remember { SimpleDateFormat("dd MM月 yyyy", Locale.CHINA) }
-
-    val datePickerColors = DatePickerDefaults.colors(
-        containerColor = BeigeHeader,
-        titleContentColor = DarkBrownText,
-        headlineContentColor = DarkBrownText,
-        weekdayContentColor = DarkBrownText,
-        subheadContentColor = DarkBrownText,
-        yearContentColor = DarkBrownText,
-        currentYearContentColor = DarkBrownText,
-        selectedYearContentColor = Color.White,
-        selectedYearContainerColor = DarkBrownText,
-        dayContentColor = DarkBrownText,
-        selectedDayContentColor = Color.White,
-        selectedDayContainerColor = DarkBrownText,
-        todayContentColor = DarkBrownText,
-        todayDateBorderColor = DarkBrownText,
-        navigationContentColor = DarkBrownText
-    )
+    val dateFormatter = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
 
     Surface(
         modifier = Modifier
             .fillMaxSize()
-            .pointerInput(Unit) { }, // Bloquea toques al fondo
+            .pointerInput(Unit) { }, 
         color = BeigeHeader
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -147,57 +130,25 @@ fun CsvExportScreen(
     }
 
     if (showStartDatePicker) {
-        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = startDate)
-        DatePickerDialog(
-            onDismissRequest = { showStartDatePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { startDate = it }
-                    showStartDatePicker = false
-                }) { Text("OK", color = DarkBrownText) }
+        ChalkDatePickerDialog(
+            initialDateMillis = startDate,
+            onDateSelected = { 
+                startDate = it
+                showStartDatePicker = false
             },
-            dismissButton = {
-                TextButton(onClick = { showStartDatePicker = false }) { Text("CANCEL", color = DarkBrownText) }
-            },
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Surface(color = BeigeHeader, shape = RoundedCornerShape(16.dp)) {
-                DatePicker(
-                    state = datePickerState, 
-                    colors = datePickerColors,
-                    showModeToggle = false,
-                    title = {},
-                    headline = {}
-                )
-            }
-        }
+            onDismiss = { showStartDatePicker = false }
+        )
     }
 
     if (showEndDatePicker) {
-        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = endDate)
-        DatePickerDialog(
-            onDismissRequest = { showEndDatePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { endDate = it }
-                    showEndDatePicker = false
-                }) { Text("OK", color = DarkBrownText) }
+        ChalkDatePickerDialog(
+            initialDateMillis = endDate,
+            onDateSelected = { 
+                endDate = it
+                showEndDatePicker = false
             },
-            dismissButton = {
-                TextButton(onClick = { showEndDatePicker = false }) { Text("CANCEL", color = DarkBrownText) }
-            },
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Surface(color = BeigeHeader, shape = RoundedCornerShape(16.dp)) {
-                DatePicker(
-                    state = datePickerState, 
-                    colors = datePickerColors,
-                    showModeToggle = false,
-                    title = {},
-                    headline = {}
-                )
-            }
-        }
+            onDismiss = { showEndDatePicker = false }
+        )
     }
 
     if (showCategoryDialog) {

@@ -57,6 +57,9 @@ dependencies {
     implementation(libs.sqlcipher)
     implementation(libs.androidx.paging.runtime.ktx)
     implementation(libs.androidx.paging.compose)
+    
+    // WorkManager
+    implementation(libs.androidx.work.runtime.ktx)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -10,7 +10,6 @@ class SettingsManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
 
     companion object {
-        const val KEY_AUTO_CAPTURE = "auto_capture_notifications"
         const val KEY_CURRENCY_SYMBOL = "currency_symbol"
         const val KEY_CURRENCY_CODE = "currency_code"
         const val KEY_HAS_SEEDED_CATEGORIES = "has_seeded_categories"
@@ -20,21 +19,9 @@ class SettingsManager(context: Context) {
         const val KEY_BUDGET_MODE_ENABLED = "budget_mode_enabled"
         const val KEY_MONTHLY_BUDGET_AMOUNT = "monthly_budget_amount"
         const val KEY_INCLUDE_INCOME_IN_BUDGET = "include_income_in_budget"
-    }
-
-    /**
-     * Set the status of automatic notification capture.
-     */
-    fun setAutoCaptureEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_AUTO_CAPTURE, enabled).apply()
-    }
-
-    /**
-     * Get the current status of automatic notification capture.
-     * Defaults to true.
-     */
-    fun isAutoCaptureEnabled(): Boolean {
-        return prefs.getBoolean(KEY_AUTO_CAPTURE, true)
+        const val KEY_REMINDER_FREQUENCY = "reminder_frequency"
+        const val KEY_REMINDER_HOUR = "reminder_hour"
+        const val KEY_REMINDER_MINUTE = "reminder_minute"
     }
 
     /**
@@ -122,5 +109,27 @@ class SettingsManager(context: Context) {
 
     fun setIncludeIncomeInBudget(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_INCLUDE_INCOME_IN_BUDGET, enabled).apply()
+    }
+
+    fun getReminderFrequency(): String {
+        return prefs.getString(KEY_REMINDER_FREQUENCY, "Every Day") ?: "Every Day"
+    }
+
+    fun setReminderFrequency(frequency: String) {
+        prefs.edit().putString(KEY_REMINDER_FREQUENCY, frequency).apply()
+    }
+
+    fun getReminderTime(): Pair<Int, Int> {
+        return Pair(
+            prefs.getInt(KEY_REMINDER_HOUR, 20), // Default 8 PM
+            prefs.getInt(KEY_REMINDER_MINUTE, 0)
+        )
+    }
+
+    fun setReminderTime(hour: Int, minute: Int) {
+        prefs.edit()
+            .putInt(KEY_REMINDER_HOUR, hour)
+            .putInt(KEY_REMINDER_MINUTE, minute)
+            .apply()
     }
 }

@@ -87,8 +87,11 @@ class TransactionViewModel(
 
     val categories: StateFlow<List<Category>> = repository.allCategories
         .onEach { list ->
+            // Seed defaults AND ensure "Pending" always exists
             if (list.isEmpty() && !settingsManager.hasSeededCategories()) {
                 seedDefaultCategories()
+            } else if (list.none { it.name == "Pending" }) {
+                ensurePendingCategoryExists()
             }
         }
         .stateIn(
@@ -208,9 +211,23 @@ class TransactionViewModel(
         }
         val endCalendar = startCalendar.clone() as Calendar
         when (period) {
-            Period.WEEK -> { startCalendar.set(Calendar.DAY_OF_WEEK, startCalendar.firstDayOfWeek); endCalendar.timeInMillis = startCalendar.timeInMillis; endCalendar.add(Calendar.DAY_OF_WEEK, 6) }
-            Period.MONTH -> { startCalendar.set(Calendar.DAY_OF_MONTH, 1); endCalendar.timeInMillis = startCalendar.timeInMillis; endCalendar.set(Calendar.DAY_OF_MONTH, endCalendar.getActualMaximum(Calendar.DAY_OF_MONTH)) }
-            Period.YEAR -> { startCalendar.set(Calendar.MONTH, Calendar.JANUARY); startCalendar.set(Calendar.DAY_OF_MONTH, 1); endCalendar.timeInMillis = startCalendar.timeInMillis; endCalendar.set(Calendar.MONTH, Calendar.DECEMBER); endCalendar.set(Calendar.DAY_OF_MONTH, 31) }
+            Period.WEEK -> { 
+                startCalendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+                endCalendar.timeInMillis = startCalendar.timeInMillis
+                endCalendar.add(Calendar.DAY_OF_WEEK, 6) 
+            }
+            Period.MONTH -> { 
+                startCalendar.set(Calendar.DAY_OF_MONTH, 1)
+                endCalendar.timeInMillis = startCalendar.timeInMillis
+                endCalendar.set(Calendar.DAY_OF_MONTH, endCalendar.getActualMaximum(Calendar.DAY_OF_MONTH)) 
+            }
+            Period.YEAR -> { 
+                startCalendar.set(Calendar.MONTH, Calendar.JANUARY)
+                startCalendar.set(Calendar.DAY_OF_MONTH, 1)
+                endCalendar.timeInMillis = startCalendar.timeInMillis
+                endCalendar.set(Calendar.MONTH, Calendar.DECEMBER)
+                endCalendar.set(Calendar.DAY_OF_MONTH, 31) 
+            }
             else -> Unit
         }
         endCalendar.set(Calendar.HOUR_OF_DAY, 23); endCalendar.set(Calendar.MINUTE, 59); endCalendar.set(Calendar.SECOND, 59); endCalendar.set(Calendar.MILLISECOND, 999)
@@ -235,6 +252,14 @@ class TransactionViewModel(
         }
     }
 
+    private fun ensurePendingCategoryExists() {
+        viewModelScope.launch {
+            repository.insertCategory(
+                Category(name = "Pending", iconName = "Sell", isExpense = true, color = -0x616162)
+            )
+        }
+    }
+
     val totalExpense: StateFlow<Double> = transactions.map { list -> list.filter { it.isExpense }.sumOf { it.amount } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
@@ -251,18 +276,26 @@ class TransactionViewModel(
             .sortedByDescending { it.second }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val heatmapData: StateFlow<Map<Long, Double>> = transactions.map { list ->
-        list.groupBy {
-            Calendar.getInstance().apply {
-                timeInMillis = it.date
-                set(Calendar.HOUR_OF_DAY, 0)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }.timeInMillis
-        }.mapValues { (_, txs) ->
-            txs.sumOf { if (it.isExpense) -it.amount else it.amount }
+    val heatmapData: StateFlow<Map<Long, Double>> = combine(selectedDateRange, transactions) { range, list ->
+        val map = mutableMapOf<Long, Double>()
+        val cal = Calendar.getInstance().apply {
+            timeInMillis = range.start
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
         }
+        while (cal.timeInMillis <= range.end) {
+            map[cal.timeInMillis] = 0.0
+            cal.add(Calendar.DAY_OF_YEAR, 1)
+        }
+        list.forEach { tx ->
+            val dayStart = Calendar.getInstance().apply {
+                timeInMillis = tx.date
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            if (map.containsKey(dayStart)) {
+                map[dayStart] = (map[dayStart] ?: 0.0) + (if (tx.isExpense) -tx.amount else tx.amount)
+            }
+        }
+        map
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     val incompleteTransactionsCount: StateFlow<Int> = repository.allTransactions.map { list ->
@@ -286,7 +319,7 @@ class TransactionViewModel(
                 val sdf = SimpleDateFormat("EEE", Locale.getDefault())
                 val grouped = list.groupBy { Calendar.getInstance().apply { timeInMillis = it.date }.get(Calendar.DAY_OF_WEEK) }
                 val tempCal = calendar.clone() as Calendar
-                tempCal.set(Calendar.DAY_OF_WEEK, tempCal.firstDayOfWeek)
+                tempCal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
                 for (i in 0..6) {
                     val dayOfWeek = tempCal.get(Calendar.DAY_OF_WEEK)
                     val txs = grouped[dayOfWeek] ?: emptyList()

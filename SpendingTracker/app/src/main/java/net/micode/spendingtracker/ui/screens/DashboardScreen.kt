@@ -23,10 +23,12 @@ import java.io.File
 
 /**
  * Main dashboard screen that hosts the navigation and the swipable pages.
- * Now supports automatic report view on device rotation with state persistence.
  */
 @Composable
-fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
+fun DashboardScreen(
+    viewModel: TransactionViewModel = viewModel(),
+    initialTransactionIdToEdit: String? = null
+) {
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val context = LocalContext.current
@@ -58,7 +60,18 @@ fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
     val selectedPeriod by viewModel.selectedPeriod.collectAsState()
     val selectedDate by viewModel.selectedDate.collectAsState()
 
-    // Handle back button when search is active
+    // Handle initial transaction from notification
+    val transactions by viewModel.transactions.collectAsState()
+    LaunchedEffect(initialTransactionIdToEdit, transactions) {
+        if (initialTransactionIdToEdit != null && transactions.isNotEmpty()) {
+            val tx = transactions.find { it.id == initialTransactionIdToEdit }
+            if (tx != null) {
+                transactionToEdit = tx
+                showAddTransaction = true
+            }
+        }
+    }
+
     if (isSearchActive) {
         BackHandler {
             isSearchActive = false
@@ -66,7 +79,6 @@ fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
         }
     }
 
-    // Reset search when changing tabs
     LaunchedEffect(pagerState.currentPage) {
         if (isSearchActive && pagerState.currentPage != 1) {
             isSearchActive = false
@@ -74,7 +86,6 @@ fun DashboardScreen(viewModel: TransactionViewModel = viewModel()) {
         }
     }
 
-    // DETECT ORIENTATION: If landscape, show ReportsScreen
     if (isLandscape) {
         ReportsScreen(viewModel = viewModel)
     } else {

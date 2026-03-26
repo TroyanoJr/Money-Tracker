@@ -61,7 +61,6 @@ fun SpendingScreen(
     val incompleteCount by viewModel.incompleteTransactionsCount.collectAsState()
     var showHeatmap by rememberSaveable { mutableStateOf(false) }
 
-    // Sync budget settings when screen is shown or budget state changes
     LaunchedEffect(isBudgetEnabled, monthlyBudget, isIncludeIncomeEnabled) {
         viewModel.refreshBudgetSettings()
     }
@@ -137,7 +136,7 @@ fun SpendingScreen(
                     val remaining = effectiveBudget - totalExpense
                     val progressColor = when {
                         progress >= 1.0f -> ChalkRed
-                        progress >= 0.8f -> Color(0xFFFFD54F) // Chalk Yellow
+                        progress >= 0.8f -> Color(0xFFFFD54F)
                         else -> ChalkWhite.copy(alpha = 0.8f)
                     }
 
@@ -178,21 +177,32 @@ fun SpendingScreen(
                 }
             }
 
+            // Proportional Balance Bar (Solid, No Gaps)
             val total = totalIncome + totalExpense
             val incomeWeight = if (total > 0) (totalIncome / total).toFloat() else 0.5f
-            val expenseWeight = if (total > 0) (totalExpense / total).toFloat() else 0.5f
+            val expenseWeight = 1f - incomeWeight
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(12.dp)
-                    .clip(RoundedCornerShape(6.dp))
+                    .height(14.dp)
+                    .clip(RoundedCornerShape(7.dp))
             ) {
-                if (total > 0) {
-                    Box(modifier = Modifier.weight(incomeWeight.coerceAtLeast(0.01f)).fillMaxHeight().background(ChalkGreen))
-                    Box(modifier = Modifier.weight(expenseWeight.coerceAtLeast(0.01f)).fillMaxHeight().background(ChalkRed))
-                } else {
-                    Box(modifier = Modifier.fillMaxSize().background(Color.Gray.copy(alpha = 0.3f)))
+                if (incomeWeight > 0) {
+                    Box(
+                        modifier = Modifier
+                            .weight(incomeWeight.coerceAtLeast(0.0001f))
+                            .fillMaxHeight()
+                            .background(ChalkGreen)
+                    )
+                }
+                if (expenseWeight > 0) {
+                    Box(
+                        modifier = Modifier
+                            .weight(expenseWeight.coerceAtLeast(0.0001f))
+                            .fillMaxHeight()
+                            .background(ChalkRed)
+                    )
                 }
             }
 
