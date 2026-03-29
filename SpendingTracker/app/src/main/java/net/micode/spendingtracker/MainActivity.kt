@@ -1,18 +1,13 @@
 package net.micode.spendingtracker
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.core.content.ContextCompat
 import net.micode.spendingtracker.ui.screens.DashboardScreen
 import net.micode.spendingtracker.ui.screens.LockScreen
 import net.micode.spendingtracker.viewmodel.TransactionViewModel
@@ -35,17 +30,9 @@ class MainActivity : ComponentActivity() {
         TransactionViewModelFactory(repository, settingsManager)
     }
 
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        // Permission handled
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        checkAndRequestNotificationPermission()
-
         setContent {
             SpendingTrackerTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
@@ -63,18 +50,9 @@ class MainActivity : ComponentActivity() {
                         LaunchedEffect(Unit) {
                             viewModel.refreshCurrency()
                         }
-                        
                         DashboardScreen(viewModel = viewModel)
                     }
                 }
-            }
-        }
-    }
-
-    private fun checkAndRequestNotificationPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
     }
