@@ -5,13 +5,9 @@ import androidx.work.*
 import net.micode.spendingtracker.util.ReminderManager
 import java.util.concurrent.TimeUnit
 
-/**
- * Worker that runs periodically to ensure the system alarm is always scheduled.
- * This is the professional way to handle aggressive battery optimization in production.
- */
 class ReminderWorker(context: Context, workerParams: WorkerParameters) : Worker(context, workerParams) {
     override fun doWork(): Result {
-        // Re-schedule the alarm just in case the system killed it
+        // Esta es la clave: el Worker despierta la app y el ReminderManager vuelve a poner la alarma exacta
         ReminderManager.scheduleReminder(applicationContext)
         return Result.success()
     }
@@ -22,6 +18,7 @@ class ReminderWorker(context: Context, workerParams: WorkerParameters) : Worker(
         fun startWatchdog(context: Context) {
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
+                .setRequiresBatteryNotLow(false)
                 .build()
 
             val workRequest = PeriodicWorkRequestBuilder<ReminderWorker>(1, TimeUnit.HOURS)

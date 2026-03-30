@@ -11,6 +11,7 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
 import net.micode.spendingtracker.receiver.ReminderReceiver
+import net.micode.spendingtracker.service.NotificationService
 import java.util.*
 
 object ReminderManager {
@@ -35,7 +36,20 @@ object ReminderManager {
 
         if (frequency == "Never") {
             alarmManager.cancel(pendingIntent)
+            context.stopService(Intent(context, NotificationService::class.java))
             return
+        }
+
+        // START FOREGROUND SERVICE: Mantiene la app viva en Xiaomi/Samsung/Huawei
+        val serviceIntent = Intent(context, NotificationService::class.java)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Foreground service start failed", e)
         }
 
         val (hour, minute) = settingsManager.getReminderTime()
@@ -50,13 +64,21 @@ object ReminderManager {
         }
 
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // PRODUCCIÓN: Manejo de Alarmas Exactas para Android 12, 13, 14 y 15
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (alarmManager.canScheduleExactAlarms()) {
+                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+                } else {
+                    // Fallback a alarma normal si no tiene el permiso especial
+                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+                }
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
             } else {
                 alarmManager.setExact(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error scheduling alarm", e)
+            Log.e(TAG, "Alarm scheduling fallback", e)
             alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
         }
     }
@@ -70,31 +92,22 @@ object ReminderManager {
 
     fun openBatterySettings(context: Context) {
         val manufacturer = Build.MANUFACTURER.lowercase()
-        val intent = Intent()
         try {
             if (manufacturer.contains("huawei") || manufacturer.contains("honor")) {
-                // INTENT ESPECÍFICO PARA HARMONYOS 4.2 / EMUI 12+ (Startup Manager)
-                intent.component = ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.appcontrol.activity.StartupAppControlActivity")
-                if (isIntentCallable(context, intent)) {
-                    context.startActivity(intent)
-                    return
+                val intent = Intent().apply {
+                    component = ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.appcontrol.activity.StartupAppControlActivity")
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 }
-                // Fallback para versiones anteriores de Huawei
-                intent.component = ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity")
+                context.startActivity(intent)
             } else {
-                intent.action = Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
+                val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                context.startActivity(intent)
             }
-            context.startActivity(intent)
         } catch (e: Exception) {
-            val fallbackIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                 data = Uri.fromParts("package", context.packageName, null)
             }
-            context.startActivity(fallbackIntent)
+            context.startActivity(intent)
         }
-    }
-
-    private fun isIntentCallable(context: Context, intent: Intent): Boolean {
-        val list = context.packageManager.queryIntentActivities(intent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
-        return list.size > 0
     }
 }

@@ -35,11 +35,8 @@ class SpendingTrackerApp : Application(), Application.ActivityLifecycleCallbacks
         resetLegacyPlainDatabaseIfNeeded()
         database = createEncryptedDatabaseWithRecovery()
 
-        // El servicio ya no arranca aquí para evitar la ventana de permisos al abrir la app.
-        // Se arrancará solo desde ReminderManager cuando sea necesario.
-
-        // Start the background watchdog as secondary protection
-        ReminderWorker.startWatchdog(this)
+        // FIX: Eliminamos el inicio automático aquí para que NO pida permisos al abrir la app.
+        // El Watchdog se iniciará solo cuando el usuario configure los Reminders en SettingsScreen.
     }
 
     private fun resetLegacyPlainDatabaseIfNeeded() {
