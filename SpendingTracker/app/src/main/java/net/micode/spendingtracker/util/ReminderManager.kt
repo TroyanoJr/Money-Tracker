@@ -1,5 +1,6 @@
 package net.micode.spendingtracker.util
 
+import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.ComponentName
@@ -11,7 +12,6 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
 import net.micode.spendingtracker.receiver.ReminderReceiver
-import net.micode.spendingtracker.service.NotificationService
 import java.util.*
 
 object ReminderManager {
@@ -23,6 +23,7 @@ object ReminderManager {
         val frequency = settingsManager.getReminderFrequency()
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
+        // Intent explícito: el método más fiable para despertar apps cerradas
         val intent = Intent(context, ReminderReceiver::class.java).apply {
             component = ComponentName(context.packageName, ReminderReceiver::class.java.name)
         }
@@ -36,24 +37,11 @@ object ReminderManager {
 
         if (frequency == "Never") {
             alarmManager.cancel(pendingIntent)
-            context.stopService(Intent(context, NotificationService::class.java))
             return
         }
 
-        // START FOREGROUND SERVICE: Mantiene la app viva en Xiaomi/Samsung/Huawei
-        val serviceIntent = Intent(context, NotificationService::class.java)
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(serviceIntent)
-            } else {
-                context.startService(serviceIntent)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Foreground service start failed", e)
-        }
-
         val (hour, minute) = settingsManager.getReminderTime()
-        val calendar = Calendar.getInstance().apply {
+        val triggerTime = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, hour)
             set(Calendar.MINUTE, minute)
             set(Calendar.SECOND, 0)
@@ -64,22 +52,16 @@ object ReminderManager {
         }
 
         try {
-            // PRODUCCIÓN: Manejo de Alarmas Exactas para Android 12, 13, 14 y 15
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (alarmManager.canScheduleExactAlarms()) {
-                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
-                } else {
-                    // Fallback a alarma normal si no tiene el permiso especial
-                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
-                }
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+            // Intentamos usar alarma exacta para que no se retrase al cerrar la app
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime.timeInMillis, pendingIntent)
             } else {
-                alarmManager.setExact(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+                alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerTime.timeInMillis, pendingIntent)
             }
+            Log.d(TAG, "Reminder scheduled at ${triggerTime.time}")
         } catch (e: Exception) {
-            Log.e(TAG, "Alarm scheduling fallback", e)
-            alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+            // Fallback si el sistema restringe alarmas exactas (Android 12+)
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime.timeInMillis, pendingIntent)
         }
     }
 
@@ -90,24 +72,28 @@ object ReminderManager {
         } else false
     }
 
-    fun openBatterySettings(context: Context) {
-        val manufacturer = Build.MANUFACTURER.lowercase()
-        try {
-            if (manufacturer.contains("huawei") || manufacturer.contains("honor")) {
-                val intent = Intent().apply {
-                    component = ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.appcontrol.activity.StartupAppControlActivity")
+    @SuppressLint("BatteryLife")
+    fun requestIgnoreBatteryOptimizations(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            try {
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.parse("package:${context.packageName}")
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 }
                 context.startActivity(intent)
-            } else {
-                val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-                context.startActivity(intent)
+            } catch (e: Exception) {
+                openBatterySettings(context)
             }
-        } catch (e: Exception) {
-            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                data = Uri.fromParts("package", context.packageName, null)
-            }
-            context.startActivity(intent)
         }
+    }
+
+    fun openBatterySettings(context: Context) {
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+        } else {
+            Intent(Settings.ACTION_SETTINGS)
+        }
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        context.startActivity(intent)
     }
 }

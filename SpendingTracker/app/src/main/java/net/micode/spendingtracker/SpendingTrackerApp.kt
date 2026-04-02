@@ -8,7 +8,6 @@ import androidx.room.Room
 import net.micode.spendingtracker.data.AppDatabase
 import net.micode.spendingtracker.util.DbPassphraseManager
 import net.micode.spendingtracker.util.SettingsManager
-import net.micode.spendingtracker.worker.ReminderWorker
 import net.sqlcipher.database.SQLiteDatabase
 import net.sqlcipher.database.SupportFactory
 
@@ -34,9 +33,6 @@ class SpendingTrackerApp : Application(), Application.ActivityLifecycleCallbacks
         SQLiteDatabase.loadLibs(this)
         resetLegacyPlainDatabaseIfNeeded()
         database = createEncryptedDatabaseWithRecovery()
-
-        // FIX: Eliminamos el inicio automático aquí para que NO pida permisos al abrir la app.
-        // El Watchdog se iniciará solo cuando el usuario configure los Reminders en SettingsScreen.
     }
 
     private fun resetLegacyPlainDatabaseIfNeeded() {

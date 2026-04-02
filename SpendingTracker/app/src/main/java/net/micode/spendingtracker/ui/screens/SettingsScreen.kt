@@ -81,7 +81,7 @@ fun RemindersSubScreen(
     var reminderTime by remember { mutableStateOf(settingsManager.getReminderTime()) }
     var showFrequencyDialog by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
-    
+
     val isOptimized = remember { ReminderManager.isBatteryOptimized(context) }
     var areNotificationsEnabled by remember { mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled()) }
 
@@ -89,24 +89,49 @@ fun RemindersSubScreen(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         areNotificationsEnabled = isGranted
-        if (isGranted) Toast.makeText(context, "Notification permissions granted", Toast.LENGTH_SHORT).show()
+        if (isGranted) {
+            if (frequency != "Never") {
+                ReminderManager.scheduleReminder(context)
+                Toast.makeText(context, "Reminder enabled", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, "Notification permission is required for reminders", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    fun applyReminderSettings() {
+        if (frequency == "Never") {
+            ReminderManager.scheduleReminder(context) // this path cancels existing reminder
+            return
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val hasPermission = NotificationManagerCompat.from(context).areNotificationsEnabled()
+            areNotificationsEnabled = hasPermission
+            if (hasPermission) {
+                ReminderManager.scheduleReminder(context)
+            } else {
+                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        } else {
+            areNotificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+            if (areNotificationsEnabled) {
+                ReminderManager.scheduleReminder(context)
+            } else {
+                Toast.makeText(
+                    context,
+                    "Enable notifications in system settings to use reminders",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
     }
 
     LaunchedEffect(Unit) {
-        if (areNotificationsEnabled) {
-            Toast.makeText(context, "Notification permissions granted", Toast.LENGTH_SHORT).show()
-        } else {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            } else {
-                // REDIRECCIÓN MANUAL PARA HUAWEI/ANDROID 12
-                val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                }
-                context.startActivity(intent)
-            }
+        areNotificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+        if (frequency != "Never") {
+            applyReminderSettings()
         }
-        if (frequency != "Never") ReminderManager.scheduleReminder(context)
     }
 
     Scaffold(
@@ -173,7 +198,7 @@ fun RemindersSubScreen(
             onSelect = { selectedFreq ->
                 frequency = selectedFreq
                 settingsManager.setReminderFrequency(selectedFreq)
-                ReminderManager.scheduleReminder(context)
+                applyReminderSettings()
                 Toast.makeText(context, "Frequency updated: $selectedFreq", Toast.LENGTH_SHORT).show()
                 showFrequencyDialog = false
             }
@@ -187,7 +212,7 @@ fun RemindersSubScreen(
             onTimeSelected = { hour, minute ->
                 reminderTime = Pair(hour, minute)
                 settingsManager.setReminderTime(hour, minute)
-                ReminderManager.scheduleReminder(context)
+                applyReminderSettings()
                 Toast.makeText(context, String.format(Locale.getDefault(), "Reminder time set to %02d:%02d", hour, minute), Toast.LENGTH_SHORT).show()
                 showTimePicker = false
             },
