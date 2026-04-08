@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 
 /**
  * Manages app settings and persistence using SharedPreferences.
+ * Now includes Premium status management.
  */
 class SettingsManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
@@ -22,6 +23,18 @@ class SettingsManager(context: Context) {
         const val KEY_REMINDER_FREQUENCY = "reminder_frequency"
         const val KEY_REMINDER_HOUR = "reminder_hour"
         const val KEY_REMINDER_MINUTE = "reminder_minute"
+        const val KEY_IS_PREMIUM = "is_premium_user"
+    }
+
+    /**
+     * Premium status management.
+     */
+    fun isPremium(): Boolean {
+        return prefs.getBoolean(KEY_IS_PREMIUM, false)
+    }
+
+    fun setPremiumStatus(isPremium: Boolean) {
+        prefs.edit().putBoolean(KEY_IS_PREMIUM, isPremium).apply()
     }
 
     /**
