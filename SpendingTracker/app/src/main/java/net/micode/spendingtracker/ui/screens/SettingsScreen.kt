@@ -31,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.core.app.NotificationManagerCompat
 import net.micode.spendingtracker.ui.theme.BeigeHeader
 import net.micode.spendingtracker.ui.theme.DarkBrownText
@@ -68,6 +69,8 @@ fun RemindersSubScreen(settingsManager: SettingsManager, onBack: () -> Unit) {
     var reminderTime by remember { mutableStateOf(settingsManager.getReminderTime()) }
     var showFrequencyDialog by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+    
+    var showBatteryInstructionDialog by remember { mutableStateOf(false) }
     
     var showBatteryCard by remember { mutableStateOf(ReminderManager.needsBatteryExemption(context)) }
     var areNotificationsEnabled by remember { mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled()) }
@@ -113,26 +116,62 @@ fun RemindersSubScreen(settingsManager: SettingsManager, onBack: () -> Unit) {
         containerColor = BeigeHeader
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
+            
             if (showBatteryCard && frequency != "Never") {
                 Card(
                     modifier = Modifier.padding(16.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
-                    onClick = { 
-                        ReminderManager.openBatterySettings(context)
-                        showBatteryCard = ReminderManager.needsBatteryExemption(context)
+                    onClick = {
+                        showBatteryInstructionDialog = true
                     }
                 ) {
                     Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.BatteryAlert, null, tint = Color.Red)
                         Spacer(Modifier.width(12.dp))
-                        Text("Reminders may be restricted. Tap to allow background running.", color = Color.Red, fontSize = 12.sp)
+                        Text("Reminders may be restricted. Tap for instructions.", color = Color.Red, fontSize = 12.sp)
                     }
                 }
             }
+
             SettingsSectionHeader("Schedule")
             SettingsClickableRow("Frequency", frequency) { showFrequencyDialog = true }
             SettingsClickableRow("Time", String.format(Locale.getDefault(), "%02d:%02d", reminderTime.first, reminderTime.second)) { showTimePicker = true }
         }
+    }
+
+    if (showBatteryInstructionDialog) {
+        AlertDialog(
+            onDismissRequest = { showBatteryInstructionDialog = false },
+            title = { Text("Manual Configuration Required", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "To receive reminders when the app is closed, please perform these steps in your device settings:\n\n" +
+                    "1. Open device Settings > Battery.\n" +
+                    "2. Select 'App Launch' or 'Startup Manager'.\n" +
+                    "3. Find 'Spending Tracker' and turn OFF 'Manage automatically'.\n" +
+                    "4. Ensure 'Run in background' is enabled."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { 
+                    showBatteryInstructionDialog = false
+                    // ACTION: Direct redirection to General Settings as requested
+                    val intent = Intent(Settings.ACTION_SETTINGS).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    context.startActivity(intent)
+                }) {
+                    Text("GO TO SETTINGS", color = DarkBrownText)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBatteryInstructionDialog = false }) {
+                    Text("CLOSE", color = Color.Gray)
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(8.dp)
+        )
     }
 
     if (showFrequencyDialog) {

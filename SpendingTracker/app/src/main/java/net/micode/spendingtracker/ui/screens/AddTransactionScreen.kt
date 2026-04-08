@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import net.micode.spendingtracker.R
 import net.micode.spendingtracker.model.Transaction
+import net.micode.spendingtracker.model.Category
 import net.micode.spendingtracker.ui.components.CategoryRow
 import net.micode.spendingtracker.ui.components.CategoryTabButton
 import net.micode.spendingtracker.ui.components.ChalkDatePickerDialog
@@ -39,7 +40,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 /**
- * Evaluates basic math expressions (addition and subtraction).
+ * Utility to evaluate simple math expressions (addition/subtraction) in the amount field.
  */
 fun evaluateMathExpression(input: String): Double? {
     if (input.isBlank()) return null
@@ -100,52 +101,50 @@ fun AddTransactionScreen(
     var amount by rememberSaveable { mutableStateOf(transactionToEdit?.amount?.toString() ?: "") }
     var note by rememberSaveable { mutableStateOf(transactionToEdit?.note ?: "") }
     var isRepeating by rememberSaveable { mutableStateOf(transactionToEdit?.isRepeating ?: false) }
-    var selectedCategoryIndex by rememberSaveable { mutableIntStateOf(-1) }
+    
+    // UI state to toggle the full-screen category searchable list
+    var showCategorySelector by rememberSaveable { mutableStateOf(false) }
+    
+    // Keeps track of the selected category name for the current form
+    var selectedCategoryName by rememberSaveable { mutableStateOf(transactionToEdit?.categoryName ?: "") }
 
     val calculatedAmount by remember(amount) { derivedStateOf { evaluateMathExpression(amount) } }
     val isAmountValid by remember(calculatedAmount) { derivedStateOf { calculatedAmount != null } }
-    val isCategorySelected by remember(selectedCategoryIndex) { derivedStateOf { selectedCategoryIndex != -1 } }
+    val isCategorySelected by remember(selectedCategoryName) { derivedStateOf { selectedCategoryName.isNotEmpty() } }
     val isFormValid by remember(isAmountValid, isCategorySelected) { derivedStateOf { isAmountValid && isCategorySelected } }
-
-    LaunchedEffect(expenseCategories, incomeCategories, transactionToEdit) {
-        if (transactionToEdit != null && selectedCategoryIndex == -1) {
-            val categories = if (transactionToEdit.isExpense) expenseCategories else incomeCategories
-            selectedCategoryIndex = categories.indexOfFirst { it.name == transactionToEdit.categoryName }
-        }
-    }
-
-    var showCategoryMenu by rememberSaveable { mutableStateOf(false) }
 
     var selectedLocalDateMillis by rememberSaveable { mutableLongStateOf(transactionToEdit?.date ?: currentDashboardDate) }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
     val dateFormatter = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
     val formattedDate = dateFormatter.format(Date(selectedLocalDateMillis))
 
-    var lastPage by rememberSaveable { mutableIntStateOf(initialPage) }
-    LaunchedEffect(pagerState.currentPage) {
-        if (pagerState.currentPage != lastPage) {
-            selectedCategoryIndex = -1
-            lastPage = pagerState.currentPage
-        }
+    // Renders the CategorySelectorScreen instead of the form when requested
+    if (showCategorySelector) {
+        val currentCategories = if (pagerState.currentPage == 0) expenseCategories else incomeCategories
+        CategorySelectorScreen(
+            categories = currentCategories,
+            onCategorySelected = { category ->
+                selectedCategoryName = category.name
+                showCategorySelector = false
+            },
+            onBack = { showCategorySelector = false }
+        )
+        return 
     }
 
     Surface(
-        modifier = Modifier
-            .fillMaxSize()
-            .pointerInput(Unit) { },
+        modifier = Modifier.fillMaxSize().pointerInput(Unit) { },
         color = BeigeHeader
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
+            // Header Row: Close button and Done action
             Row(
                 modifier = Modifier.fillMaxWidth().padding(8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = {
-                    focusManager.clearFocus()
-                    onClose()
-                }) {
-                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = DarkBrownText)
+                IconButton(onClick = { focusManager.clearFocus(); onClose() }) {
+                    Icon(Icons.Default.Close, contentDescription = null, tint = DarkBrownText)
                 }
                 Text(
                     text = stringResource(R.string.done),
@@ -153,34 +152,24 @@ fun AddTransactionScreen(
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(end = 16.dp).clickable(enabled = isFormValid) {
-                        val isExpense = pagerState.currentPage == 0
-                        val categories = if (isExpense) expenseCategories else incomeCategories
-                        
-                        if (isFormValid && selectedCategoryIndex < categories.size) {
-                            val category = categories[selectedCategoryIndex]
-                            
-                            val transaction = Transaction(
-                                id = transactionToEdit?.id ?: UUID.randomUUID().toString(),
-                                amount = calculatedAmount ?: 0.0,
-                                categoryName = category.name,
-                                date = selectedLocalDateMillis,
-                                note = note,
-                                isExpense = isExpense,
-                                isRepeating = isRepeating
-                            )
-                            
-                            focusManager.clearFocus()
-                            if (transactionToEdit == null) {
-                                viewModel.addTransaction(transaction)
-                            } else {
-                                viewModel.updateTransaction(transaction) 
-                            }
-                            onDone()
-                        }
+                        val transaction = Transaction(
+                            id = transactionToEdit?.id ?: UUID.randomUUID().toString(),
+                            amount = calculatedAmount ?: 0.0,
+                            categoryName = selectedCategoryName,
+                            date = selectedLocalDateMillis,
+                            note = note,
+                            isExpense = pagerState.currentPage == 0,
+                            isRepeating = isRepeating
+                        )
+                        focusManager.clearFocus()
+                        if (transactionToEdit == null) viewModel.addTransaction(transaction)
+                        else viewModel.updateTransaction(transaction)
+                        onDone()
                     }
                 )
             }
 
+            // Tabs to switch between Expense and Income types
             Row(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
                 horizontalArrangement = Arrangement.Center
@@ -191,6 +180,7 @@ fun AddTransactionScreen(
                     isStart = true,
                     onClick = { 
                         focusManager.clearFocus()
+                        selectedCategoryName = "" // Reset selection on type change
                         coroutineScope.launch { pagerState.animateScrollToPage(0) } 
                     }
                 )
@@ -200,18 +190,17 @@ fun AddTransactionScreen(
                     isStart = false,
                     onClick = { 
                         focusManager.clearFocus()
+                        selectedCategoryName = "" // Reset selection on type change
                         coroutineScope.launch { pagerState.animateScrollToPage(1) } 
                     }
                 )
             }
 
             HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { page ->
-                val isExpense = page == 0
-                val categories = if (isExpense) expenseCategories else incomeCategories
-
                 Column(modifier = Modifier.fillMaxSize()) {
                     SectionHeader(title = stringResource(R.string.transaction_details))
 
+                    // Date Selection row
                     CategoryRow(label = stringResource(R.string.date), labelColor = Color(0xFF1976D2)) {
                         Text(
                             text = formattedDate,
@@ -225,34 +214,25 @@ fun AddTransactionScreen(
                     }
                     HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
 
-                    CategoryRow(label = stringResource(R.string.category), labelColor = if (isCategorySelected) Color(0xFF1976D2) else Color.Red.copy(alpha = 0.7f)) {
+                    // Category Selection row: Triggers the searchable list
+                    CategoryRow(
+                        label = stringResource(R.string.category), 
+                        labelColor = if (isCategorySelected) Color(0xFF1976D2) else Color.Red.copy(alpha = 0.7f)
+                    ) {
                         Box(modifier = Modifier.fillMaxSize().clickable { 
                             focusManager.clearFocus()
-                            showCategoryMenu = true 
+                            showCategorySelector = true 
                         }, contentAlignment = Alignment.CenterStart) {
-                            val categoryText = if (selectedCategoryIndex != -1 && selectedCategoryIndex < categories.size) categories[selectedCategoryIndex].name else stringResource(R.string.not_selected)
-                            Text(text = categoryText, color = if (selectedCategoryIndex != -1) DarkBrownText else Color.Gray, fontSize = 16.sp)
-                            
-                            DropdownMenu(
-                                expanded = showCategoryMenu && pagerState.currentPage == page, 
-                                onDismissRequest = { showCategoryMenu = false },
-                                modifier = Modifier.background(BeigeHeader)
-                            ) {
-                                categories.forEachIndexed { index, category ->
-                                    DropdownMenuItem(
-                                        text = { Text(category.name, color = DarkBrownText) },
-                                        leadingIcon = { Icon(Icons.Default.Sell, contentDescription = null, modifier = Modifier.size(20.dp), tint = DarkBrownText) },
-                                        onClick = {
-                                            selectedCategoryIndex = index
-                                            showCategoryMenu = false
-                                        }
-                                    )
-                                }
-                            }
+                            Text(
+                                text = if (selectedCategoryName.isNotEmpty()) selectedCategoryName else stringResource(R.string.not_selected),
+                                color = if (selectedCategoryName.isNotEmpty()) DarkBrownText else Color.Gray,
+                                fontSize = 16.sp
+                            )
                         }
                     }
                     HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
 
+                    // Amount row: Allows text input and simple math
                     CategoryRow(
                         label = stringResource(R.string.amount), 
                         labelColor = if (isAmountValid) Color(0xFF1976D2) else Color.Red.copy(alpha = 0.7f)
@@ -274,13 +254,11 @@ fun AddTransactionScreen(
                     Spacer(modifier = Modifier.height(24.dp))
                     SectionHeader(title = stringResource(R.string.repeating_details))
 
+                    // Recurring transaction toggle
                     CategoryRow(label = stringResource(R.string.repeat), labelColor = Color(0xFF1976D2)) {
                         Switch(
                             checked = isRepeating, 
-                            onCheckedChange = { 
-                                focusManager.clearFocus()
-                                isRepeating = it 
-                            },
+                            onCheckedChange = { focusManager.clearFocus(); isRepeating = it },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = DarkBrownText,
                                 checkedTrackColor = DarkBrownText.copy(alpha = 0.4f)
@@ -291,6 +269,7 @@ fun AddTransactionScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
+                    // Note/description row
                     CategoryRow(label = stringResource(R.string.note), labelColor = Color(0xFF1976D2)) {
                         BasicTextField(
                             value = note,
