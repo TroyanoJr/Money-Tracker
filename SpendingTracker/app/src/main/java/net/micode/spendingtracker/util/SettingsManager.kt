@@ -25,6 +25,7 @@ class SettingsManager(context: Context) {
         const val KEY_REMINDER_HOUR = "reminder_hour"
         const val KEY_REMINDER_MINUTE = "reminder_minute"
         const val KEY_IS_PREMIUM = "is_premium_user"
+        const val KEY_LANGUAGE = "language_pref"
     }
 
     fun isPremium(): Boolean = prefs.getBoolean(KEY_IS_PREMIUM, false)
@@ -68,4 +69,7 @@ class SettingsManager(context: Context) {
 
     fun getReminderTime(): Pair<Int, Int> = Pair(prefs.getInt(KEY_REMINDER_HOUR, 20), prefs.getInt(KEY_REMINDER_MINUTE, 0))
     fun setReminderTime(hour: Int, minute: Int) = prefs.edit().putInt(KEY_REMINDER_HOUR, hour).putInt(KEY_REMINDER_MINUTE, minute).apply()
+
+    fun getLanguage(): String = prefs.getString(KEY_LANGUAGE, "System") ?: "System"
+    fun setLanguage(language: String) = prefs.edit().putString(KEY_LANGUAGE, language).apply()
 }

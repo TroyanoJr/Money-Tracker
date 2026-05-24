@@ -23,9 +23,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.micode.spendingtracker.R
 import net.micode.spendingtracker.viewmodel.CashFlowPoint
 import net.micode.spendingtracker.viewmodel.CategoryReportItem
 import net.micode.spendingtracker.viewmodel.TransactionViewModel
@@ -44,14 +46,15 @@ fun ReportsScreen(viewModel: TransactionViewModel) {
     val selectedDate by viewModel.selectedDate.collectAsState()
     val currencySymbol by viewModel.currencySymbol.collectAsState()
 
-    var reportMode by remember { mutableStateOf("Categories") }
-    var unitMode by remember { mutableStateOf("Cash") }
-    var chartType by remember { mutableStateOf("Bar") }
+    // Internal keys for UI logic
+    var reportMode by remember { mutableStateOf("categories") }
+    var unitMode by remember { mutableStateOf("cash") }
+    var chartType by remember { mutableStateOf("bar") }
 
     val dateFormatter = remember(selectedPeriod) {
         when (selectedPeriod) {
             Period.DAY -> SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            Period.WEEK -> SimpleDateFormat("'Week' w, yyyy", Locale.getDefault())
+            Period.WEEK -> SimpleDateFormat("'${Locale.getDefault().getDisplayLanguage()}' w, yyyy", Locale.getDefault())
             Period.MONTH -> SimpleDateFormat("MMMM yyyy", Locale.getDefault())
             Period.YEAR -> SimpleDateFormat("yyyy", Locale.getDefault())
         }
@@ -72,13 +75,13 @@ fun ReportsScreen(viewModel: TransactionViewModel) {
             ) {
                 Text(text = dateText, color = Color.Gray, fontSize = 14.sp, fontFamily = FontFamily.Cursive)
                 
-                if (reportMode == "Cash Flow") {
+                if (reportMode == "cash_flow") {
                     CashFlowLegend()
                 } else {
                     CategoryLegend(categoryData)
                 }
 
-                if (reportMode == "Categories") {
+                if (reportMode == "categories") {
                     UnitToggle(unitMode, currencySymbol) { unitMode = it }
                 }
             }
@@ -89,13 +92,13 @@ fun ReportsScreen(viewModel: TransactionViewModel) {
                 .fillMaxSize()
                 .padding(top = 45.dp, bottom = 55.dp, start = 50.dp, end = 20.dp)
         ) {
-            if (reportMode == "Cash Flow") {
+            if (reportMode == "cash_flow") {
                 CashFlowChart(data = cashFlowData, symbol = currencySymbol)
             } else {
-                if (chartType == "Bar") {
-                    BarChart(data = categoryData, symbol = currencySymbol, usePercentage = unitMode == "Percentage")
+                if (chartType == "bar") {
+                    BarChart(data = categoryData, symbol = currencySymbol, usePercentage = unitMode == "percentage")
                 } else {
-                    PieChart(data = categoryData, symbol = currencySymbol, usePercentage = unitMode == "Percentage")
+                    PieChart(data = categoryData, symbol = currencySymbol, usePercentage = unitMode == "percentage")
                 }
             }
         }
@@ -107,16 +110,16 @@ fun ReportsScreen(viewModel: TransactionViewModel) {
         ) {
             Row {
                 IconButton(onClick = { viewModel.previousPeriod() }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = ChalkWhite, modifier = Modifier.size(20.dp))
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back), tint = ChalkWhite, modifier = Modifier.size(20.dp))
                 }
                 IconButton(onClick = { viewModel.nextPeriod() }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = ChalkWhite, modifier = Modifier.size(20.dp))
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, stringResource(R.string.next), tint = ChalkWhite, modifier = Modifier.size(20.dp))
                 }
             }
 
             ModeToggle(reportMode) { reportMode = it }
 
-            if (reportMode == "Categories") {
+            if (reportMode == "categories") {
                 ChartTypeToggle(chartType) { chartType = it }
             } else {
                 Spacer(Modifier.width(80.dp))
@@ -129,10 +132,10 @@ fun ReportsScreen(viewModel: TransactionViewModel) {
 fun CashFlowLegend() {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(ChalkGreen))
-        Text(" Income ", color = ChalkWhite, fontSize = 12.sp, fontFamily = FontFamily.Cursive)
+        Text(" " + stringResource(R.string.income) + " ", color = ChalkWhite, fontSize = 12.sp, fontFamily = FontFamily.Cursive)
         Spacer(Modifier.width(8.dp))
         Box(modifier = Modifier.size(8.dp).background(ChalkRed))
-        Text(" Expense", color = ChalkWhite, fontSize = 12.sp, fontFamily = FontFamily.Cursive)
+        Text(" " + stringResource(R.string.expense), color = ChalkWhite, fontSize = 12.sp, fontFamily = FontFamily.Cursive)
     }
 }
 
@@ -158,7 +161,7 @@ fun CategoryLegend(data: List<CategoryReportItem>) {
 fun UnitToggle(currentUnit: String, symbol: String, onUnitChange: (String) -> Unit) {
     Row(modifier = Modifier.border(0.5.dp, Color.Gray, RoundedCornerShape(2.dp))) {
         listOf("%", symbol).forEach { unit ->
-            val label = if (unit == "%") "Percentage" else "Cash"
+            val label = if (unit == "%") "percentage" else "cash"
             Box(
                 modifier = Modifier
                     .clickable { onUnitChange(label) }
@@ -174,14 +177,19 @@ fun UnitToggle(currentUnit: String, symbol: String, onUnitChange: (String) -> Un
 @Composable
 fun ModeToggle(currentMode: String, onModeChange: (String) -> Unit) {
     Row(modifier = Modifier.background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(4.dp))) {
-        listOf("Categories", "Cash Flow").forEach { mode ->
+        listOf("categories", "cash_flow").forEach { mode ->
             Box(
                 modifier = Modifier
                     .clickable { onModeChange(mode) }
                     .background(if (currentMode == mode) Color.Gray.copy(alpha = 0.3f) else Color.Transparent, RoundedCornerShape(4.dp))
                     .padding(horizontal = 12.dp, vertical = 4.dp)
             ) {
-                Text(mode, color = ChalkWhite, fontSize = 13.sp, fontFamily = FontFamily.Cursive)
+                Text(
+                    text = if (mode == "categories") stringResource(R.string.rep_categories) else stringResource(R.string.rep_cash_flow), 
+                    color = ChalkWhite, 
+                    fontSize = 13.sp, 
+                    fontFamily = FontFamily.Cursive
+                )
             }
         }
     }
@@ -190,14 +198,18 @@ fun ModeToggle(currentMode: String, onModeChange: (String) -> Unit) {
 @Composable
 fun ChartTypeToggle(currentType: String, onTypeChange: (String) -> Unit) {
     Row(modifier = Modifier.border(0.5.dp, Color.Gray, RoundedCornerShape(2.dp))) {
-        listOf("Pie", "Bar").forEach { type ->
+        listOf("pie", "bar").forEach { type ->
             Box(
                 modifier = Modifier
                     .clickable { onTypeChange(type) }
                     .background(if (currentType == type) Color.Gray.copy(alpha = 0.4f) else Color.Transparent)
                     .padding(horizontal = 10.dp, vertical = 2.dp)
             ) {
-                Text(type, color = ChalkWhite, fontSize = 12.sp)
+                Text(
+                    text = if (type == "pie") stringResource(R.string.rep_pie) else stringResource(R.string.rep_bar), 
+                    color = ChalkWhite, 
+                    fontSize = 12.sp
+                )
             }
         }
     }

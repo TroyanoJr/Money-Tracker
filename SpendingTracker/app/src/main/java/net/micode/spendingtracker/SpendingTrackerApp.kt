@@ -5,6 +5,7 @@ import android.app.Application
 import android.os.Bundle
 import android.util.Log
 import androidx.room.Room
+import com.google.android.gms.ads.MobileAds
 import net.micode.spendingtracker.data.AppDatabase
 import net.micode.spendingtracker.util.DbPassphraseManager
 import net.micode.spendingtracker.util.SettingsManager
@@ -30,6 +31,10 @@ class SpendingTrackerApp : Application(), Application.ActivityLifecycleCallbacks
     override fun onCreate() {
         super.onCreate()
         registerActivityLifecycleCallbacks(this)
+        
+        // Initialize AdMob SDK asynchronously
+        MobileAds.initialize(this) {}
+
         SQLiteDatabase.loadLibs(this)
         resetLegacyPlainDatabaseIfNeeded()
         database = createEncryptedDatabaseWithRecovery()

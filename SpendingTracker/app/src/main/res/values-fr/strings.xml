@@ -1,0 +1,90 @@
+<resources>
+    <string name="app_name">Spending Tracker</string>
+    <string name="done">Terminé</string>
+    <string name="expense">DÉPENSE</string>
+    <string name="income">REVENU</string>
+    <string name="transaction_details">Détails de la transaction</string>
+    <string name="date">Date</string>
+    <string name="category">Catégorie</string>
+    <string name="not_selected">Pas sélectionné</string>
+    <string name="amount">Montant</string>
+    <string name="repeating_details">Détails de répétition</string>
+    <string name="repeat">Répéter</string>
+    <string name="note">Note</string>
+    <string name="no_note_entered">Aucune note saisie</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Annuler</string>
+    <string name="close">Fermer</string>
+    <string name="help">Aide</string>
+    <string name="transactions">Transactions</string>
+    <string name="categories">Catégories</string>
+    <string name="accounts">Comptes</string>
+
+    <!-- Spending Screen & Dashboard -->
+    <string name="pending_transactions">Vous avez %1$d transactions en attente de classification</string>
+    <string name="dynamic_budget">Budget Dynamique</string>
+    <string name="amount_left">%1$s %2$.2f restant</string>
+    <string name="show_heatmap">Afficher la carte thermique</string>
+    <string name="add_expense">+ Dépense</string>
+    <string name="add_income">+ Revenu</string>
+    <string name="rotate_device_hint">** Faites pivoter l\'appareil pour voir les rapports **</string>
+    <string name="balance">Solde</string>
+
+    <!-- Heatmap Dialog -->
+    <string name="balance_heatmap">Carte thermique du solde</string>
+    <string name="profit">Profit</string>
+    <string name="loss">Perte</string>
+    <string name="neutral">Neutre</string>
+
+    <!-- Settings General -->
+    <string name="settings">Paramètres</string>
+    <string name="back">Retour</string>
+    <string name="general">Général</string>
+    <string name="language">Langue</string>
+    <string name="select_language">Choisir la langue</string>
+    <string name="reminders">Rappels</string>
+    <string name="frequency">Fréquence</string>
+    <string name="time">Heure</string>
+    <string name="set_time">Régler l\'heure</string>
+    <string name="every_day">Chaque jour</string>
+    <string name="every_week">Chaque semaine</string>
+    <string name="every_month">Chaque mois</string>
+    <string name="never">Jamais</string>
+
+    <!-- Spending Section -->
+    <string name="spending">Dépenses</string>
+    <string name="budget_mode">Mode Budget</string>
+    <string name="budget_mode_desc">Activer la limite de dépenses mensuelles</string>
+    <string name="monthly_budget">Budget mensuel</string>
+    <string name="include_income">Inclure les revenus</string>
+    <string name="include_income_desc">Ajouter les gains au budget</string>
+    <string name="save">Enregistrer</string>
+
+    <!-- Security Section -->
+    <string name="security">Sécurité</string>
+    <string name="passcode_lock">Verrouillage par code</string>
+    <string name="passcode_lock_desc">Exiger un code pour ouvrir</string>
+    <string name="change_pin">Changer le code PIN</string>
+    <string name="change_pin_desc">Mettre à jour votre code secret</string>
+    <string name="enter_pin">Saisir le code PIN secret</string>
+    <string name="create_pin">Créer un code PIN secret</string>
+    <string name="confirm_pin">Confirmer le code PIN</string>
+    <string name="verify_pin">Vérifier le code PIN actuel</string>
+    <string name="pin_verified">Code PIN vérifié</string>
+    <string name="pin_chalk_desc">Gardez vos dessins à la craie en sécurité</string>
+    <string name="pin_confirm_desc">Veuillez ressaisir votre code PIN pour confirmer</string>
+    <string name="pin_mismatch">Les codes PIN ne correspondent pas</string>
+    <string name="pin_wrong">Code PIN incorrect</string>
+    <string name="pin_updated">Code PIN de sécurité mis à jour</string>
+
+    <!-- Interface Section -->
+    <string name="user_interface">Interface utilisateur</string>
+    <string name="currency_symbol">Symbole monétaire</string>
+    <string name="select_currency">Choisir le symbole monétaire</string>
+
+    <!-- Reminders Warnings -->
+    <string name="reminder_restriction_warn">Les rappels peuvent être limités. Appuyez pour les instructions.</string>
+    <string name="manual_config_required">Configuration manuelle requise</string>
+    <string name="huawei_battery_instruction">Pour recevoir des rappels lorsque l\'application est fermée, veuillez suivre ces étapes :\n\n1. Paramètres > Batterie.\n2. Lancement d\'application.\n3. Trouvez \'Spending Tracker\' et désactivez \'Gestion automatique\'.\n4. Assurez-vous que \'Exécution en arrière-plan\' est activé.</string>
+    <string name="go_to_settings">ALLER AUX PARAMÈTRES</string>
+</resources>

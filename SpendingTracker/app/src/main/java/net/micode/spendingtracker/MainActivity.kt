@@ -1,9 +1,9 @@
 package net.micode.spendingtracker
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
@@ -16,7 +16,11 @@ import net.micode.spendingtracker.repository.TransactionRepository
 import net.micode.spendingtracker.ui.theme.SpendingTrackerTheme
 import net.micode.spendingtracker.util.SettingsManager
 
-class MainActivity : ComponentActivity() {
+/**
+ * Main entry point of the application.
+ * Changed to AppCompatActivity to support dynamic language switching via AppCompatDelegate.
+ */
+class MainActivity : AppCompatActivity() {
     
     private val settingsManager: SettingsManager by lazy { SettingsManager(applicationContext) }
 

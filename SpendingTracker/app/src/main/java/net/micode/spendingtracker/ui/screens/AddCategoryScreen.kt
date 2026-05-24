@@ -15,7 +15,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.Saver
@@ -27,10 +26,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.micode.spendingtracker.R
 import net.micode.spendingtracker.model.Category
 import net.micode.spendingtracker.ui.components.CategoryRow
 import net.micode.spendingtracker.ui.components.IconPickerDialog
@@ -46,7 +47,6 @@ fun AddCategoryScreen(
     onClose: () -> Unit,
     onDone: (Category) -> Unit
 ) {
-    // Saver personalizado para el tipo Color (lo guarda como Int ARGB)
     val colorSaver = Saver<Color?, Int>(
         save = { it?.toArgb() ?: 0 },
         restore = { if (it != 0) Color(it) else null }
@@ -62,63 +62,50 @@ fun AddCategoryScreen(
     var showIconPicker by rememberSaveable { mutableStateOf(false) }
     
     val focusManager = LocalFocusManager.current
-
-    // Validación del nombre
     val isNameValid by remember { derivedStateOf { categoryName.isNotBlank() } }
-
     val labelBlue = Color(0xFF1976D2)
 
     Surface(
-        modifier = Modifier
-            .fillMaxSize()
-            .pointerInput(Unit) { }, // Bloquea toques al fondo
+        modifier = Modifier.fillMaxSize().pointerInput(Unit) { },
         color = BeigeHeader
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
+                modifier = Modifier.fillMaxWidth().padding(8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = {
-                    focusManager.clearFocus()
-                    onClose()
-                }) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = DarkBrownText)
+                IconButton(onClick = { focusManager.clearFocus(); onClose() }) {
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = DarkBrownText)
                 }
                 Text(
-                    text = "Done",
+                    text = stringResource(R.string.done),
                     color = if (isNameValid) DarkBrownText else DarkBrownText.copy(alpha = 0.3f),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .padding(end = 16.dp)
-                        .clickable(enabled = isNameValid) { 
-                            if (isNameValid) {
-                                val category = categoryToEdit?.copy(
-                                    name = categoryName.trim(),
-                                    iconName = selectedIconName,
-                                    color = selectedColor?.toArgb()
-                                ) ?: Category(
-                                    name = categoryName.trim(),
-                                    iconName = selectedIconName,
-                                    isExpense = isExpense,
-                                    color = selectedColor?.toArgb()
-                                )
-                                focusManager.clearFocus()
-                                onDone(category)
-                            }
+                    modifier = Modifier.padding(end = 16.dp).clickable(enabled = isNameValid) { 
+                        if (isNameValid) {
+                            val category = categoryToEdit?.copy(
+                                name = categoryName.trim(),
+                                iconName = selectedIconName,
+                                color = selectedColor?.toArgb()
+                            ) ?: Category(
+                                name = categoryName.trim(),
+                                iconName = selectedIconName,
+                                isExpense = isExpense,
+                                color = selectedColor?.toArgb()
+                            )
+                            focusManager.clearFocus(); onDone(category)
                         }
+                    }
                 )
             }
 
-            SectionHeader(title = "Category Details")
+            SectionHeader(title = stringResource(R.string.category_details))
 
             Column(modifier = Modifier.fillMaxWidth()) {
                 CategoryRow(
-                    label = "Name", 
+                    label = stringResource(R.string.name), 
                     labelColor = if (isNameValid) labelBlue else Color.Red.copy(alpha = 0.7f)
                 ) {
                     BasicTextField(
@@ -128,7 +115,7 @@ fun AddCategoryScreen(
                         modifier = Modifier.fillMaxWidth(),
                         decorationBox = { innerTextField ->
                             if (categoryName.isEmpty()) {
-                                Text("Name", color = Color.LightGray, fontSize = 16.sp)
+                                Text(stringResource(R.string.name), color = Color.LightGray, fontSize = 16.sp)
                             }
                             innerTextField()
                         }
@@ -136,75 +123,31 @@ fun AddCategoryScreen(
                 }
                 HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
 
-                CategoryRow(label = "Icon", labelColor = labelBlue) {
+                CategoryRow(label = stringResource(R.string.icon), labelColor = labelBlue) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().clickable { 
-                            focusManager.clearFocus()
-                            showIconPicker = true 
-                        },
+                        modifier = Modifier.fillMaxWidth().clickable { focusManager.clearFocus(); showIconPicker = true },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = IconCatalog.getIconByName(selectedIconName),
-                            contentDescription = "Current Icon",
-                            tint = DarkBrownText,
-                            modifier = Modifier.size(24.dp)
-                        )
+                        Icon(IconCatalog.getIconByName(selectedIconName), null, tint = DarkBrownText, modifier = Modifier.size(24.dp))
                         Spacer(modifier = Modifier.width(16.dp))
-                        Text(
-                            text = selectedIconName,
-                            color = DarkBrownText,
-                            modifier = Modifier.weight(1f),
-                            fontSize = 16.sp
-                        )
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack, // Using as a chevron replacement or similar
-                            contentDescription = null,
-                            tint = Color.Gray,
-                            modifier = Modifier.size(20.dp).rotate(180f)
-                        )
+                        Text(text = selectedIconName, color = DarkBrownText, modifier = Modifier.weight(1f), fontSize = 16.sp)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.Gray, modifier = Modifier.size(20.dp).rotate(180f))
                     }
                 }
                 HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
 
-                CategoryRow(label = "Chart Colour", labelColor = labelBlue) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable { 
-                                    focusManager.clearFocus()
-                                    showColorPicker = true 
-                                }
-                        ) {
+                CategoryRow(label = stringResource(R.string.chart_colour), labelColor = labelBlue) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Box(modifier = Modifier.weight(1f).clickable { focusManager.clearFocus(); showColorPicker = true }) {
                             if (selectedColor == null) {
-                                Text(text = "Not Entered", color = Color.LightGray, fontSize = 16.sp)
+                                Text(text = stringResource(R.string.not_entered), color = Color.LightGray, fontSize = 16.sp)
                             } else {
-                                Box(
-                                    modifier = Modifier
-                                        .size(width = 40.dp, height = 20.dp)
-                                        .background(selectedColor!!)
-                                )
+                                Box(modifier = Modifier.size(width = 40.dp, height = 20.dp).background(selectedColor!!))
                             }
                         }
-                        
                         if (selectedColor != null) {
-                            IconButton(
-                                onClick = { 
-                                    focusManager.clearFocus()
-                                    selectedColor = null 
-                                },
-                                modifier = Modifier.size(24.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Cancel,
-                                    contentDescription = "Clear Color",
-                                    tint = Color.Gray
-                                )
+                            IconButton(onClick = { focusManager.clearFocus(); selectedColor = null }, modifier = Modifier.size(24.dp)) {
+                                Icon(Icons.Default.Cancel, null, tint = Color.Gray)
                             }
                         }
                     }
@@ -218,29 +161,20 @@ fun AddCategoryScreen(
         IconPickerDialog(
             selectedIconName = selectedIconName,
             onDismiss = { showIconPicker = false },
-            onIconSelected = { name ->
-                selectedIconName = name
-                showIconPicker = false
-            }
+            onIconSelected = { selectedIconName = it; showIconPicker = false }
         )
     }
 
     if (showColorPicker) {
         TwoLevelColorPickerDialog(
             onDismiss = { showColorPicker = false },
-            onColorSelected = { color ->
-                selectedColor = color
-                showColorPicker = false
-            }
+            onColorSelected = { selectedColor = it; showColorPicker = false }
         )
     }
 }
 
 @Composable
-fun TwoLevelColorPickerDialog(
-    onDismiss: () -> Unit,
-    onColorSelected: (Color) -> Unit
-) {
+fun TwoLevelColorPickerDialog(onDismiss: () -> Unit, onColorSelected: (Color) -> Unit) {
     var currentLevel by rememberSaveable { mutableIntStateOf(1) }
     var selectedPrimaryColor by rememberSaveable(stateSaver = Saver<Color?, Int>(save = { it?.toArgb() ?: 0 }, restore = { if (it != 0) Color(it) else null })) { mutableStateOf<Color?>(null) }
     var tempSelectedColor by rememberSaveable(stateSaver = Saver<Color?, Int>(save = { it?.toArgb() ?: 0 }, restore = { if (it != 0) Color(it) else null })) { mutableStateOf<Color?>(null) }
@@ -258,18 +192,9 @@ fun TwoLevelColorPickerDialog(
             listOf(
                 color.copy(alpha = 0.1f), color.copy(alpha = 0.2f), color.copy(alpha = 0.4f),
                 color.copy(alpha = 0.6f), color.copy(alpha = 0.8f), color,
-                Color(android.graphics.Color.HSVToColor(FloatArray(3).apply {
-                    android.graphics.Color.colorToHSV(color.toArgb(), this)
-                    this[2] *= 0.8f
-                })),
-                Color(android.graphics.Color.HSVToColor(FloatArray(3).apply {
-                    android.graphics.Color.colorToHSV(color.toArgb(), this)
-                    this[2] *= 0.6f
-                })),
-                Color(android.graphics.Color.HSVToColor(FloatArray(3).apply {
-                    android.graphics.Color.colorToHSV(color.toArgb(), this)
-                    this[2] *= 0.4f
-                }))
+                Color(android.graphics.Color.HSVToColor(FloatArray(3).apply { android.graphics.Color.colorToHSV(color.toArgb(), this); this[2] *= 0.8f })),
+                Color(android.graphics.Color.HSVToColor(FloatArray(3).apply { android.graphics.Color.colorToHSV(color.toArgb(), this); this[2] *= 0.6f })),
+                Color(android.graphics.Color.HSVToColor(FloatArray(3).apply { android.graphics.Color.colorToHSV(color.toArgb(), this); this[2] *= 0.4f }))
             )
         } ?: emptyList()
     }
@@ -279,11 +204,9 @@ fun TwoLevelColorPickerDialog(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (currentLevel == 2) {
-                    IconButton(onClick = { currentLevel = 1 }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    IconButton(onClick = { currentLevel = 1 }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
                 }
-                Text("Color Picker", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.color_picker), fontWeight = FontWeight.Bold)
             }
         },
         text = {
@@ -293,47 +216,17 @@ fun TwoLevelColorPickerDialog(
                     Spacer(Modifier.width(4.dp))
                     Box(modifier = Modifier.size(8.dp).background(if (currentLevel == 2) Color.Gray else Color.LightGray, CircleShape))
                 }
-
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(4),
-                    modifier = Modifier.height(250.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+                LazyVerticalGrid(columns = GridCells.Fixed(4), modifier = Modifier.height(250.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (currentLevel == 1) {
-                        items(primaries) { color ->
-                            ColorCircle(
-                                color = color,
-                                isSelected = tempSelectedColor == color,
-                                onClick = {
-                                    selectedPrimaryColor = color
-                                    tempSelectedColor = color
-                                    currentLevel = 2
-                                }
-                            )
-                        }
+                        items(primaries) { color -> ColorCircle(color = color, isSelected = tempSelectedColor == color, onClick = { selectedPrimaryColor = color; tempSelectedColor = color; currentLevel = 2 }) }
                     } else {
-                        items(shades) { color ->
-                            ColorCircle(
-                                color = color,
-                                isSelected = tempSelectedColor == color,
-                                onClick = { tempSelectedColor = color }
-                            )
-                        }
+                        items(shades) { color -> ColorCircle(color = color, isSelected = tempSelectedColor == color, onClick = { tempSelectedColor = color }) }
                     }
                 }
             }
         },
-        confirmButton = {
-            TextButton(onClick = { tempSelectedColor?.let { onColorSelected(it) } }) {
-                Text("SELECT", color = Color(0xFF1976D2), fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("CANCEL", color = Color(0xFF1976D2), fontWeight = FontWeight.Bold)
-            }
-        },
+        confirmButton = { TextButton(onClick = { tempSelectedColor?.let { onColorSelected(it) } }) { Text(stringResource(R.string.select), color = Color(0xFF1976D2), fontWeight = FontWeight.Bold) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = Color(0xFF1976D2), fontWeight = FontWeight.Bold) } },
         containerColor = Color.White,
         shape = RoundedCornerShape(8.dp)
     )
@@ -341,20 +234,7 @@ fun TwoLevelColorPickerDialog(
 
 @Composable
 fun ColorCircle(color: Color, isSelected: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(48.dp)
-            .background(color, CircleShape)
-            .border(
-                width = if (isSelected) 2.dp else 0.5.dp,
-                color = if (isSelected) Color.White else Color.Gray.copy(alpha = 0.3f),
-                shape = CircleShape
-            )
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        if (isSelected) {
-            Icon(Icons.Default.Check, contentDescription = null, tint = Color.White)
-        }
+    Box(modifier = Modifier.size(48.dp).background(color, CircleShape).border(width = if (isSelected) 2.dp else 0.5.dp, color = if (isSelected) Color.White else Color.Gray.copy(alpha = 0.3f), shape = CircleShape).clickable { onClick() }, contentAlignment = Alignment.Center) {
+        if (isSelected) Icon(Icons.Default.Check, null, tint = Color.White)
     }
 }

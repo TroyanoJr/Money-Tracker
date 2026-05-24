@@ -19,11 +19,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.micode.spendingtracker.R
 import net.micode.spendingtracker.ui.theme.BlackboardBlack
 import net.micode.spendingtracker.ui.theme.ChalkWhite
 
@@ -44,7 +46,7 @@ fun LockScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "Enter Secret PIN",
+            text = stringResource(R.string.enter_pin),
             color = ChalkWhite,
             fontSize = 32.sp,
             fontFamily = FontFamily.Cursive,
@@ -54,7 +56,7 @@ fun LockScreen(
         Spacer(modifier = Modifier.height(12.dp))
         
         Text(
-            text = "Keep your chalk drawings safe",
+            text = stringResource(R.string.pin_chalk_desc),
             color = ChalkWhite.copy(alpha = 0.4f),
             fontSize = 16.sp,
             fontFamily = FontFamily.Cursive
@@ -177,7 +179,7 @@ fun KeypadButton(
         if (key == "DEL") {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.Backspace,
-                contentDescription = "Delete",
+                contentDescription = null,
                 tint = ChalkWhite,
                 modifier = Modifier.size(32.dp)
             )

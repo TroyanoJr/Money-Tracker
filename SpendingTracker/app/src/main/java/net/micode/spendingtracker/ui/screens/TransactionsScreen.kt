@@ -6,7 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -21,11 +20,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
+import net.micode.spendingtracker.R
 import net.micode.spendingtracker.model.Transaction
 import net.micode.spendingtracker.ui.components.CategorySelectionToolbar
 import net.micode.spendingtracker.ui.theme.BeigeHeader
@@ -108,16 +109,16 @@ fun TransactionsScreen(
             } else if (refreshError != null) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(text = "Could not load transactions", color = Color.Gray)
+                        Text(text = stringResource(R.string.load_error), color = Color.Gray)
                         Spacer(modifier = Modifier.height(12.dp))
                         TextButton(onClick = { pagedTransactions.retry() }) {
-                            Text("Retry", color = DarkBrownText)
+                            Text(stringResource(R.string.retry), color = DarkBrownText)
                         }
                     }
                 }
             } else if (isEmpty) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(text = "No transactions for this filter/period", color = Color.Gray)
+                    Text(text = stringResource(R.string.no_transactions), color = Color.Gray)
                 }
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -171,18 +172,18 @@ fun TransactionsScreen(
         ) {
             Row {
                 IconButton(onClick = { viewModel.previousPeriod() }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = DarkBrownText)
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back), tint = DarkBrownText)
                 }
                 IconButton(onClick = { viewModel.nextPeriod() }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = DarkBrownText)
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = stringResource(R.string.next), tint = DarkBrownText)
                 }
             }
             Row {
                 IconButton(onClick = { showExportDialog = true }) {
-                    Icon(Icons.Default.Share, contentDescription = "Export", tint = DarkBrownText)
+                    Icon(Icons.Default.Share, contentDescription = null, tint = DarkBrownText)
                 }
                 IconButton(onClick = { showFilterDialog = true }) {
-                    Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = DarkBrownText)
+                    Icon(Icons.Default.FilterList, contentDescription = null, tint = DarkBrownText)
                 }
             }
         }
@@ -191,11 +192,11 @@ fun TransactionsScreen(
     if (showExportDialog) {
         AlertDialog(
             onDismissRequest = { showExportDialog = false },
-            title = { Text("Export Data", fontWeight = FontWeight.Bold, color = DarkBrownText) },
+            title = { Text(stringResource(R.string.export_data), fontWeight = FontWeight.Bold, color = DarkBrownText) },
             text = {
                 Column {
                     ListItem(
-                        headlineContent = { Text("CSV Format", color = DarkBrownText) },
+                        headlineContent = { Text(stringResource(R.string.csv_format), color = DarkBrownText) },
                         modifier = Modifier.clickable { 
                             showExportDialog = false
                             onExportCsv()
@@ -203,7 +204,7 @@ fun TransactionsScreen(
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )
                     ListItem(
-                        headlineContent = { Text("PDF Format", color = DarkBrownText) },
+                        headlineContent = { Text(stringResource(R.string.pdf_format), color = DarkBrownText) },
                         modifier = Modifier.clickable { 
                             showExportDialog = false
                             val periodLabel = run {
@@ -236,7 +237,7 @@ fun TransactionsScreen(
                     )
                 }
             },
-            confirmButton = { TextButton(onClick = { showExportDialog = false }) { Text("CANCEL", color = DarkBrownText) } },
+            confirmButton = { TextButton(onClick = { showExportDialog = false }) { Text(stringResource(R.string.cancel), color = DarkBrownText) } },
             containerColor = BeigeHeader,
             shape = RoundedCornerShape(4.dp)
         )
@@ -247,7 +248,7 @@ fun TransactionsScreen(
             onDismissRequest = { showFilterDialog = false },
             title = { 
                 Text(
-                    "Category Filter", 
+                    stringResource(R.string.category_filter), 
                     fontSize = 20.sp, 
                     fontWeight = FontWeight.Normal,
                     color = DarkBrownText
@@ -258,7 +259,7 @@ fun TransactionsScreen(
                     LazyColumn {
                         item {
                             FilterOptionRow(
-                                label = "All Categories",
+                                label = stringResource(R.string.all_categories),
                                 selected = activeFilter == FilterType.ALL,
                                 onClick = {
                                     viewModel.setFilter(FilterType.ALL)
@@ -268,7 +269,7 @@ fun TransactionsScreen(
                         }
                         item {
                             FilterOptionRow(
-                                label = "All Expense",
+                                label = stringResource(R.string.all_expense),
                                 selected = activeFilter == FilterType.ONLY_EXPENSE,
                                 onClick = {
                                     viewModel.setFilter(FilterType.ONLY_EXPENSE)
@@ -278,7 +279,7 @@ fun TransactionsScreen(
                         }
                         item {
                             FilterOptionRow(
-                                label = "All Income",
+                                label = stringResource(R.string.all_income),
                                 selected = activeFilter == FilterType.ONLY_INCOME,
                                 onClick = {
                                     viewModel.setFilter(FilterType.ONLY_INCOME)
@@ -286,7 +287,8 @@ fun TransactionsScreen(
                                 }
                             )
                         }
-                        items(categories) { category ->
+                        items(categories.size) { index ->
+                            val category = categories[index]
                             FilterOptionRow(
                                 label = category.name,
                                 selected = activeFilter == FilterType.BY_CATEGORY && filterCategoryName == category.name,
@@ -301,7 +303,7 @@ fun TransactionsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showFilterDialog = false }) {
-                    Text("CANCEL", color = DarkBrownText)
+                    Text(stringResource(R.string.cancel), color = DarkBrownText)
                 }
             },
             dismissButton = {
@@ -309,7 +311,7 @@ fun TransactionsScreen(
                     viewModel.setFilter(FilterType.ALL)
                     showFilterDialog = false
                 }) {
-                    Text("CLEAR FILTER", color = DarkBrownText)
+                    Text(stringResource(R.string.clear_filter), color = DarkBrownText)
                 }
             },
             containerColor = BeigeHeader,
@@ -320,19 +322,20 @@ fun TransactionsScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text(text = "Delete Transaction", color = DarkBrownText, fontWeight = FontWeight.Bold) },
-            text = { Text(text = "Are you sure you want to delete the selected transactions?", color = DarkBrownText) },
+            title = { Text(text = stringResource(R.string.delete_transaction), color = DarkBrownText, fontWeight = FontWeight.Bold) },
+            text = { Text(text = stringResource(R.string.delete_confirm_msg), color = DarkBrownText) },
             confirmButton = {
                 TextButton(onClick = {
                     onDeleteTransactions(transactionsToDelete)
                     selectedTransactionIds = emptySet()
                     showDeleteDialog = false
-                }) { Text("Delete", color = Color.Red, fontWeight = FontWeight.Bold) }
+                }) { Text(stringResource(R.string.delete), color = Color.Red, fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel", color = DarkBrownText) }
+                TextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.cancel), color = DarkBrownText) }
             },
-            containerColor = BeigeHeader
+            containerColor = BeigeHeader,
+            shape = RoundedCornerShape(4.dp)
         )
     }
 }
@@ -399,8 +402,7 @@ fun TransactionItem(
             .background(if (isSelected) Color(0xFFE0F7FA) else Color.Transparent)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+        verticalAlignment = Alignment.CenterVertically) {
         Icon(imageVector = icon, contentDescription = null, tint = DarkBrownText, modifier = Modifier.size(24.dp))
         Spacer(Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {

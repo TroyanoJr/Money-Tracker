@@ -10,9 +10,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.micode.spendingtracker.R
 import net.micode.spendingtracker.ui.theme.BeigeHeader
 import net.micode.spendingtracker.ui.theme.DarkBrownText
 
@@ -44,9 +46,9 @@ fun AccountsScreen() {
         
         Spacer(modifier = Modifier.weight(1f))
         
-        // Footer message
+        // Footer message localized
         Text(
-            text = "You can add extra Accounts here. For example you may want to have different accounts for different people, or have a separate 'Savings' account.",
+            text = stringResource(R.string.accounts_info),
             color = DarkBrownText.copy(alpha = 0.6f),
             textAlign = TextAlign.Center,
             fontSize = 14.sp,

@@ -13,17 +13,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.micode.spendingtracker.R
 import net.micode.spendingtracker.model.Category
 import net.micode.spendingtracker.ui.theme.BeigeHeader
 import net.micode.spendingtracker.ui.theme.DarkBrownText
 import net.micode.spendingtracker.util.IconCatalog
 
 /**
- * Category selection screen designed to match the reference image.
- * Features a search bar and a list of categories with their respective icons.
+ * Category selection screen with search functionality.
+ * Fully localized to English.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,7 +36,6 @@ fun CategorySelectorScreen(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     
-    // Filter categories based on search input
     val filteredCategories = remember(searchQuery, categories) {
         if (searchQuery.isBlank()) categories
         else categories.filter { it.name.contains(searchQuery, ignoreCase = true) }
@@ -58,7 +59,7 @@ fun CategorySelectorScreen(
                         Box(contentAlignment = Alignment.CenterStart) {
                             if (searchQuery.isEmpty()) {
                                 Text(
-                                    "Search or add a category", 
+                                    stringResource(R.string.search_categories), 
                                     color = DarkBrownText.copy(alpha = 0.4f), 
                                     fontSize = 16.sp
                                 )
@@ -77,7 +78,7 @@ fun CategorySelectorScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack, 
-                            contentDescription = "Back", 
+                            contentDescription = stringResource(R.string.back), 
                             tint = DarkBrownText
                         )
                     }
@@ -87,22 +88,27 @@ fun CategorySelectorScreen(
         },
         containerColor = BeigeHeader
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            items(filteredCategories) { category ->
-                CategorySelectionItem(
-                    category = category,
-                    onClick = { onCategorySelected(category) }
-                )
-                // Fine divider matching the UI style
-                HorizontalDivider(
-                    modifier = Modifier.padding(start = 56.dp),
-                    thickness = 0.5.dp,
-                    color = Color.LightGray.copy(alpha = 0.5f)
-                )
+        if (filteredCategories.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(stringResource(R.string.no_categories_found), color = Color.Gray)
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+            ) {
+                items(filteredCategories) { category ->
+                    CategorySelectionItem(
+                        category = category,
+                        onClick = { onCategorySelected(category) }
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = 56.dp),
+                        thickness = 0.5.dp,
+                        color = Color.LightGray.copy(alpha = 0.5f)
+                    )
+                }
             }
         }
     }
@@ -120,7 +126,6 @@ private fun CategorySelectionItem(
             .padding(vertical = 14.dp, horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Dynamic icon loading from existing IconCatalog
         Icon(
             imageVector = IconCatalog.getIconByName(category.iconName),
             contentDescription = null,

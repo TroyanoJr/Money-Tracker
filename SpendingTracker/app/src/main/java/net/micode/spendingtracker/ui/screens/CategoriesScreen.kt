@@ -13,18 +13,18 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import net.micode.spendingtracker.R
 import net.micode.spendingtracker.model.Category
 import net.micode.spendingtracker.ui.components.CategorySelectionToolbar
 import net.micode.spendingtracker.ui.theme.BeigeHeader
@@ -49,10 +49,10 @@ fun CategoriesScreen(
     val pagerState = rememberPagerState(initialPage = selectedSubTab, pageCount = { 2 })
     val coroutineScope = rememberCoroutineScope()
     
-    // Estado para la selección múltiple
+    // Multi-selection state
     var selectedCategoryIds by remember { mutableStateOf(setOf<Long>()) }
     
-    // Estado para el diálogo de confirmación de borrado
+    // Delete confirmation state
     var showDeleteDialog by remember { mutableStateOf(false) }
     var categoriesToDelete by remember { mutableStateOf<List<Category>>(emptyList()) }
 
@@ -64,11 +64,11 @@ fun CategoriesScreen(
 
     LaunchedEffect(pagerState.currentPage) {
         onSubTabChanged(pagerState.currentPage)
-        selectedCategoryIds = emptySet() // Limpiar selección al cambiar de pestaña
+        selectedCategoryIds = emptySet() // Clear selection on tab change
     }
 
     Column(modifier = Modifier.fillMaxSize().background(BeigeHeader)) {
-        // Barra de herramientas dinámica cuando hay selección
+        // Dynamic toolbar when items are selected
         if (selectedCategoryIds.isNotEmpty()) {
             CategorySelectionToolbar(
                 selectedCount = selectedCategoryIds.size,
@@ -93,13 +93,13 @@ fun CategoriesScreen(
             horizontalArrangement = Arrangement.Center
         ) {
             CategoryTabButton(
-                text = "EXPENSE",
+                text = stringResource(R.string.expense),
                 selected = pagerState.currentPage == 0,
                 isStart = true,
                 onClick = { coroutineScope.launch { pagerState.animateScrollToPage(0) } }
             )
             CategoryTabButton(
-                text = "INCOME",
+                text = stringResource(R.string.income),
                 selected = pagerState.currentPage == 1,
                 isStart = false,
                 onClick = { coroutineScope.launch { pagerState.animateScrollToPage(1) } }
@@ -150,20 +150,20 @@ fun CategoriesScreen(
         }
     }
 
-    // Diálogo de confirmación de borrado
+    // Delete confirmation dialog
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { 
                 Text(
-                    text = "Delete Category", 
+                    text = stringResource(R.string.delete_category), 
                     color = DarkBrownText,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                    fontWeight = FontWeight.Bold
                 ) 
             },
             text = { 
                 Text(
-                    text = "Are you sure you want to delete the selected categories?",
+                    text = stringResource(R.string.delete_confirm_msg),
                     color = DarkBrownText
                 ) 
             },
@@ -175,15 +175,16 @@ fun CategoriesScreen(
                         showDeleteDialog = false
                     }
                 ) {
-                    Text("Delete", color = Color.Red, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                    Text(stringResource(R.string.delete), color = Color.Red, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel", color = DarkBrownText)
+                    Text(stringResource(R.string.cancel), color = DarkBrownText)
                 }
             },
-            containerColor = BeigeHeader
+            containerColor = BeigeHeader,
+            shape = RoundedCornerShape(4.dp)
         )
     }
 }
@@ -260,7 +261,7 @@ fun CategoryItem(
         if (isProtected) {
             Icon(
                 imageVector = Icons.Default.Lock,
-                contentDescription = "Protected",
+                contentDescription = stringResource(R.string.protected_category),
                 tint = Color.Gray,
                 modifier = Modifier.size(16.dp)
             )
