@@ -18,7 +18,7 @@ import net.micode.spendingtracker.util.SettingsManager
 
 /**
  * Main entry point of the application.
- * Changed to AppCompatActivity to support dynamic language switching via AppCompatDelegate.
+ * Using AppCompatActivity to support dynamic language switching.
  */
 class MainActivity : AppCompatActivity() {
     

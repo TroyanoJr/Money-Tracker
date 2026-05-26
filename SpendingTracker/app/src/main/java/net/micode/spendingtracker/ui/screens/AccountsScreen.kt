@@ -26,7 +26,7 @@ fun AccountsScreen() {
             .background(BeigeHeader)
             .padding(16.dp)
     ) {
-        // Current account display
+        // Simple placeholder for accounts
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -41,12 +41,11 @@ fun AccountsScreen() {
                 modifier = Modifier.size(32.dp)
             )
             Spacer(Modifier.width(12.dp))
-            Text("TroyanoJr", fontSize = 18.sp, color = DarkBrownText)
+            Text("Me", fontSize = 18.sp, color = DarkBrownText)
         }
         
         Spacer(modifier = Modifier.weight(1f))
         
-        // Footer message localized
         Text(
             text = stringResource(R.string.accounts_info),
             color = DarkBrownText.copy(alpha = 0.6f),

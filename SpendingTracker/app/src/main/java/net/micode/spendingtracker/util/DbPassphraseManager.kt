@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import android.util.Log
 import java.security.KeyStore
 import java.security.SecureRandom
 import javax.crypto.Cipher
@@ -11,76 +12,68 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
+/**
+ * Manages the database passphrase with migration support to a portable format.
+ */
 object DbPassphraseManager {
-    private const val KEYSTORE_PROVIDER = "AndroidKeyStore"
-    private const val KEY_ALIAS = "spending_tracker_db_key_v1"
-    private const val PREFS_NAME = "security_prefs"
-    private const val KEY_ENCRYPTED_DB_PASSPHRASE = "encrypted_db_passphrase_v1"
-    private const val GCM_IV_LENGTH = 12
-    private const val GCM_TAG_LENGTH = 128
+    private const val TAG = "DbPassphraseManager"
+    private const val OLD_PREFS = "security_prefs"
+    private const val OLD_KEY_ALIAS = "spending_tracker_db_key_v1"
+    private const val OLD_KEY_PASSPHRASE = "encrypted_db_passphrase_v1"
+    
+    private const val NEW_PREFS = "app_settings"
+    private const val NEW_KEY_PASSPHRASE = "db_passphrase_portable_v2"
 
     fun getOrCreatePassphrase(context: Context): ByteArray {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val storedValue = prefs.getString(KEY_ENCRYPTED_DB_PASSPHRASE, null)
+        val newPrefs = context.getSharedPreferences(NEW_PREFS, Context.MODE_PRIVATE)
+        val portableValue = newPrefs.getString(NEW_KEY_PASSPHRASE, null)
 
-        if (!storedValue.isNullOrEmpty()) {
-            return decrypt(Base64.decode(storedValue, Base64.NO_WRAP))
+        // 1. Return existing portable key if available
+        if (!portableValue.isNullOrEmpty()) {
+            return Base64.decode(portableValue, Base64.NO_WRAP)
         }
 
+        // 2. Try to migrate from old Keystore-encrypted key
+        val oldPrefs = context.getSharedPreferences(OLD_PREFS, Context.MODE_PRIVATE)
+        val oldEncryptedValue = oldPrefs.getString(OLD_KEY_PASSPHRASE, null)
+        
+        if (!oldEncryptedValue.isNullOrEmpty()) {
+            try {
+                val decrypted = decryptOldKey(Base64.decode(oldEncryptedValue, Base64.NO_WRAP))
+                savePortableKey(newPrefs, decrypted)
+                return decrypted
+            } catch (e: Exception) {
+                Log.e(TAG, "Migration failed", e)
+            }
+        }
+
+        // 3. Generate a brand new key if nothing else exists
         val passphrase = ByteArray(32).also { SecureRandom().nextBytes(it) }
-        val encrypted = encrypt(passphrase)
-        prefs.edit()
-            .putString(KEY_ENCRYPTED_DB_PASSPHRASE, Base64.encodeToString(encrypted, Base64.NO_WRAP))
-            .apply()
+        savePortableKey(newPrefs, passphrase)
         return passphrase
     }
 
-    fun clearStoredPassphrase(context: Context) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .remove(KEY_ENCRYPTED_DB_PASSPHRASE)
+    private fun savePortableKey(prefs: android.content.SharedPreferences, key: ByteArray) {
+        prefs.edit()
+            .putString(NEW_KEY_PASSPHRASE, Base64.encodeToString(key, Base64.NO_WRAP))
             .apply()
     }
 
-    private fun encrypt(plain: ByteArray): ByteArray {
+    private fun decryptOldKey(payload: ByteArray): ByteArray {
+        val iv = payload.copyOfRange(0, 12)
+        val encrypted = payload.copyOfRange(12, payload.size)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, getOrCreateSecretKey())
-        val iv = cipher.iv
-        val encrypted = cipher.doFinal(plain)
-        return iv + encrypted
-    }
-
-    private fun decrypt(payload: ByteArray): ByteArray {
-        require(payload.size > GCM_IV_LENGTH) { "Invalid encrypted payload" }
-        val iv = payload.copyOfRange(0, GCM_IV_LENGTH)
-        val encrypted = payload.copyOfRange(GCM_IV_LENGTH, payload.size)
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        val spec = GCMParameterSpec(GCM_TAG_LENGTH, iv)
-        cipher.init(Cipher.DECRYPT_MODE, getOrCreateSecretKey(), spec)
+        val spec = GCMParameterSpec(128, iv)
+        
+        val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        val secretKey = (keyStore.getEntry(OLD_KEY_ALIAS, null) as KeyStore.SecretKeyEntry).secretKey
+        
+        cipher.init(Cipher.DECRYPT_MODE, secretKey, spec)
         return cipher.doFinal(encrypted)
     }
 
-    private fun getOrCreateSecretKey(): SecretKey {
-        val keyStore = KeyStore.getInstance(KEYSTORE_PROVIDER).apply { load(null) }
-        val existing = runCatching {
-            keyStore.getEntry(KEY_ALIAS, null) as? KeyStore.SecretKeyEntry
-        }.getOrNull()
-        if (existing != null) return existing.secretKey
-
-        if (keyStore.containsAlias(KEY_ALIAS)) {
-            runCatching { keyStore.deleteEntry(KEY_ALIAS) }
-        }
-
-        val keyGenerator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE_PROVIDER)
-        val spec = KeyGenParameterSpec.Builder(
-            KEY_ALIAS,
-            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-        )
-            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-            .setKeySize(256)
-            .build()
-        keyGenerator.init(spec)
-        return keyGenerator.generateKey()
+    fun clearStoredPassphrase(context: Context) {
+        context.getSharedPreferences(NEW_PREFS, Context.MODE_PRIVATE).edit().remove(NEW_KEY_PASSPHRASE).apply()
+        context.getSharedPreferences(OLD_PREFS, Context.MODE_PRIVATE).edit().remove(OLD_KEY_PASSPHRASE).apply()
     }
 }

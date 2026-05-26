@@ -96,6 +96,10 @@ fun DashboardScreen(
                     onCurrencyChanged = { viewModel.refreshCurrency() }
                 )
             }
+            "backups" -> {
+                BackHandler(onBack = { currentScreen = "dashboard" })
+                BackupScreen(onBack = { currentScreen = "dashboard" })
+            }
             "csv_export" -> CsvExportScreen(
                 categories = categories.map { it.name },
                 onClose = { currentScreen = "dashboard" },
@@ -128,6 +132,7 @@ fun DashboardScreen(
                                 }
                             },
                             onSettingsClick = { currentScreen = "settings" },
+                            onBackupsClick = { currentScreen = "backups" },
                             selectedPeriod = selectedPeriod,
                             selectedDate = selectedDate,
                             onPeriodSelected = { viewModel.setPeriod(it) },
@@ -152,7 +157,6 @@ fun DashboardScreen(
                             }
                         }
                         
-                        // Add Banner Ad at the bottom of the main content column
                         BannerAdView(modifier = Modifier.padding(vertical = 4.dp))
                     }
 

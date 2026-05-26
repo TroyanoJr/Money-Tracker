@@ -4,6 +4,7 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import net.micode.spendingtracker.model.Category
@@ -119,6 +120,7 @@ class TransactionViewModel(
         initialValue = calculateDateRange(_selectedPeriod.value, _selectedDate.value)
     )
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private val periodTransactionsFlow: Flow<List<Transaction>> = selectedDateRange
         .flatMapLatest { range ->
             repository.getTransactionsByDateRange(range.start, range.end)
@@ -157,6 +159,7 @@ class TransactionViewModel(
         PagingFilter(range.start, range.end, isExpense, if (filterType == FilterType.BY_CATEGORY) categoryName else null, query)
     }.distinctUntilChanged()
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     val pagedTransactions: Flow<PagingData<Transaction>> = pagingFilter
         .flatMapLatest { filter ->
             repository.getPagedTransactions(

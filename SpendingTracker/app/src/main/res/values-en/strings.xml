@@ -113,6 +113,17 @@
     <string name="every_month">Every Month</string>
     <string name="never">Never</string>
 
+    <!-- Backups -->
+    <string name="backups">Backups</string>
+    <string name="local_backup">Local Backup</string>
+    <string name="backup_info">You can back up your data to a local file. This file will be encrypted and can be restored later or moved to another device.</string>
+    <string name="create_new_backup">Create New Backup</string>
+    <string name="restore_existing_backup">Restore Existing Backup</string>
+    <string name="backup_success">Backup created successfully</string>
+    <string name="restore_success">Backup restored successfully. Restarting app…</string>
+    <string name="backup_error">Error creating backup</string>
+    <string name="restore_error">Error restoring backup</string>
+
     <!-- Spending Section Settings -->
     <string name="spending_section">Spending</string>
     <string name="budget_mode">Budget Mode</string>

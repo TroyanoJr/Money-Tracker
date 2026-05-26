@@ -16,16 +16,16 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         val MIGRATION_4_5 = object : Migration(4, 5) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL(
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
                     "CREATE INDEX IF NOT EXISTS index_transactions_date ON transactions(date)"
                 )
             }
         }
 
         val MIGRATION_5_6 = object : Migration(5, 6) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL(
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
                     """
                     CREATE TABLE IF NOT EXISTS period_summaries (
                         summaryKey TEXT NOT NULL PRIMARY KEY,
@@ -41,7 +41,7 @@ abstract class AppDatabase : RoomDatabase() {
                     )
                     """.trimIndent()
                 )
-                database.execSQL(
+                db.execSQL(
                     "CREATE INDEX IF NOT EXISTS index_period_summaries_period_dates ON period_summaries(period, startDate, endDate)"
                 )
             }

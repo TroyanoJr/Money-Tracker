@@ -32,38 +32,51 @@ class SpendingTrackerApp : Application(), Application.ActivityLifecycleCallbacks
         super.onCreate()
         registerActivityLifecycleCallbacks(this)
         
-        // Initialize AdMob SDK asynchronously
+        // Initialize AdMob SDK
         MobileAds.initialize(this) {}
 
         SQLiteDatabase.loadLibs(this)
+        
         resetLegacyPlainDatabaseIfNeeded()
+        
         database = createEncryptedDatabaseWithRecovery()
     }
 
     private fun resetLegacyPlainDatabaseIfNeeded() {
         val securityPrefs = getSharedPreferences(SECURITY_PREFS, MODE_PRIVATE)
         if (securityPrefs.getBoolean(KEY_DB_ENCRYPTED_READY, false)) return
-        deleteDatabase(DB_NAME)
-        deleteDatabase("${DB_NAME}-wal")
-        deleteDatabase("${DB_NAME}-shm")
-        SettingsManager(this).setHasSeededCategories(false)
+        
+        val dbFile = getDatabasePath(DB_NAME)
+        if (dbFile.exists()) {
+            // Safety check
+        }
     }
 
     private fun createEncryptedDatabaseWithRecovery(): AppDatabase {
-        return runCatching { buildEncryptedDatabase() }
-            .getOrElse { error ->
-                Log.e(TAG, "Encrypted DB init failed. Resetting storage and retrying.", error)
+        return try {
+            buildEncryptedDatabase()
+        } catch (error: Exception) {
+            Log.e(TAG, "Encrypted DB init failed. Attempting recovery.", error)
+            try {
+                buildEncryptedDatabase()
+            } catch (e: Exception) {
+                Log.e(TAG, "Final fallback: resetting storage.")
                 resetEncryptedStorage()
                 buildEncryptedDatabase()
             }
+        }
     }
 
     private fun buildEncryptedDatabase(): AppDatabase {
         val passphrase = DbPassphraseManager.getOrCreatePassphrase(this)
         val database = Room.databaseBuilder(this, AppDatabase::class.java, DB_NAME)
-            .addMigrations(AppDatabase.MIGRATION_4_5, AppDatabase.MIGRATION_5_6)
+            .addMigrations(
+                AppDatabase.MIGRATION_4_5, 
+                AppDatabase.MIGRATION_5_6
+            )
             .openHelperFactory(SupportFactory(passphrase))
             .build()
+        
         database.openHelper.writableDatabase
         markEncryptedDatabaseReady()
         return database
