@@ -14,8 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,16 +33,19 @@ import net.micode.spendingtracker.R
 import net.micode.spendingtracker.ui.components.ChalkButton
 import net.micode.spendingtracker.ui.components.DottedDivider
 import net.micode.spendingtracker.ui.theme.*
+import net.micode.spendingtracker.viewmodel.AccountViewModel
 import net.micode.spendingtracker.viewmodel.Period
 import net.micode.spendingtracker.viewmodel.TransactionViewModel
-import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.abs
 
 @Composable
 fun SpendingScreen(
     viewModel: TransactionViewModel,
+    accountViewModel: AccountViewModel,
     onAddExpense: () -> Unit,
-    onAddIncome: () -> Unit
+    onAddIncome: () -> Unit,
+    onSwitchAccountClick: () -> Unit
 ) {
     val totalIncome by viewModel.totalIncome.collectAsState()
     val totalExpense by viewModel.totalExpense.collectAsState()
@@ -60,6 +62,27 @@ fun SpendingScreen(
     val incompleteCount by viewModel.incompleteTransactionsCount.collectAsState()
     var showHeatmap by rememberSaveable { mutableStateOf(false) }
 
+    val accounts by accountViewModel.allAccounts.collectAsState()
+    val selectedAccountId by viewModel.selectedAccountId.collectAsState()
+    
+    val currentAccount = remember(selectedAccountId, accounts) {
+        accounts.find { it.id == selectedAccountId }
+    }
+    
+    val currentAccountName = remember(selectedAccountId, accounts) {
+        if (selectedAccountId == -1L) "All Accounts"
+        else currentAccount?.name ?: "Default"
+    }
+
+    val cycleAccount = { direction: Int ->
+        val list = listOf(-1L) + accounts.map { it.id }
+        val currentIndex = list.indexOf(selectedAccountId)
+        if (currentIndex != -1) {
+            val nextIndex = (currentIndex + direction + list.size) % list.size
+            viewModel.setSelectedAccount(list[nextIndex])
+        }
+    }
+
     LaunchedEffect(isBudgetEnabled, monthlyBudget, isIncludeIncomeEnabled) {
         viewModel.refreshBudgetSettings()
     }
@@ -69,18 +92,47 @@ fun SpendingScreen(
             modifier = Modifier.fillMaxSize().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Account selection header
             Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { viewModel.previousPeriod() }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back), tint = ChalkWhite, modifier = Modifier.size(32.dp))
+                Text(
+                    text = "< ", 
+                    color = ChalkWhite, 
+                    fontSize = 24.sp, 
+                    fontFamily = FontFamily.Cursive,
+                    modifier = Modifier.clickable { cycleAccount(-1) }.padding(horizontal = 16.dp)
+                )
+                
+                // Added Icon with Account Color
+                if (selectedAccountId != -1L) {
+                    Icon(
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = null,
+                        tint = if (currentAccount != null) Color(currentAccount.color) else ChalkWhite,
+                        modifier = Modifier.size(28.dp).padding(end = 8.dp)
+                    )
                 }
-                Spacer(modifier = Modifier.width(48.dp))
-                IconButton(onClick = { viewModel.nextPeriod() }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, stringResource(R.string.next), tint = ChalkWhite, modifier = Modifier.size(32.dp))
-                }
+
+                Text(
+                    text = currentAccountName,
+                    color = ChalkWhite,
+                    fontSize = 22.sp,
+                    fontFamily = FontFamily.Cursive,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clickable { onSwitchAccountClick() }
+                )
+                Text(
+                    text = " >", 
+                    color = ChalkWhite, 
+                    fontSize = 24.sp, 
+                    fontFamily = FontFamily.Cursive,
+                    modifier = Modifier.clickable { cycleAccount(1) }.padding(horizontal = 16.dp)
+                )
             }
 
             if (incompleteCount > 0) {
@@ -94,7 +146,8 @@ fun SpendingScreen(
                 }
             }
 
-            AnimatedVisibility(visible = isBudgetEnabled && selectedPeriod == Period.MONTH) {
+            // Budget visibility fix
+            AnimatedVisibility(visible = isBudgetEnabled && selectedPeriod == Period.MONTH && selectedAccountId != -1L) {
                 Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
                     val effectiveBudget = if (isIncludeIncomeEnabled) monthlyBudget + totalIncome else monthlyBudget
                     val progress = if (effectiveBudget > 0) (totalExpense / effectiveBudget).toFloat() else 0f
@@ -107,6 +160,7 @@ fun SpendingScreen(
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
                         Text(text = if (isIncludeIncomeEnabled) stringResource(R.string.dynamic_budget) else stringResource(R.string.monthly_budget), color = ChalkWhite.copy(alpha = 0.6f), fontSize = 14.sp, fontFamily = FontFamily.Cursive)
+                        // Correct formatting fix
                         Text(text = stringResource(R.string.amount_left, currencySymbol, remaining), color = progressColor, fontSize = 16.sp, fontFamily = FontFamily.Cursive, fontWeight = FontWeight.Bold)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -126,17 +180,17 @@ fun SpendingScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                item { BalanceRow(stringResource(R.string.income), "$currencySymbol ${String.format("%.2f", totalIncome)}", ChalkGreen) }
-                item { BalanceRow(stringResource(R.string.expense), "$currencySymbol ${String.format("%.2f", totalExpense)}", ChalkRed) }
+                item { BalanceRow(stringResource(R.string.income), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, totalIncome), ChalkGreen) }
+                item { BalanceRow(stringResource(R.string.expense), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, totalExpense), ChalkRed) }
                 items(expensesByCategory) { (name, amount) ->
                     Row(modifier = Modifier.fillMaxWidth().padding(start = 32.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(name, color = ChalkWhite, fontSize = 20.sp, fontFamily = FontFamily.Cursive)
-                        Text("$currencySymbol ${String.format("%.2f", amount)}", color = ChalkWhite, fontSize = 20.sp, fontFamily = FontFamily.Cursive)
+                        Text(String.format(Locale.getDefault(), "%s %.2f", currencySymbol, amount), color = ChalkWhite, fontSize = 20.sp, fontFamily = FontFamily.Cursive)
                     }
                 }
                 item {
                     DottedDivider(modifier = Modifier.padding(vertical = 16.dp))
-                    BalanceRow(stringResource(R.string.balance), "$currencySymbol ${String.format("%.2f", balance)}", ChalkBlue)
+                    BalanceRow(stringResource(R.string.balance), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, balance), ChalkBlue)
                 }
             }
 
@@ -180,8 +234,8 @@ fun HeatmapDialog(data: Map<Long, Double>, period: Period, onDismiss: () -> Unit
                             Text(day, Modifier.weight(1f), textAlign = TextAlign.Center, color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
+                    val sortedKeys = remember(data) { data.keys.sorted() }
                     LazyVerticalGrid(columns = GridCells.Fixed(7), modifier = Modifier.heightIn(max = 400.dp)) {
-                        val sortedKeys = data.keys.sorted()
                         items(sortedKeys) { timestamp ->
                             val balanceVal = data[timestamp] ?: 0.0
                             val color = when { balanceVal > 0 -> ChalkGreen; balanceVal < 0 -> ChalkRed; else -> Color.DarkGray }
@@ -201,32 +255,36 @@ fun HeatmapDialog(data: Map<Long, Double>, period: Period, onDismiss: () -> Unit
 
 @Composable
 fun YearlyHeatmap(data: Map<Long, Double>) {
-    val sortedDays = data.keys.sorted()
+    val sortedDays = remember(data) { data.keys.sorted() }
     if (sortedDays.isEmpty()) return
     val maxProfit = data.values.filter { it > 0 }.maxOrNull() ?: 1.0
-    val maxLoss = data.values.filter { it < 0 }.minOrNull()?.let { Math.abs(it) } ?: 1.0
+    val maxLoss = data.values.filter { it < 0 }.minOrNull()?.let { abs(it) } ?: 1.0
 
-    val weeks = mutableListOf<List<Long?>>()
-    var currentWeek = mutableListOf<Long?>()
-    val calendar = Calendar.getInstance().apply { timeInMillis = sortedDays.first() }
-    val startPadding = (calendar.get(Calendar.DAY_OF_WEEK) - Calendar.MONDAY + 7) % 7
-    repeat(startPadding) { currentWeek.add(null) }
-    
-    sortedDays.forEach { timestamp ->
-        currentWeek.add(timestamp)
-        if (currentWeek.size == 7) { weeks.add(currentWeek); currentWeek = mutableListOf() }
+    val weeks = remember(sortedDays) {
+        val w = mutableListOf<List<Long?>>()
+        var currentWeek = mutableListOf<Long?>()
+        val calendar = Calendar.getInstance().apply { timeInMillis = sortedDays.first() }
+        val startPadding = (calendar.get(Calendar.DAY_OF_WEEK) - Calendar.MONDAY + 7) % 7
+        repeat(startPadding) { currentWeek.add(null) }
+        sortedDays.forEach { timestamp ->
+            currentWeek.add(timestamp)
+            if (currentWeek.size == 7) { w.add(currentWeek); currentWeek = mutableListOf() }
+        }
+        if (currentWeek.isNotEmpty()) { while (currentWeek.size < 7) currentWeek.add(null); w.add(currentWeek) }
+        w
     }
-    if (currentWeek.isNotEmpty()) { while (currentWeek.size < 7) currentWeek.add(null); weeks.add(currentWeek) }
 
     LazyRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
         itemsIndexed(weeks) { _, week ->
             Column {
-                week.forEach { timestamp ->
-                    if (timestamp == null) Spacer(Modifier.size(12.dp)) else {
+                for (timestamp in week) {
+                    if (timestamp == null) {
+                        Spacer(Modifier.size(12.dp))
+                    } else {
                         val balanceVal = data[timestamp] ?: 0.0
                         val color = when {
                             balanceVal > 0 -> ChalkGreen.copy(alpha = (0.3f + (balanceVal / maxProfit) * 0.7f).toFloat())
-                            balanceVal < 0 -> ChalkRed.copy(alpha = (0.3f + (Math.abs(balanceVal) / maxLoss) * 0.7f).toFloat())
+                            balanceVal < 0 -> ChalkRed.copy(alpha = (0.3f + (abs(balanceVal) / maxLoss) * 0.7f).toFloat())
                             else -> Color.DarkGray.copy(alpha = 0.2f)
                         }
                         Box(modifier = Modifier.size(12.dp).clip(RoundedCornerShape(2.dp)).background(color))

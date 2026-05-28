@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.Share
@@ -27,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import net.micode.spendingtracker.R
+import net.micode.spendingtracker.model.Account
 import net.micode.spendingtracker.model.Transaction
 import net.micode.spendingtracker.ui.components.CategorySelectionToolbar
 import net.micode.spendingtracker.ui.theme.BeigeHeader
@@ -42,9 +44,11 @@ import java.util.*
 @Composable
 fun TransactionsScreen(
     viewModel: TransactionViewModel,
+    accounts: List<Account>,
     onEditTransaction: (Transaction) -> Unit,
     onDeleteTransactions: (List<Transaction>) -> Unit,
-    onExportCsv: () -> Unit
+    onExportCsv: () -> Unit,
+    onSwitchAccountClick: () -> Unit
 ) {
     val context = LocalContext.current
     val pagedTransactions = viewModel.pagedTransactions.collectAsLazyPagingItems()
@@ -56,6 +60,11 @@ fun TransactionsScreen(
     val currencySymbol by viewModel.currencySymbol.collectAsState()
     val selectedPeriod by viewModel.selectedPeriod.collectAsState()
     val selectedDate by viewModel.selectedDate.collectAsState()
+    val selectedAccountId by viewModel.selectedAccountId.collectAsState()
+
+    val currentAccount = remember(selectedAccountId, accounts) {
+        accounts.find { it.id == selectedAccountId }
+    }
 
     var selectedTransactionIds by remember { mutableStateOf(setOf<String>()) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -184,6 +193,14 @@ fun TransactionsScreen(
                 }
                 IconButton(onClick = { showFilterDialog = true }) {
                     Icon(Icons.Default.FilterList, contentDescription = null, tint = DarkBrownText)
+                }
+                // Update 1: Account icon with its specific color
+                IconButton(onClick = onSwitchAccountClick) {
+                    Icon(
+                        imageVector = Icons.Default.AccountCircle, 
+                        contentDescription = "Switch Account", 
+                        tint = if (currentAccount != null) Color(currentAccount.color) else DarkBrownText
+                    )
                 }
             }
         }

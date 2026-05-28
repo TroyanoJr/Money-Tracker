@@ -72,7 +72,8 @@ class SpendingTrackerApp : Application(), Application.ActivityLifecycleCallbacks
         val database = Room.databaseBuilder(this, AppDatabase::class.java, DB_NAME)
             .addMigrations(
                 AppDatabase.MIGRATION_4_5, 
-                AppDatabase.MIGRATION_5_6
+                AppDatabase.MIGRATION_5_6,
+                AppDatabase.MIGRATION_6_7
             )
             .openHelperFactory(SupportFactory(passphrase))
             .build()

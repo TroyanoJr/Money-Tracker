@@ -55,7 +55,8 @@ class TransactionViewModel(
         val endDate: Long,
         val isExpense: Boolean?,
         val categoryName: String?,
-        val searchQuery: String?
+        val searchQuery: String?,
+        val accountId: Long
     )
 
     private val _selectedPeriod = MutableStateFlow(Period.MONTH)
@@ -63,6 +64,9 @@ class TransactionViewModel(
 
     private val _selectedDate = MutableStateFlow(System.currentTimeMillis())
     val selectedDate: StateFlow<Long> = _selectedDate.asStateFlow()
+
+    private val _selectedAccountId = MutableStateFlow<Long>(1L) // Default to system user ID 1
+    val selectedAccountId: StateFlow<Long> = _selectedAccountId.asStateFlow()
 
     private val _currencySymbol = MutableStateFlow(settingsManager.getCurrencySymbol())
     val currencySymbol: StateFlow<String> = _currencySymbol.asStateFlow()
@@ -86,9 +90,16 @@ class TransactionViewModel(
     private val _isIncludeIncomeEnabled = MutableStateFlow(settingsManager.isIncludeIncomeInBudget())
     val isIncludeIncomeEnabled: StateFlow<Boolean> = _isIncludeIncomeEnabled.asStateFlow()
 
+    init {
+        viewModelScope.launch {
+            repository.getDefaultAccount()?.let {
+                _selectedAccountId.value = it.id
+            }
+        }
+    }
+
     val categories: StateFlow<List<Category>> = repository.allCategories
         .onEach { list ->
-            // Seed defaults AND ensure "Pending" always exists
             if (list.isEmpty() && !settingsManager.hasSeededCategories()) {
                 seedDefaultCategories()
             } else if (list.none { it.name == "Pending" }) {
@@ -121,10 +132,14 @@ class TransactionViewModel(
     )
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    private val periodTransactionsFlow: Flow<List<Transaction>> = selectedDateRange
-        .flatMapLatest { range ->
-            repository.getTransactionsByDateRange(range.start, range.end)
-        }
+    private val periodTransactionsFlow: Flow<List<Transaction>> = combine(
+        selectedDateRange,
+        _selectedAccountId
+    ) { range, accountId ->
+        range to accountId
+    }.flatMapLatest { (range, accountId) ->
+        repository.getTransactionsByDateRange(accountId, range.start, range.end)
+    }
 
     val transactions: StateFlow<List<Transaction>> = combine(
         periodTransactionsFlow,
@@ -149,20 +164,22 @@ class TransactionViewModel(
         selectedDateRange,
         _activeFilterType,
         _filterCategoryName,
-        _searchQuery
-    ) { range, filterType, categoryName, query ->
+        _searchQuery,
+        _selectedAccountId
+    ) { range, filterType, categoryName, query, accountId ->
         val isExpense = when (filterType) {
             FilterType.ONLY_EXPENSE -> true
             FilterType.ONLY_INCOME -> false
             else -> null
         }
-        PagingFilter(range.start, range.end, isExpense, if (filterType == FilterType.BY_CATEGORY) categoryName else null, query)
+        PagingFilter(range.start, range.end, isExpense, if (filterType == FilterType.BY_CATEGORY) categoryName else null, query, accountId)
     }.distinctUntilChanged()
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val pagedTransactions: Flow<PagingData<Transaction>> = pagingFilter
         .flatMapLatest { filter ->
             repository.getPagedTransactions(
+                accountId = filter.accountId,
                 startDate = filter.startDate,
                 endDate = filter.endDate,
                 isExpense = filter.isExpense,
@@ -179,6 +196,10 @@ class TransactionViewModel(
     fun setFilter(type: FilterType, categoryName: String? = null) {
         _activeFilterType.value = type
         _filterCategoryName.value = categoryName
+    }
+
+    fun setSelectedAccount(id: Long) {
+        _selectedAccountId.value = id
     }
 
     fun refreshCurrency() {
@@ -301,8 +322,11 @@ class TransactionViewModel(
         map
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
-    val incompleteTransactionsCount: StateFlow<Int> = repository.allTransactions.map { list ->
-        list.count { !it.isComplete }
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val incompleteTransactionsCount: StateFlow<Int> = _selectedAccountId.flatMapLatest { accountId ->
+        repository.getAllTransactions(accountId).map { list ->
+            list.count { !it.isComplete }
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     val cashFlowData: StateFlow<List<CashFlowPoint>> = combine(transactions, _selectedPeriod, _selectedDate) { list, period, date ->
@@ -364,7 +388,16 @@ class TransactionViewModel(
             }.sortedByDescending { it.amount }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun addTransaction(transaction: Transaction) { viewModelScope.launch { repository.insertTransaction(transaction) } }
+    fun addTransaction(transaction: Transaction) { 
+        viewModelScope.launch { 
+            // Correct fallback: If All Accounts (-1L) is selected, save to Default account (1L)
+            val activeId = if (_selectedAccountId.value == -1L) 1L else _selectedAccountId.value
+            val txWithAccount = if (transaction.accountId == 0L || transaction.accountId == -1L) {
+                transaction.copy(accountId = activeId)
+            } else transaction
+            repository.insertTransaction(txWithAccount) 
+        } 
+    }
     fun updateTransaction(transaction: Transaction) { viewModelScope.launch { repository.updateTransaction(transaction) } }
     fun deleteTransaction(transaction: Transaction) { viewModelScope.launch { repository.deleteTransaction(transaction) } }
     fun deleteTransactions(transactions: List<Transaction>) { viewModelScope.launch { transactions.forEach { repository.deleteTransaction(it) } } }

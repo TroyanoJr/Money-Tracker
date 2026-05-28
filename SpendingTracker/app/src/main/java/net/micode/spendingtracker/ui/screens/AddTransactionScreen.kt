@@ -11,7 +11,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -29,8 +28,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import net.micode.spendingtracker.R
+import net.micode.spendingtracker.model.Account
 import net.micode.spendingtracker.model.Transaction
-import net.micode.spendingtracker.model.Category
+import net.micode.spendingtracker.ui.components.AccountPickerDialog
 import net.micode.spendingtracker.ui.components.CategoryRow
 import net.micode.spendingtracker.ui.components.CategoryTabButton
 import net.micode.spendingtracker.ui.components.ChalkDatePickerDialog
@@ -77,7 +77,8 @@ fun evaluateMathExpression(input: String): Double? {
 fun AddTransactionScreen(
     transactionToEdit: Transaction? = null,
     viewModel: TransactionViewModel,
-    initialType: Int = 0, // 0 for Expense, 1 for Income
+    accounts: List<Account>,
+    initialType: Int = 0,
     onClose: () -> Unit,
     onDone: () -> Unit
 ) {
@@ -87,7 +88,6 @@ fun AddTransactionScreen(
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
 
-    // Pre-load interstitial ad when screen opens
     LaunchedEffect(Unit) {
         InterstitialAdHelper.loadAd(context)
     }
@@ -95,12 +95,20 @@ fun AddTransactionScreen(
     val expenseCategories by viewModel.expenseCategories.collectAsState()
     val incomeCategories by viewModel.incomeCategories.collectAsState()
     val currentDashboardDate by viewModel.selectedDate.collectAsState()
+    val dashboardAccountId by viewModel.selectedAccountId.collectAsState()
 
     var amount by rememberSaveable { mutableStateOf(transactionToEdit?.amount?.toString() ?: "") }
     var note by rememberSaveable { mutableStateOf(transactionToEdit?.note ?: "") }
     var isRepeating by rememberSaveable { mutableStateOf(transactionToEdit?.isRepeating ?: false) }
     var showCategorySelector by rememberSaveable { mutableStateOf(false) }
     var selectedCategoryName by rememberSaveable { mutableStateOf(transactionToEdit?.categoryName ?: "") }
+    
+    // Account Selection State (Imagen 3)
+    var selectedAccountId by rememberSaveable { 
+        mutableLongStateOf(transactionToEdit?.accountId ?: if (dashboardAccountId == -1L) 1L else dashboardAccountId) 
+    }
+    var showAccountPicker by rememberSaveable { mutableStateOf(false) }
+    val selectedAccountName = accounts.find { it.id == selectedAccountId }?.name ?: "Default"
 
     val calculatedAmount by remember(amount) { derivedStateOf { evaluateMathExpression(amount) } }
     val isAmountValid by remember(calculatedAmount) { derivedStateOf { calculatedAmount != null } }
@@ -109,7 +117,7 @@ fun AddTransactionScreen(
 
     var selectedLocalDateMillis by rememberSaveable { mutableLongStateOf(transactionToEdit?.date ?: currentDashboardDate) }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
-    val dateFormatter = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+    val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
     val formattedDate = dateFormatter.format(Date(selectedLocalDateMillis))
 
     if (showCategorySelector) {
@@ -145,24 +153,21 @@ fun AddTransactionScreen(
                                 date = selectedLocalDateMillis,
                                 note = note,
                                 isExpense = pagerState.currentPage == 0,
-                                isRepeating = isRepeating
+                                isRepeating = isRepeating,
+                                accountId = selectedAccountId
                             )
                             focusManager.clearFocus()
                             if (transactionToEdit == null) viewModel.addTransaction(transaction)
                             else viewModel.updateTransaction(transaction)
-                            
-                            // Show ad and then execute the onDone callback
-                            InterstitialAdHelper.showAd(context as Activity) {
-                                onDone()
-                            }
+                            InterstitialAdHelper.showAd(context as Activity) { onDone() }
                         }
                     }
                 )
             }
 
             Row(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalArrangement = Arrangement.Center) {
-                CategoryTabButton(text = stringResource(R.string.expense), selected = pagerState.currentPage == 0, isStart = true, onClick = { focusManager.clearFocus(); selectedCategoryName = ""; coroutineScope.launch { pagerState.animateScrollToPage(0) } })
-                CategoryTabButton(text = stringResource(R.string.income), selected = pagerState.currentPage == 1, isStart = false, onClick = { focusManager.clearFocus(); selectedCategoryName = ""; coroutineScope.launch { pagerState.animateScrollToPage(1) } })
+                CategoryTabButton(text = stringResource(R.string.expense), selected = pagerState.currentPage == 0, isStart = true, onClick = { focusManager.clearFocus(); coroutineScope.launch { pagerState.animateScrollToPage(0) } })
+                CategoryTabButton(text = stringResource(R.string.income), selected = pagerState.currentPage == 1, isStart = false, onClick = { focusManager.clearFocus(); coroutineScope.launch { pagerState.animateScrollToPage(1) } })
             }
 
             HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { _ ->
@@ -185,6 +190,17 @@ fun AddTransactionScreen(
                         })
                     }
                     HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
+                    
+                    // Conditionally show account selection (Imagen 3)
+                    if (accounts.size > 1) {
+                        CategoryRow(label = stringResource(R.string.account), labelColor = Color(0xFF1976D2)) {
+                            Box(modifier = Modifier.fillMaxSize().clickable { focusManager.clearFocus(); showAccountPicker = true }, contentAlignment = Alignment.CenterStart) {
+                                Text(text = selectedAccountName, color = DarkBrownText, fontSize = 16.sp)
+                            }
+                        }
+                        HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
+                    }
+
                     Spacer(modifier = Modifier.height(24.dp))
                     SectionHeader(title = stringResource(R.string.repeating_details))
                     CategoryRow(label = stringResource(R.string.repeat), labelColor = Color(0xFF1976D2)) {
@@ -206,5 +222,15 @@ fun AddTransactionScreen(
 
     if (showDatePicker) {
         ChalkDatePickerDialog(initialDateMillis = selectedLocalDateMillis, onDateSelected = { selectedLocalDateMillis = it; showDatePicker = false }, onDismiss = { showDatePicker = false })
+    }
+
+    if (showAccountPicker) {
+        AccountPickerDialog(
+            accounts = accounts,
+            selectedAccountId = selectedAccountId,
+            onAccountSelected = { selectedAccountId = it },
+            onDismiss = { showAccountPicker = false },
+            showAllAccountsOption = false // Refinement: Cannot add transactions to "All Accounts"
+        )
     }
 }

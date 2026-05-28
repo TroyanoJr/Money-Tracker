@@ -7,10 +7,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import net.micode.spendingtracker.data.AccountDao
 import net.micode.spendingtracker.data.CategoryDao
 import net.micode.spendingtracker.data.PeriodSummaryDao
 import net.micode.spendingtracker.data.SummaryTotals
 import net.micode.spendingtracker.data.TransactionDao
+import net.micode.spendingtracker.model.Account
 import net.micode.spendingtracker.model.Category
 import net.micode.spendingtracker.model.PeriodSummary
 import net.micode.spendingtracker.model.Transaction
@@ -22,7 +24,8 @@ import net.micode.spendingtracker.model.Transaction
 class TransactionRepository(
     private val transactionDao: TransactionDao,
     private val categoryDao: CategoryDao,
-    private val periodSummaryDao: PeriodSummaryDao
+    private val periodSummaryDao: PeriodSummaryDao,
+    private val accountDao: AccountDao
 ) {
     
     // For automated transactions from NotificationInterceptorService
@@ -32,12 +35,14 @@ class TransactionRepository(
     val dataChanged: SharedFlow<Unit> = _dataChanged.asSharedFlow()
 
     // Transaction methods
-    val allTransactions: Flow<List<Transaction>> = transactionDao.getAllTransactions()
-    fun getTransactionsByDateRange(startDate: Long, endDate: Long): Flow<List<Transaction>> {
-        return transactionDao.getTransactionsByDateRange(startDate, endDate)
+    fun getAllTransactions(accountId: Long): Flow<List<Transaction>> = transactionDao.getAllTransactions(accountId)
+    
+    fun getTransactionsByDateRange(accountId: Long, startDate: Long, endDate: Long): Flow<List<Transaction>> {
+        return transactionDao.getTransactionsByDateRange(accountId, startDate, endDate)
     }
 
     fun getPagedTransactions(
+        accountId: Long,
         startDate: Long,
         endDate: Long,
         isExpense: Boolean?,
@@ -53,6 +58,7 @@ class TransactionRepository(
             ),
             pagingSourceFactory = {
                 transactionDao.getPagedTransactionsByFilter(
+                    accountId = accountId,
                     startDate = startDate,
                     endDate = endDate,
                     isExpense = isExpense,
@@ -107,17 +113,42 @@ class TransactionRepository(
     }
 
     suspend fun getSummaryTotals(
+        accountId: Long,
         startDate: Long,
         endDate: Long,
         isExpense: Boolean?,
         categoryName: String?
     ): SummaryTotals {
         return transactionDao.getSummaryTotals(
+            accountId = accountId,
             startDate = startDate,
             endDate = endDate,
             isExpense = isExpense,
             categoryName = categoryName
         )
+    }
+
+    // Account methods
+    val allAccounts: Flow<List<Account>> = accountDao.getAllAccounts()
+
+    suspend fun insertAccount(account: Account): Long {
+        return accountDao.insertAccount(account)
+    }
+
+    suspend fun updateAccount(account: Account) {
+        accountDao.updateAccount(account)
+    }
+
+    suspend fun deleteAccount(account: Account) {
+        accountDao.deleteAccount(account)
+    }
+
+    suspend fun setDefaultAccount(accountId: Long) {
+        accountDao.setDefaultAccount(accountId)
+    }
+
+    suspend fun getDefaultAccount(): Account? {
+        return accountDao.getDefaultAccount()
     }
     
     companion object {
@@ -126,13 +157,15 @@ class TransactionRepository(
         fun getInstance(
             transactionDao: TransactionDao,
             categoryDao: CategoryDao,
-            periodSummaryDao: PeriodSummaryDao
+            periodSummaryDao: PeriodSummaryDao,
+            accountDao: AccountDao
         ): TransactionRepository {
             return instance ?: synchronized(this) {
                 instance ?: TransactionRepository(
                     transactionDao,
                     categoryDao,
-                    periodSummaryDao
+                    periodSummaryDao,
+                    accountDao
                 ).also { instance = it }
             }
         }

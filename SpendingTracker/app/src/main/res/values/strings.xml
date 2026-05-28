@@ -90,6 +90,11 @@
 
     <!-- Accounts Screen -->
     <string name="accounts_info">You can add extra Accounts here. For example you may want to have different accounts for different people, or have a separate \'Savings\' account.</string>
+    <string name="delete_account">Delete Account</string>
+    <string name="icon_color">Icon Color</string>
+    <string name="error">Error</string>
+    <string name="default_account_delete_error">\'%1$s\' is the \'Default\' Account. It cannot be deleted.</string>
+    <string name="account">Account</string>
 
     <!-- Heatmap Dialog -->
     <string name="balance_heatmap">Balance Heatmap</string>

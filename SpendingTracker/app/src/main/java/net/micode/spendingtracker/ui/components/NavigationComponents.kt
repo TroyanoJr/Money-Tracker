@@ -44,7 +44,9 @@ fun TopNavigation(
     searchQuery: String = "",
     onSearchQueryChange: (String) -> Unit = {},
     onToggleSearch: (Boolean) -> Unit = {},
-    showSearchOption: Boolean = false
+    showSearchOption: Boolean = false,
+    onSwitchAccountClick: () -> Unit = {},
+    selectedAccountColor: Color? = null // Added parameter
 ) {
     var showPeriodMenu by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
@@ -94,7 +96,7 @@ fun TopNavigation(
                         Text(dateText, color = DarkBrownText, fontWeight = FontWeight.Medium)
                     }
                     DropdownMenu(expanded = showPeriodMenu, onDismissRequest = { showPeriodMenu = false }, modifier = Modifier.background(BeigeHeader)) {
-                        Period.values().forEach { period ->
+                        Period.entries.forEach { period ->
                             DropdownMenuItem(text = { Text(period.name, color = DarkBrownText) }, onClick = { onPeriodSelected(period); showPeriodMenu = false })
                         }
                     }
@@ -102,6 +104,18 @@ fun TopNavigation(
                 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onAddClick) { Icon(Icons.Default.Add, contentDescription = "Add", tint = DarkBrownText) }
+                    
+                    // Show account icon ONLY on Spending tab (Image 1) - Now with dynamic color
+                    if (selectedTabIndex == 0) {
+                        IconButton(onClick = onSwitchAccountClick) {
+                            Icon(
+                                imageVector = Icons.Default.AccountCircle, 
+                                contentDescription = "Switch Account", 
+                                tint = selectedAccountColor ?: DarkBrownText
+                            )
+                        }
+                    }
+
                     Box {
                         IconButton(onClick = { showOverflowMenu = true }) { Icon(Icons.Default.MoreVert, contentDescription = "More", tint = DarkBrownText) }
                         DropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false }, modifier = Modifier.background(Color.White)) {

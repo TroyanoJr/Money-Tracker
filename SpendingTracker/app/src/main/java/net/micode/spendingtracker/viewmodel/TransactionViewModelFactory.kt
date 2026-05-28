@@ -10,10 +10,16 @@ class TransactionViewModelFactory(
     private val settingsManager: SettingsManager
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(TransactionViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return TransactionViewModel(repository, settingsManager) as T
+        return when {
+            modelClass.isAssignableFrom(TransactionViewModel::class.java) -> {
+                @Suppress("UNCHECKED_CAST")
+                TransactionViewModel(repository, settingsManager) as T
+            }
+            modelClass.isAssignableFrom(AccountViewModel::class.java) -> {
+                @Suppress("UNCHECKED_CAST")
+                AccountViewModel(repository) as T
+            }
+            else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }
-        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

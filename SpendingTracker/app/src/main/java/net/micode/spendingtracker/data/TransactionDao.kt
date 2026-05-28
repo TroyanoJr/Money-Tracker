@@ -7,16 +7,17 @@ import net.micode.spendingtracker.model.Transaction
 
 @Dao
 interface TransactionDao {
-    @Query("SELECT * FROM transactions ORDER BY date DESC")
-    fun getAllTransactions(): Flow<List<Transaction>>
+    @Query("SELECT * FROM transactions WHERE (:accountId = -1 OR accountId = :accountId) ORDER BY date DESC")
+    fun getAllTransactions(accountId: Long): Flow<List<Transaction>>
 
-    @Query("SELECT * FROM transactions WHERE date BETWEEN :startDate AND :endDate ORDER BY date DESC")
-    fun getTransactionsByDateRange(startDate: Long, endDate: Long): Flow<List<Transaction>>
+    @Query("SELECT * FROM transactions WHERE (:accountId = -1 OR accountId = :accountId) AND date BETWEEN :startDate AND :endDate ORDER BY date DESC")
+    fun getTransactionsByDateRange(accountId: Long, startDate: Long, endDate: Long): Flow<List<Transaction>>
 
     @Query(
         """
         SELECT * FROM transactions
-        WHERE date BETWEEN :startDate AND :endDate
+        WHERE (:accountId = -1 OR accountId = :accountId)
+          AND date BETWEEN :startDate AND :endDate
           AND (:isExpense IS NULL OR isExpense = :isExpense)
           AND (:categoryName IS NULL OR categoryName = :categoryName)
           AND (:searchQuery IS NULL OR categoryName LIKE '%' || :searchQuery || '%')
@@ -24,6 +25,7 @@ interface TransactionDao {
         """
     )
     fun getPagedTransactionsByFilter(
+        accountId: Long,
         startDate: Long,
         endDate: Long,
         isExpense: Boolean?,
@@ -37,12 +39,14 @@ interface TransactionDao {
             COALESCE(SUM(CASE WHEN isExpense = 0 THEN amount ELSE 0 END), 0) AS totalIncome,
             COALESCE(SUM(CASE WHEN isExpense = 1 THEN amount ELSE 0 END), 0) AS totalExpense
         FROM transactions
-        WHERE date BETWEEN :startDate AND :endDate
+        WHERE (:accountId = -1 OR accountId = :accountId)
+          AND date BETWEEN :startDate AND :endDate
           AND (:isExpense IS NULL OR isExpense = :isExpense)
           AND (:categoryName IS NULL OR categoryName = :categoryName)
         """
     )
     suspend fun getSummaryTotals(
+        accountId: Long,
         startDate: Long,
         endDate: Long,
         isExpense: Boolean?,

@@ -11,6 +11,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import net.micode.spendingtracker.ui.screens.DashboardScreen
 import net.micode.spendingtracker.ui.screens.LockScreen
 import net.micode.spendingtracker.viewmodel.TransactionViewModel
+import net.micode.spendingtracker.viewmodel.AccountViewModel
 import net.micode.spendingtracker.viewmodel.TransactionViewModelFactory
 import net.micode.spendingtracker.repository.TransactionRepository
 import net.micode.spendingtracker.ui.theme.SpendingTrackerTheme
@@ -24,15 +25,19 @@ class MainActivity : AppCompatActivity() {
     
     private val settingsManager: SettingsManager by lazy { SettingsManager(applicationContext) }
 
-    private val viewModel: TransactionViewModel by viewModels {
+    private val factory by lazy {
         val app = application as SpendingTrackerApp
         val repository = TransactionRepository.getInstance(
             app.database.transactionDao(),
             app.database.categoryDao(),
-            app.database.periodSummaryDao()
+            app.database.periodSummaryDao(),
+            app.database.accountDao()
         )
         TransactionViewModelFactory(repository, settingsManager)
     }
+
+    private val viewModel: TransactionViewModel by viewModels { factory }
+    private val accountViewModel: AccountViewModel by viewModels { factory }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,7 +59,10 @@ class MainActivity : AppCompatActivity() {
                         LaunchedEffect(Unit) {
                             viewModel.refreshCurrency()
                         }
-                        DashboardScreen(viewModel = viewModel)
+                        DashboardScreen(
+                            viewModel = viewModel,
+                            accountViewModel = accountViewModel
+                        )
                     }
                 }
             }

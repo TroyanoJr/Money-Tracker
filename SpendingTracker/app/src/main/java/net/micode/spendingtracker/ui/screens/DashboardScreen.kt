@@ -10,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -18,16 +19,20 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import net.micode.spendingtracker.R
+import net.micode.spendingtracker.model.Account
 import net.micode.spendingtracker.model.Category
 import net.micode.spendingtracker.model.Transaction
+import net.micode.spendingtracker.ui.components.AccountPickerDialog
 import net.micode.spendingtracker.ui.components.BannerAdView
 import net.micode.spendingtracker.ui.components.TopNavigation
 import net.micode.spendingtracker.viewmodel.TransactionViewModel
+import net.micode.spendingtracker.viewmodel.AccountViewModel
 import java.io.File
 
 @Composable
 fun DashboardScreen(
     viewModel: TransactionViewModel = viewModel(),
+    accountViewModel: AccountViewModel = viewModel(),
     initialTransactionIdToEdit: String? = null
 ) {
     val configuration = LocalConfiguration.current
@@ -45,6 +50,26 @@ fun DashboardScreen(
     var showAddTransaction by rememberSaveable { mutableStateOf(false) }
     var transactionToEdit by remember { mutableStateOf<Transaction?>(null) }
     var initialTransactionType by rememberSaveable { mutableIntStateOf(0) }
+
+    var showAddAccount by rememberSaveable { mutableStateOf(false) }
+    var accountToEdit by remember { mutableStateOf<Account?>(null) }
+    
+    // Account Switcher State
+    var showAccountPicker by rememberSaveable { mutableStateOf(false) }
+    val accounts by accountViewModel.allAccounts.collectAsState()
+    val selectedAccountId by viewModel.selectedAccountId.collectAsState()
+
+    // Get current account color for TopNavigation
+    val currentAccountColor = remember(selectedAccountId, accounts) {
+        accounts.find { it.id == selectedAccountId }?.color?.let { Color(it) }
+    }
+
+    // Sync Logic: If the current account is deleted, switch to the system "Default" (ID 1)
+    LaunchedEffect(accounts) {
+        if (selectedAccountId != -1L && selectedAccountId != 1L && accounts.isNotEmpty() && accounts.none { it.id == selectedAccountId }) {
+            viewModel.setSelectedAccount(1L)
+        }
+    }
 
     var isSearchActive by rememberSaveable { mutableStateOf(false) }
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -129,6 +154,7 @@ fun DashboardScreen(
                                 when (pagerState.currentPage) {
                                     1 -> { transactionToEdit = null; initialTransactionType = 0; showAddTransaction = true }
                                     2 -> { categoryToEdit = null; showAddCategory = true }
+                                    3 -> { accountToEdit = null; showAddAccount = true }
                                 }
                             },
                             onSettingsClick = { currentScreen = "settings" },
@@ -141,7 +167,9 @@ fun DashboardScreen(
                             searchQuery = searchQuery ?: "",
                             onSearchQueryChange = { viewModel.setSearchQuery(it) },
                             onToggleSearch = { active -> isSearchActive = active; if (!active) viewModel.setSearchQuery(null) },
-                            showSearchOption = pagerState.currentPage == 1
+                            showSearchOption = pagerState.currentPage == 1,
+                            onSwitchAccountClick = { showAccountPicker = true },
+                            selectedAccountColor = currentAccountColor // Pass the color here
                         )
 
                         HorizontalPager(
@@ -150,10 +178,27 @@ fun DashboardScreen(
                             userScrollEnabled = !isSearchActive
                         ) { page ->
                             when (page) {
-                                0 -> SpendingScreen(viewModel = viewModel, onAddExpense = { transactionToEdit = null; initialTransactionType = 0; showAddTransaction = true }, onAddIncome = { transactionToEdit = null; initialTransactionType = 1; showAddTransaction = true })
-                                1 -> TransactionsScreen(viewModel = viewModel, onEditTransaction = { transaction -> transactionToEdit = transaction; showAddTransaction = true }, onDeleteTransactions = { txs -> viewModel.deleteTransactions(txs) }, onExportCsv = { currentScreen = "csv_export" })
+                                0 -> SpendingScreen(
+                                    viewModel = viewModel,
+                                    accountViewModel = accountViewModel,
+                                    onAddExpense = { transactionToEdit = null; initialTransactionType = 0; showAddTransaction = true },
+                                    onAddIncome = { transactionToEdit = null; initialTransactionType = 1; showAddTransaction = true },
+                                    onSwitchAccountClick = { showAccountPicker = true }
+                                )
+                                1 -> TransactionsScreen(
+                                    viewModel = viewModel, 
+                                    accounts = accounts,
+                                    onEditTransaction = { transaction -> transactionToEdit = transaction; showAddTransaction = true }, 
+                                    onDeleteTransactions = { txs -> viewModel.deleteTransactions(txs) }, 
+                                    onExportCsv = { currentScreen = "csv_export" },
+                                    onSwitchAccountClick = { showAccountPicker = true }
+                                )
                                 2 -> CategoriesScreen(expenseCategories = expenseCategories, incomeCategories = incomeCategories, selectedSubTab = selectedCategorySubTab, onSubTabChanged = { selectedCategorySubTab = it }, onEditCategory = { category -> categoryToEdit = category; showAddCategory = true }, onDeleteCategories = { cats -> viewModel.deleteCategories(categories = cats) })
-                                3 -> AccountsScreen()
+                                3 -> AccountsScreen(
+                                    viewModel = accountViewModel, 
+                                    selectedAccountId = selectedAccountId,
+                                    onEditAccount = { account -> accountToEdit = account; showAddAccount = true }
+                                )
                             }
                         }
                         
@@ -165,7 +210,34 @@ fun DashboardScreen(
                     }
 
                     if (showAddTransaction) {
-                        AddTransactionScreen(transactionToEdit = transactionToEdit, viewModel = viewModel, initialType = initialTransactionType, onClose = { showAddTransaction = false; transactionToEdit = null }, onDone = { showAddTransaction = false; transactionToEdit = null })
+                        AddTransactionScreen(transactionToEdit = transactionToEdit, viewModel = viewModel, accounts = accounts, initialType = initialTransactionType, onClose = { showAddTransaction = false; transactionToEdit = null }, onDone = { showAddTransaction = false; transactionToEdit = null })
+                    }
+
+                    if (showAddAccount) {
+                        AddAccountScreen(
+                            accountToEdit = accountToEdit, 
+                            onClose = { showAddAccount = false; accountToEdit = null }, 
+                            onDone = { account -> 
+                                if (accountToEdit == null) accountViewModel.addAccount(account.name, account.color) 
+                                else accountViewModel.updateAccount(account)
+                                showAddAccount = false
+                                accountToEdit = null
+                            }
+                        )
+                    }
+
+                    if (showAccountPicker) {
+                        AccountPickerDialog(
+                            accounts = accounts,
+                            selectedAccountId = selectedAccountId,
+                            onAccountSelected = { id ->
+                                viewModel.setSelectedAccount(id)
+                                if (id != -1L) {
+                                    accountViewModel.selectAccount(id)
+                                }
+                            },
+                            onDismiss = { showAccountPicker = false }
+                        )
                     }
                 }
             }
