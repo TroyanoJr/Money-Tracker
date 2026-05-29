@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.SyncAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -65,6 +66,11 @@ fun TransactionsScreen(
     val currentAccount = remember(selectedAccountId, accounts) {
         accounts.find { it.id == selectedAccountId }
     }
+    
+    val currentAccountName = remember(selectedAccountId, accounts) {
+        if (selectedAccountId == -1L) "All Accounts"
+        else currentAccount?.name ?: "Default"
+    }
 
     var selectedTransactionIds by remember { mutableStateOf(setOf<String>()) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -93,6 +99,21 @@ fun TransactionsScreen(
                         .filter { it.id in selectedTransactionIds }
                     showDeleteDialog = true
                 }
+            )
+        }
+
+        // Header showing current account name
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = currentAccountName,
+                color = DarkBrownText,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
             )
         }
 
@@ -139,7 +160,7 @@ fun TransactionsScreen(
                         val isSelected = selectedTransactionIds.contains(transaction.id)
                         
                         val category = categories.find { it.name == transaction.categoryName }
-                        val icon = if (category != null) IconCatalog.getIconByName(category.iconName) else Icons.Default.Sell
+                        val icon = if (transaction.categoryName == "Transfer") Icons.Default.SyncAlt else if (category != null) IconCatalog.getIconByName(category.iconName) else Icons.Default.Sell
 
                         TransactionItem(
                             transaction = transaction,
@@ -194,7 +215,7 @@ fun TransactionsScreen(
                 IconButton(onClick = { showFilterDialog = true }) {
                     Icon(Icons.Default.FilterList, contentDescription = null, tint = DarkBrownText)
                 }
-                // Update 1: Account icon with its specific color
+                // RESTORED: Account switcher icon in the bottom-right
                 IconButton(onClick = onSwitchAccountClick) {
                     Icon(
                         imageVector = Icons.Default.AccountCircle, 
@@ -393,7 +414,7 @@ fun TotalBox(amount: Double, symbol: String, labelColor: Color, modifier: Modifi
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
-                text = String.format(Locale.getDefault(), "%s %.2f", symbol, amount),
+                text = String.format(Locale.getDefault(), "%s%s %.2f", if (amount >= 0) "+" else "", symbol, amount),
                 color = labelColor,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium
@@ -427,7 +448,7 @@ fun TransactionItem(
             Text(text = dateFormatter.format(Date(transaction.date)), color = Color.Gray, fontSize = 12.sp)
         }
         Text(
-            text = String.format(Locale.getDefault(), "%s %.2f", symbol, transaction.amount),
+            text = String.format(Locale.getDefault(), "%s%s %.2f", if (transaction.isExpense) "-" else "+", symbol, transaction.amount),
             color = if (transaction.isExpense) Color(0xFFD32F2F) else Color(0xFF388E3C),
             fontSize = 18.sp,
             fontWeight = FontWeight.Medium

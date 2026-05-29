@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 
 /**
  * Manages app settings and persistence using SharedPreferences.
+ * Supports account-specific settings for the Spending section.
  */
 class SettingsManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
@@ -27,6 +28,8 @@ class SettingsManager(context: Context) {
         const val KEY_IS_PREMIUM = "is_premium_user"
         const val KEY_LANGUAGE = "language_pref"
     }
+
+    private fun userKey(key: String, accountId: Long): String = "${accountId}_$key"
 
     fun isPremium(): Boolean = prefs.getBoolean(KEY_IS_PREMIUM, false)
     fun setPremiumStatus(isPremium: Boolean) = prefs.edit().putBoolean(KEY_IS_PREMIUM, isPremium).apply()
@@ -55,14 +58,27 @@ class SettingsManager(context: Context) {
     fun getPasscode(): String = prefs.getString(KEY_PASSCODE_VALUE, "") ?: ""
     fun setPasscode(passcode: String) = prefs.edit().putString(KEY_PASSCODE_VALUE, passcode).apply()
 
-    fun isBudgetModeEnabled(): Boolean = prefs.getBoolean(KEY_BUDGET_MODE_ENABLED, false)
-    fun setBudgetModeEnabled(enabled: Boolean) = prefs.edit().putBoolean(KEY_BUDGET_MODE_ENABLED, enabled).apply()
+    // --- Account Specific Spending Settings ---
 
-    fun getMonthlyBudget(): Double = prefs.getFloat(KEY_MONTHLY_BUDGET_AMOUNT, 0f).toDouble()
-    fun setMonthlyBudget(amount: Double) = prefs.edit().putFloat(KEY_MONTHLY_BUDGET_AMOUNT, amount.toFloat()).apply()
+    fun isBudgetModeEnabled(accountId: Long): Boolean = 
+        prefs.getBoolean(userKey(KEY_BUDGET_MODE_ENABLED, accountId), false)
+    
+    fun setBudgetModeEnabled(accountId: Long, enabled: Boolean) = 
+        prefs.edit().putBoolean(userKey(KEY_BUDGET_MODE_ENABLED, accountId), enabled).apply()
 
-    fun isIncludeIncomeInBudget(): Boolean = prefs.getBoolean(KEY_INCLUDE_INCOME_IN_BUDGET, false)
-    fun setIncludeIncomeInBudget(enabled: Boolean) = prefs.edit().putBoolean(KEY_INCLUDE_INCOME_IN_BUDGET, enabled).apply()
+    fun getMonthlyBudget(accountId: Long): Double = 
+        prefs.getFloat(userKey(KEY_MONTHLY_BUDGET_AMOUNT, accountId), 0f).toDouble()
+    
+    fun setMonthlyBudget(accountId: Long, amount: Double) = 
+        prefs.edit().putFloat(userKey(KEY_MONTHLY_BUDGET_AMOUNT, accountId), amount.toFloat()).apply()
+
+    fun isIncludeIncomeInBudget(accountId: Long): Boolean = 
+        prefs.getBoolean(userKey(KEY_INCLUDE_INCOME_IN_BUDGET, accountId), false)
+    
+    fun setIncludeIncomeInBudget(accountId: Long, enabled: Boolean) = 
+        prefs.edit().putBoolean(userKey(KEY_INCLUDE_INCOME_IN_BUDGET, accountId), enabled).apply()
+
+    // --- General Settings ---
 
     fun getReminderFrequency(): String = prefs.getString(KEY_REMINDER_FREQUENCY, "Every Day") ?: "Every Day"
     fun setReminderFrequency(frequency: String) = prefs.edit().putString(KEY_REMINDER_FREQUENCY, frequency).apply()

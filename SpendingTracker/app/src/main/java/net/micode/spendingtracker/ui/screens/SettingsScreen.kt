@@ -20,20 +20,19 @@ import net.micode.spendingtracker.util.SettingsManager
 
 /**
  * Main Settings Screen orchestrator.
- * Centralizes state management for currency and navigation between modular sections.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
-    onCurrencyChanged: () -> Unit = {}
+    onCurrencyChanged: () -> Unit = {},
+    selectedAccountId: Long,      // Pass selected ID
+    currentAccountName: String    // Pass selected Name
 ) {
     val context = LocalContext.current
     val settingsManager = remember { SettingsManager(context) }
     
-    // Shared reactive state for currency to ensure UI sync across sections
     var currencySymbol by remember { mutableStateOf(settingsManager.getCurrencySymbol()) }
-    
     var currentSubScreen by rememberSaveable { mutableStateOf<String?>(null) }
     var isChangingPin by rememberSaveable { mutableStateOf(false) }
 
@@ -72,7 +71,9 @@ fun SettingsScreen(
                 onNavigateToSetupPin = { isChange ->
                     isChangingPin = isChange
                     currentSubScreen = "setup_pin"
-                }
+                },
+                selectedAccountId = selectedAccountId,
+                currentAccountName = currentAccountName
             )
         }
     }
@@ -86,7 +87,9 @@ fun MainSettingsList(
     onBack: () -> Unit,
     onCurrencyChanged: () -> Unit,
     onNavigateToReminders: () -> Unit,
-    onNavigateToSetupPin: (Boolean) -> Unit
+    onNavigateToSetupPin: (Boolean) -> Unit,
+    selectedAccountId: Long,
+    currentAccountName: String
 ) {
     Scaffold(
         topBar = {
@@ -110,7 +113,9 @@ fun MainSettingsList(
         ) {
             SpendingSection(
                 settingsManager = settingsManager,
-                currentCurrency = currencySymbol
+                currentCurrency = currencySymbol,
+                accountId = selectedAccountId,
+                accountName = currentAccountName
             )
             
             SecuritySection(

@@ -18,19 +18,22 @@ import java.util.Locale
 
 /**
  * Section for Budget and Spending settings.
- * Fully localized using string resources.
+ * Individual settings per account.
  */
 @Composable
 fun SpendingSection(
     settingsManager: SettingsManager,
-    currentCurrency: String
+    currentCurrency: String,
+    accountId: Long,
+    accountName: String
 ) {
-    var budgetModeEnabled by remember { mutableStateOf(settingsManager.isBudgetModeEnabled()) }
-    var includeIncome by remember { mutableStateOf(settingsManager.isIncludeIncomeInBudget()) }
-    var monthlyBudget by remember { mutableDoubleStateOf(settingsManager.getMonthlyBudget()) }
+    var budgetModeEnabled by remember(accountId) { mutableStateOf(settingsManager.isBudgetModeEnabled(accountId)) }
+    var includeIncome by remember(accountId) { mutableStateOf(settingsManager.isIncludeIncomeInBudget(accountId)) }
+    var monthlyBudget by remember(accountId) { mutableDoubleStateOf(settingsManager.getMonthlyBudget(accountId)) }
     var showBudgetDialog by remember { mutableStateOf(false) }
 
-    SettingsSectionHeader(stringResource(R.string.spending_section))
+    // Header with current account name: Spending (AccountName)
+    SettingsSectionHeader("${stringResource(R.string.spending_section)} ($accountName)")
     
     SettingsToggleRow(
         title = stringResource(R.string.budget_mode),
@@ -38,7 +41,7 @@ fun SpendingSection(
         checked = budgetModeEnabled
     ) { 
         budgetModeEnabled = it
-        settingsManager.setBudgetModeEnabled(it) 
+        settingsManager.setBudgetModeEnabled(accountId, it) 
     }
 
     SettingsClickableRow(
@@ -56,7 +59,7 @@ fun SpendingSection(
         enabled = budgetModeEnabled
     ) { 
         includeIncome = it
-        settingsManager.setIncludeIncomeInBudget(it) 
+        settingsManager.setIncludeIncomeInBudget(accountId, it) 
     }
 
     if (showBudgetDialog) {
@@ -66,7 +69,7 @@ fun SpendingSection(
             onDismiss = { showBudgetDialog = false },
             onConfirm = { 
                 monthlyBudget = it
-                settingsManager.setMonthlyBudget(it)
+                settingsManager.setMonthlyBudget(accountId, it)
                 showBudgetDialog = false
             }
         )

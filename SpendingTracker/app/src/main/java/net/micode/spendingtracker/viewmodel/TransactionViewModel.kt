@@ -65,7 +65,7 @@ class TransactionViewModel(
     private val _selectedDate = MutableStateFlow(System.currentTimeMillis())
     val selectedDate: StateFlow<Long> = _selectedDate.asStateFlow()
 
-    private val _selectedAccountId = MutableStateFlow<Long>(1L) // Default to system user ID 1
+    private val _selectedAccountId = MutableStateFlow<Long>(1L)
     val selectedAccountId: StateFlow<Long> = _selectedAccountId.asStateFlow()
 
     private val _currencySymbol = MutableStateFlow(settingsManager.getCurrencySymbol())
@@ -80,14 +80,14 @@ class TransactionViewModel(
     private val _searchQuery = MutableStateFlow<String?>(null)
     val searchQuery: StateFlow<String?> = _searchQuery.asStateFlow()
 
-    // Budget States
-    private val _isBudgetModeEnabled = MutableStateFlow(settingsManager.isBudgetModeEnabled())
+    // Reactive Budget States - Now updated by refreshBudgetSettings
+    private val _isBudgetModeEnabled = MutableStateFlow(false)
     val isBudgetModeEnabled: StateFlow<Boolean> = _isBudgetModeEnabled.asStateFlow()
 
-    private val _monthlyBudget = MutableStateFlow(settingsManager.getMonthlyBudget())
+    private val _monthlyBudget = MutableStateFlow(0.0)
     val monthlyBudget: StateFlow<Double> = _monthlyBudget.asStateFlow()
 
-    private val _isIncludeIncomeEnabled = MutableStateFlow(settingsManager.isIncludeIncomeInBudget())
+    private val _isIncludeIncomeEnabled = MutableStateFlow(false)
     val isIncludeIncomeEnabled: StateFlow<Boolean> = _isIncludeIncomeEnabled.asStateFlow()
 
     init {
@@ -95,14 +95,20 @@ class TransactionViewModel(
             repository.getDefaultAccount()?.let {
                 _selectedAccountId.value = it.id
             }
+            ensureTransferCategoryExists()
+            refreshBudgetSettings() // Initial load
         }
+        
+        // Auto-refresh budget when account changes
+        _selectedAccountId.onEach { refreshBudgetSettings() }.launchIn(viewModelScope)
     }
 
     val categories: StateFlow<List<Category>> = repository.allCategories
+        .map { list -> list.filter { it.name != "Transfer" } }
         .onEach { list ->
             if (list.isEmpty() && !settingsManager.hasSeededCategories()) {
                 seedDefaultCategories()
-            } else if (list.none { it.name == "Pending" }) {
+            } else if (list.isNotEmpty() && list.none { it.name == "Pending" }) {
                 ensurePendingCategoryExists()
             }
         }
@@ -207,9 +213,15 @@ class TransactionViewModel(
     }
 
     fun refreshBudgetSettings() {
-        _isBudgetModeEnabled.value = settingsManager.isBudgetModeEnabled()
-        _monthlyBudget.value = settingsManager.getMonthlyBudget()
-        _isIncludeIncomeEnabled.value = settingsManager.isIncludeIncomeInBudget()
+        val accountId = _selectedAccountId.value
+        // Use individual account settings if not global (-1L is All Accounts, we might want a global budget there or disable it)
+        if (accountId != -1L) {
+            _isBudgetModeEnabled.value = settingsManager.isBudgetModeEnabled(accountId)
+            _monthlyBudget.value = settingsManager.getMonthlyBudget(accountId)
+            _isIncludeIncomeEnabled.value = settingsManager.isIncludeIncomeInBudget(accountId)
+        } else {
+            _isBudgetModeEnabled.value = false // Budget usually doesn't apply to "All Accounts" aggregate view
+        }
     }
 
     fun setPeriod(period: Period) { _selectedPeriod.value = period }
@@ -269,7 +281,8 @@ class TransactionViewModel(
                 Category(name = "Entertainment", iconName = "Movie", isExpense = true, color = -0x543cb6),
                 Category(name = "Education", iconName = "School", isExpense = true, color = -0xff9678),
                 Category(name = "Finance & Social", iconName = "Payments", isExpense = true, color = -0x86aab8),
-                Category(name = "Pending", iconName = "Sell", isExpense = true, color = -0x616162)
+                Category(name = "Pending", iconName = "Sell", isExpense = true, color = -0x616162),
+                Category(name = "Transfer", iconName = "SyncAlt", isExpense = true, color = -0x1000000)
             )
             defaults.forEach { repository.insertCategory(it) }
             settingsManager.setHasSeededCategories(true)
@@ -280,6 +293,42 @@ class TransactionViewModel(
         viewModelScope.launch {
             repository.insertCategory(
                 Category(name = "Pending", iconName = "Sell", isExpense = true, color = -0x616162)
+            )
+        }
+    }
+
+    private fun ensureTransferCategoryExists() {
+        viewModelScope.launch {
+            repository.insertCategory(
+                Category(name = "Transfer", iconName = "SyncAlt", isExpense = true, color = -0x1000000)
+            )
+        }
+    }
+
+    fun transferFunds(fromAccountId: Long, toAccountId: Long, amount: Double, date: Long, note: String) {
+        viewModelScope.launch {
+            val transferId = UUID.randomUUID().toString()
+            repository.insertTransaction(
+                Transaction(
+                    id = "${transferId}_out",
+                    amount = amount,
+                    categoryName = "Transfer",
+                    date = date,
+                    note = note,
+                    isExpense = true,
+                    accountId = fromAccountId
+                )
+            )
+            repository.insertTransaction(
+                Transaction(
+                    id = "${transferId}_in",
+                    amount = amount,
+                    categoryName = "Transfer",
+                    date = date,
+                    note = note,
+                    isExpense = false,
+                    accountId = toAccountId
+                )
             )
         }
     }

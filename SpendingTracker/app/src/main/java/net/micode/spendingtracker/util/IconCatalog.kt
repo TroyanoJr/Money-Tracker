@@ -179,7 +179,8 @@ object IconCatalog {
             "Calculate" to Icons.Default.Calculate,
             "Euro" to Icons.Default.Euro,
             "AttachMoney" to Icons.Default.AttachMoney,
-            "CurrencyExchange" to Icons.Default.CurrencyExchange
+            "CurrencyExchange" to Icons.Default.CurrencyExchange,
+            "SyncAlt" to Icons.Default.SyncAlt // Added for transfers
         ))
     )
 

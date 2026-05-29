@@ -14,7 +14,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -65,19 +64,16 @@ fun SpendingScreen(
     val accounts by accountViewModel.allAccounts.collectAsState()
     val selectedAccountId by viewModel.selectedAccountId.collectAsState()
     
-    val currentAccount = remember(selectedAccountId, accounts) {
-        accounts.find { it.id == selectedAccountId }
-    }
-    
     val currentAccountName = remember(selectedAccountId, accounts) {
-        if (selectedAccountId == -1L) "All Accounts"
-        else currentAccount?.name ?: "Default"
+        if (selectedAccountId == -1L && accounts.size > 1) "All Accounts"
+        else accounts.find { it.id == selectedAccountId }?.name ?: "Default"
     }
 
     val cycleAccount = { direction: Int ->
-        val list = listOf(-1L) + accounts.map { it.id }
+        // All Accounts option only if > 1 account
+        val list = (if (accounts.size > 1) listOf(-1L) else emptyList()) + accounts.map { it.id }
         val currentIndex = list.indexOf(selectedAccountId)
-        if (currentIndex != -1) {
+        if (currentIndex != -1 && list.isNotEmpty()) {
             val nextIndex = (currentIndex + direction + list.size) % list.size
             viewModel.setSelectedAccount(list[nextIndex])
         }
@@ -92,7 +88,7 @@ fun SpendingScreen(
             modifier = Modifier.fillMaxSize().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Account selection header
+            // Header showing ONLY account name between arrows (arrows only if > 1 account)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -100,21 +96,13 @@ fun SpendingScreen(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "< ", 
-                    color = ChalkWhite, 
-                    fontSize = 24.sp, 
-                    fontFamily = FontFamily.Cursive,
-                    modifier = Modifier.clickable { cycleAccount(-1) }.padding(horizontal = 16.dp)
-                )
-                
-                // Added Icon with Account Color
-                if (selectedAccountId != -1L) {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = null,
-                        tint = if (currentAccount != null) Color(currentAccount.color) else ChalkWhite,
-                        modifier = Modifier.size(28.dp).padding(end = 8.dp)
+                if (accounts.size > 1) {
+                    Text(
+                        text = "< ", 
+                        color = ChalkWhite, 
+                        fontSize = 24.sp, 
+                        fontFamily = FontFamily.Cursive,
+                        modifier = Modifier.clickable { cycleAccount(-1) }.padding(horizontal = 16.dp)
                     )
                 }
 
@@ -126,13 +114,16 @@ fun SpendingScreen(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.clickable { onSwitchAccountClick() }
                 )
-                Text(
-                    text = " >", 
-                    color = ChalkWhite, 
-                    fontSize = 24.sp, 
-                    fontFamily = FontFamily.Cursive,
-                    modifier = Modifier.clickable { cycleAccount(1) }.padding(horizontal = 16.dp)
-                )
+                
+                if (accounts.size > 1) {
+                    Text(
+                        text = " >", 
+                        color = ChalkWhite, 
+                        fontSize = 24.sp, 
+                        fontFamily = FontFamily.Cursive,
+                        modifier = Modifier.clickable { cycleAccount(1) }.padding(horizontal = 16.dp)
+                    )
+                }
             }
 
             if (incompleteCount > 0) {
@@ -146,7 +137,7 @@ fun SpendingScreen(
                 }
             }
 
-            // Budget visibility fix
+            // Budget visibility
             AnimatedVisibility(visible = isBudgetEnabled && selectedPeriod == Period.MONTH && selectedAccountId != -1L) {
                 Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
                     val effectiveBudget = if (isIncludeIncomeEnabled) monthlyBudget + totalIncome else monthlyBudget
@@ -160,7 +151,6 @@ fun SpendingScreen(
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
                         Text(text = if (isIncludeIncomeEnabled) stringResource(R.string.dynamic_budget) else stringResource(R.string.monthly_budget), color = ChalkWhite.copy(alpha = 0.6f), fontSize = 14.sp, fontFamily = FontFamily.Cursive)
-                        // Correct formatting fix
                         Text(text = stringResource(R.string.amount_left, currencySymbol, remaining), color = progressColor, fontSize = 16.sp, fontFamily = FontFamily.Cursive, fontWeight = FontWeight.Bold)
                     }
                     Spacer(modifier = Modifier.height(8.dp))

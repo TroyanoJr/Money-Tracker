@@ -8,7 +8,9 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import net.micode.spendingtracker.model.Account
+import net.micode.spendingtracker.model.Transaction
 import net.micode.spendingtracker.repository.TransactionRepository
+import java.util.UUID
 
 class AccountViewModel(private val repository: TransactionRepository) : ViewModel() {
 
@@ -70,6 +72,36 @@ class AccountViewModel(private val repository: TransactionRepository) : ViewMode
     fun selectAccount(accountId: Long) {
         viewModelScope.launch {
             repository.setDefaultAccount(accountId)
+        }
+    }
+
+    fun transferFunds(fromAccountId: Long, toAccountId: Long, amount: Double, date: Long, note: String) {
+        viewModelScope.launch {
+            val transferId = UUID.randomUUID().toString()
+            // Expense from source account
+            repository.insertTransaction(
+                Transaction(
+                    id = "${transferId}_out",
+                    amount = amount,
+                    categoryName = "Transfer",
+                    date = date,
+                    note = note,
+                    isExpense = true,
+                    accountId = fromAccountId
+                )
+            )
+            // Income to destination account
+            repository.insertTransaction(
+                Transaction(
+                    id = "${transferId}_in",
+                    amount = amount,
+                    categoryName = "Transfer",
+                    date = date,
+                    note = note,
+                    isExpense = false,
+                    accountId = toAccountId
+                )
+            )
         }
     }
 

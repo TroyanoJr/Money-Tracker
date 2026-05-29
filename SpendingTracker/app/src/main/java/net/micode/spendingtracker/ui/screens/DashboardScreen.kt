@@ -59,6 +59,11 @@ fun DashboardScreen(
     val accounts by accountViewModel.allAccounts.collectAsState()
     val selectedAccountId by viewModel.selectedAccountId.collectAsState()
 
+    val currentAccountName = remember(selectedAccountId, accounts) {
+        if (selectedAccountId == -1L) "All Accounts"
+        else accounts.find { it.id == selectedAccountId }?.name ?: "Default"
+    }
+
     // Get current account color for TopNavigation
     val currentAccountColor = remember(selectedAccountId, accounts) {
         accounts.find { it.id == selectedAccountId }?.color?.let { Color(it) }
@@ -118,7 +123,9 @@ fun DashboardScreen(
                 BackHandler(onBack = leaveSettings)
                 SettingsScreen(
                     onBack = leaveSettings,
-                    onCurrencyChanged = { viewModel.refreshCurrency() }
+                    onCurrencyChanged = { viewModel.refreshCurrency() },
+                    selectedAccountId = selectedAccountId,
+                    currentAccountName = currentAccountName
                 )
             }
             "backups" -> {
@@ -169,7 +176,7 @@ fun DashboardScreen(
                             onToggleSearch = { active -> isSearchActive = active; if (!active) viewModel.setSearchQuery(null) },
                             showSearchOption = pagerState.currentPage == 1,
                             onSwitchAccountClick = { showAccountPicker = true },
-                            selectedAccountColor = currentAccountColor // Pass the color here
+                            selectedAccountColor = currentAccountColor
                         )
 
                         HorizontalPager(
