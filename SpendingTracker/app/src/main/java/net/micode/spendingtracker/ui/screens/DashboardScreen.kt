@@ -111,7 +111,15 @@ fun DashboardScreen(
         }
     }
 
-    if (isLandscape) {
+    // FIX: Determinamos si es seguro mostrar reportes (solo en el dashboard y sin diálogos activos)
+    val canShowReports = currentScreen == "dashboard" && 
+            !showAddCategory && 
+            !showAddTransaction && 
+            !showAddAccount && 
+            !showAccountPicker && 
+            !isSearchActive
+
+    if (isLandscape && canShowReports) {
         ReportsScreen(viewModel = viewModel)
     } else {
         when (currentScreen) {
