@@ -6,7 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -42,36 +41,6 @@ import net.micode.spendingtracker.viewmodel.TransactionViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
-/**
- * Utility to evaluate simple math expressions (addition/subtraction).
- */
-fun evaluateMathExpression(input: String): Double? {
-    if (input.isBlank()) return null
-    try {
-        val cleanInput = input.replace(",", ".").replace(" ", "")
-        cleanInput.toDoubleOrNull()?.let { return it }
-        val tokens = mutableListOf<String>()
-        var currentNumber = ""
-        for (char in cleanInput) {
-            if (char == '+' || char == '-') {
-                if (currentNumber.isNotEmpty()) tokens.add(currentNumber)
-                tokens.add(char.toString()); currentNumber = ""
-            } else { currentNumber += char }
-        }
-        if (currentNumber.isNotEmpty()) tokens.add(currentNumber)
-        if (tokens.isEmpty() || tokens.last() == "+" || tokens.last() == "-") return null
-        var result = tokens[0].toDoubleOrNull() ?: return null
-        var i = 1
-        while (i < tokens.size) {
-            val op = tokens[i]
-            val nextVal = tokens.getOrNull(i + 1)?.toDoubleOrNull() ?: return null
-            result = if (op == "+") result + nextVal else result - nextVal
-            i += 2
-        }
-        return result
-    } catch (e: Exception) { return null }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionScreen(
@@ -88,6 +57,7 @@ fun AddTransactionScreen(
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
 
+    // Cargar anuncio al entrar
     LaunchedEffect(Unit) {
         InterstitialAdHelper.loadAd(context)
     }
@@ -95,7 +65,6 @@ fun AddTransactionScreen(
     val expenseCategories by viewModel.expenseCategories.collectAsState()
     val incomeCategories by viewModel.incomeCategories.collectAsState()
     val currentDashboardDate by viewModel.selectedDate.collectAsState()
-    val dashboardAccountId by viewModel.selectedAccountId.collectAsState()
 
     var amount by rememberSaveable { mutableStateOf(transactionToEdit?.amount?.toString() ?: "") }
     var note by rememberSaveable { mutableStateOf(transactionToEdit?.note ?: "") }
@@ -103,17 +72,13 @@ fun AddTransactionScreen(
     var showCategorySelector by rememberSaveable { mutableStateOf(false) }
     var selectedCategoryName by rememberSaveable { mutableStateOf(transactionToEdit?.categoryName ?: "") }
     
-    // Account Selection State (Imagen 3)
-    var selectedAccountId by rememberSaveable { 
-        mutableLongStateOf(transactionToEdit?.accountId ?: if (dashboardAccountId == -1L) 1L else dashboardAccountId) 
-    }
+    var selectedAccountId by rememberSaveable { mutableLongStateOf(transactionToEdit?.accountId ?: 1L) }
     var showAccountPicker by rememberSaveable { mutableStateOf(false) }
     val selectedAccountName = accounts.find { it.id == selectedAccountId }?.name ?: "Default"
 
-    val calculatedAmount by remember(amount) { derivedStateOf { evaluateMathExpression(amount) } }
-    val isAmountValid by remember(calculatedAmount) { derivedStateOf { calculatedAmount != null } }
-    val isCategorySelected by remember(selectedCategoryName) { derivedStateOf { selectedCategoryName.isNotEmpty() } }
-    val isFormValid by remember(isAmountValid, isCategorySelected) { derivedStateOf { isAmountValid && isCategorySelected } }
+    val isAmountValid = amount.isNotEmpty()
+    val isCategorySelected = selectedCategoryName.isNotEmpty()
+    val isFormValid = isAmountValid && isCategorySelected
 
     var selectedLocalDateMillis by rememberSaveable { mutableLongStateOf(transactionToEdit?.date ?: currentDashboardDate) }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
@@ -133,10 +98,10 @@ fun AddTransactionScreen(
         return 
     }
 
-    Surface(modifier = Modifier.fillMaxSize().pointerInput(Unit) { }, color = BeigeHeader) {
+    Surface(modifier = Modifier.fillMaxSize(), color = BeigeHeader) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(modifier = Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { focusManager.clearFocus(); onClose() }) {
+                IconButton(onClick = { onClose() }) {
                     Icon(Icons.Default.Close, stringResource(R.string.close), tint = DarkBrownText)
                 }
                 Text(
@@ -145,76 +110,67 @@ fun AddTransactionScreen(
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(end = 16.dp).clickable(enabled = isFormValid) {
-                        if (isFormValid) {
-                            val transaction = Transaction(
-                                id = transactionToEdit?.id ?: UUID.randomUUID().toString(),
-                                amount = calculatedAmount ?: 0.0,
-                                categoryName = selectedCategoryName,
-                                date = selectedLocalDateMillis,
-                                note = note,
-                                isExpense = pagerState.currentPage == 0,
-                                isRepeating = isRepeating,
-                                accountId = selectedAccountId
-                            )
-                            focusManager.clearFocus()
-                            if (transactionToEdit == null) viewModel.addTransaction(transaction)
-                            else viewModel.updateTransaction(transaction)
-                            InterstitialAdHelper.showAd(context as Activity) { onDone() }
+                        val transaction = Transaction(
+                            id = transactionToEdit?.id ?: UUID.randomUUID().toString(),
+                            amount = amount.toDoubleOrNull() ?: 0.0,
+                            categoryName = selectedCategoryName,
+                            date = selectedLocalDateMillis,
+                            note = note,
+                            isExpense = pagerState.currentPage == 0,
+                            isRepeating = isRepeating,
+                            accountId = selectedAccountId
+                        )
+                        if (transactionToEdit == null) viewModel.addTransaction(transaction)
+                        else viewModel.updateTransaction(transaction)
+                        
+                        // Mostrar anuncio antes de cerrar
+                        InterstitialAdHelper.showAd(context as Activity) {
+                            onDone()
                         }
                     }
                 )
             }
 
             Row(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalArrangement = Arrangement.Center) {
-                CategoryTabButton(text = stringResource(R.string.expense), selected = pagerState.currentPage == 0, isStart = true, onClick = { focusManager.clearFocus(); coroutineScope.launch { pagerState.animateScrollToPage(0) } })
-                CategoryTabButton(text = stringResource(R.string.income), selected = pagerState.currentPage == 1, isStart = false, onClick = { focusManager.clearFocus(); coroutineScope.launch { pagerState.animateScrollToPage(1) } })
+                CategoryTabButton(text = stringResource(R.string.expense), selected = pagerState.currentPage == 0, isStart = true, onClick = { coroutineScope.launch { pagerState.animateScrollToPage(0) } })
+                CategoryTabButton(text = stringResource(R.string.income), selected = pagerState.currentPage == 1, isStart = false, onClick = { coroutineScope.launch { pagerState.animateScrollToPage(1) } })
             }
 
             HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { _ ->
                 Column(modifier = Modifier.fillMaxSize()) {
                     SectionHeader(title = stringResource(R.string.transaction_details))
-                    CategoryRow(label = stringResource(R.string.date), labelColor = Color(0xFF1976D2)) {
-                        Text(text = formattedDate, color = DarkBrownText, modifier = Modifier.fillMaxSize().clickable { focusManager.clearFocus(); showDatePicker = true }, fontSize = 16.sp)
+                    
+                    CategoryRow(label = stringResource(R.string.date), labelColor = MaterialTheme.colorScheme.primary) {
+                        Text(text = formattedDate, color = DarkBrownText, modifier = Modifier.fillMaxSize().clickable { showDatePicker = true }, fontSize = 16.sp)
                     }
-                    HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
-                    CategoryRow(label = stringResource(R.string.category), labelColor = if (isCategorySelected) Color(0xFF1976D2) else Color.Red.copy(alpha = 0.7f)) {
-                        Box(modifier = Modifier.fillMaxSize().clickable { focusManager.clearFocus(); showCategorySelector = true }, contentAlignment = Alignment.CenterStart) {
+                    
+                    CategoryRow(label = stringResource(R.string.category), labelColor = if (isCategorySelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) {
+                        Box(modifier = Modifier.fillMaxSize().clickable { showCategorySelector = true }, contentAlignment = Alignment.CenterStart) {
                             Text(text = if (selectedCategoryName.isNotEmpty()) selectedCategoryName else stringResource(R.string.category_not_selected), color = if (selectedCategoryName.isNotEmpty()) DarkBrownText else Color.Gray, fontSize = 16.sp)
                         }
                     }
-                    HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
-                    CategoryRow(label = stringResource(R.string.amount), labelColor = if (isAmountValid) Color(0xFF1976D2) else Color.Red.copy(alpha = 0.7f)) {
-                        BasicTextField(value = amount, onValueChange = { amount = it }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text), textStyle = TextStyle(fontSize = 16.sp, color = DarkBrownText), modifier = Modifier.fillMaxWidth(), decorationBox = { innerTextField ->
-                            if (amount.isEmpty()) Text(stringResource(R.string.amount), color = Color.Gray.copy(alpha = 0.5f))
-                            innerTextField()
-                        })
-                    }
-                    HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
                     
-                    // Conditionally show account selection (Imagen 3)
+                    CategoryRow(label = stringResource(R.string.amount), labelColor = if (isAmountValid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) {
+                        BasicTextField(value = amount, onValueChange = { amount = it }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), textStyle = TextStyle(fontSize = 16.sp, color = DarkBrownText), modifier = Modifier.fillMaxWidth())
+                    }
+                    
                     if (accounts.size > 1) {
-                        CategoryRow(label = stringResource(R.string.account), labelColor = Color(0xFF1976D2)) {
-                            Box(modifier = Modifier.fillMaxSize().clickable { focusManager.clearFocus(); showAccountPicker = true }, contentAlignment = Alignment.CenterStart) {
+                        CategoryRow(label = stringResource(R.string.account), labelColor = MaterialTheme.colorScheme.primary) {
+                            Box(modifier = Modifier.fillMaxSize().clickable { showAccountPicker = true }, contentAlignment = Alignment.CenterStart) {
                                 Text(text = selectedAccountName, color = DarkBrownText, fontSize = 16.sp)
                             }
                         }
-                        HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
                     SectionHeader(title = stringResource(R.string.repeating_details))
-                    CategoryRow(label = stringResource(R.string.repeat), labelColor = Color(0xFF1976D2)) {
-                        Switch(checked = isRepeating, onCheckedChange = { focusManager.clearFocus(); isRepeating = it }, colors = SwitchDefaults.colors(checkedThumbColor = DarkBrownText, checkedTrackColor = DarkBrownText.copy(alpha = 0.4f)))
+                    CategoryRow(label = stringResource(R.string.repeat), labelColor = MaterialTheme.colorScheme.primary) {
+                        Switch(checked = isRepeating, onCheckedChange = { isRepeating = it }, colors = SwitchDefaults.colors(checkedThumbColor = DarkBrownText, checkedTrackColor = DarkBrownText.copy(alpha = 0.4f)))
                     }
-                    HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
                     Spacer(modifier = Modifier.height(24.dp))
-                    CategoryRow(label = stringResource(R.string.note), labelColor = Color(0xFF1976D2)) {
-                        BasicTextField(value = note, onValueChange = { note = it }, textStyle = TextStyle(fontSize = 16.sp, color = DarkBrownText), modifier = Modifier.fillMaxWidth(), decorationBox = { innerTextField ->
-                            if (note.isEmpty()) Text(stringResource(R.string.no_note_entered), color = Color.Gray.copy(alpha = 0.5f))
-                            innerTextField()
-                        })
+                    CategoryRow(label = stringResource(R.string.note), labelColor = MaterialTheme.colorScheme.primary) {
+                        BasicTextField(value = note, onValueChange = { note = it }, textStyle = TextStyle(fontSize = 16.sp, color = DarkBrownText), modifier = Modifier.fillMaxWidth())
                     }
-                    HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
                 }
             }
         }
@@ -225,12 +181,6 @@ fun AddTransactionScreen(
     }
 
     if (showAccountPicker) {
-        AccountPickerDialog(
-            accounts = accounts,
-            selectedAccountId = selectedAccountId,
-            onAccountSelected = { selectedAccountId = it },
-            onDismiss = { showAccountPicker = false },
-            showAllAccountsOption = false // Refinement: Cannot add transactions to "All Accounts"
-        )
+        AccountPickerDialog(accounts = accounts, selectedAccountId = selectedAccountId, onAccountSelected = { selectedAccountId = it }, onDismiss = { showAccountPicker = false }, showAllAccountsOption = false)
     }
 }

@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
+import kotlinx.coroutines.flow.collectLatest
 import net.micode.spendingtracker.R
 import net.micode.spendingtracker.model.Account
 import net.micode.spendingtracker.model.Transaction
@@ -53,6 +54,15 @@ fun TransactionsScreen(
 ) {
     val context = LocalContext.current
     val pagedTransactions = viewModel.pagedTransactions.collectAsLazyPagingItems()
+    
+    // --- SOLUCIÓN AL PROBLEMA DE ACTUALIZACIÓN ---
+    // Escuchamos cambios globales en el repositorio para refrescar la lista de Paging
+    LaunchedEffect(Unit) {
+        viewModel.dataChangedEvent.collectLatest {
+            pagedTransactions.refresh()
+        }
+    }
+
     val categories by viewModel.categories.collectAsState()
     val totalIncome by viewModel.totalIncome.collectAsState()
     val totalExpense by viewModel.totalExpense.collectAsState()
@@ -102,7 +112,6 @@ fun TransactionsScreen(
             )
         }
 
-        // Header showing current account name
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -215,7 +224,6 @@ fun TransactionsScreen(
                 IconButton(onClick = { showFilterDialog = true }) {
                     Icon(Icons.Default.FilterList, contentDescription = null, tint = DarkBrownText)
                 }
-                // RESTORED: Account switcher icon in the bottom-right
                 IconButton(onClick = onSwitchAccountClick) {
                     Icon(
                         imageVector = Icons.Default.AccountCircle, 

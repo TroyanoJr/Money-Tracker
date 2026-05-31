@@ -22,24 +22,91 @@ import net.micode.spendingtracker.ui.theme.DarkBrownText
 
 @Composable
 fun SectionHeader(title: String) {
-    Row(
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // Trazo superior para definir la sección
+        HorizontalDivider(thickness = 0.8.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+        
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                fontSize = 14.sp,
+                style = MaterialTheme.typography.labelMedium
+            )
+            Icon(
+                Icons.Default.HelpOutline,
+                contentDescription = "Help",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        // Trazo inferior de la cabecera
+        HorizontalDivider(thickness = 0.8.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+    }
+}
+
+@Composable
+fun CategoryRow(
+    label: String,
+    labelColor: Color,
+    content: @Composable () -> Unit
+) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.LightGray.copy(alpha = 0.3f))
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+            .background(MaterialTheme.colorScheme.surface) // Fondo sólido para claridad
     ) {
-        Text(
-            text = title,
-            color = Color.Gray,
-            fontSize = 14.sp
-        )
-        Icon(
-            Icons.Default.HelpOutline,
-            contentDescription = "Help",
-            tint = Color.Gray,
-            modifier = Modifier.size(20.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min), // Clave para el VerticalDivider continuo
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // ETIQUETA (Izquierda)
+            Box(
+                modifier = Modifier
+                    .width(110.dp)
+                    .fillMaxHeight()
+                    .padding(vertical = 14.dp, horizontal = 12.dp),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                Text(
+                    text = label, 
+                    color = labelColor, 
+                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            // DIVISOR VERTICAL (Crea la armonía de la rejilla)
+            VerticalDivider(
+                modifier = Modifier.fillMaxHeight(),
+                thickness = 0.8.dp,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+            )
+
+            // CONTENIDO (Derecha)
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                content()
+            }
+        }
+        // DIVISOR HORIZONTAL (Borde de la fila)
+        HorizontalDivider(
+            thickness = 0.8.dp,
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
         )
     }
 }
@@ -51,22 +118,20 @@ fun CategoryTabButton(
     isStart: Boolean,
     onClick: () -> Unit
 ) {
+    val shape = if (isStart) RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp) 
+                else RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)
     Surface(
         modifier = Modifier
             .width(120.dp)
             .height(40.dp)
             .clickable { onClick() }
-            .then(
-                if (!selected) Modifier.border(
-                    1.dp, 
-                    DarkBrownText, 
-                    if (isStart) RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp) 
-                    else RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)
-                ) else Modifier
+            .border(
+                width = 1.dp,
+                color = if (selected) Color.Transparent else DarkBrownText.copy(alpha = 0.5f),
+                shape = shape
             ),
         color = if (selected) DarkBrownText else Color.Transparent,
-        shape = if (isStart) RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp) 
-                else RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)
+        shape = shape
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
@@ -74,39 +139,6 @@ fun CategoryTabButton(
                 color = if (selected) Color.White else DarkBrownText, 
                 fontSize = 14.sp
             )
-        }
-    }
-}
-
-@Composable
-fun CategoryRow(
-    label: String,
-    labelColor: Color,
-    content: @Composable () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(50.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .width(110.dp)
-                .fillMaxHeight()
-                .padding(end = 12.dp),
-            contentAlignment = Alignment.CenterEnd
-        ) {
-            Text(text = label, color = labelColor, fontSize = 14.sp)
-        }
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .padding(start = 12.dp),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            content()
         }
     }
 }

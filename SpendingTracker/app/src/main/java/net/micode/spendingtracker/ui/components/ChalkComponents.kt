@@ -13,7 +13,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.micode.spendingtracker.ui.theme.ChalkWhite
@@ -33,8 +32,8 @@ fun ChalkButton(
     ) {
         Text(
             text = text,
-            fontSize = 18.sp,
-            fontFamily = FontFamily.Cursive
+            fontSize = 18.sp
+            // Se eliminó FontFamily.Cursive
         )
     }
 }

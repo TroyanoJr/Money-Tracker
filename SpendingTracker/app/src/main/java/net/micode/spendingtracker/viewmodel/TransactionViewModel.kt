@@ -50,6 +50,11 @@ class TransactionViewModel(
     private val repository: TransactionRepository,
     private val settingsManager: SettingsManager
 ) : ViewModel() {
+    
+    // --- EVENTO DE CAMBIO DE DATOS ---
+    // Expone el flujo del repositorio para que la UI sepa cuándo refrescarse
+    val dataChangedEvent = repository.dataChanged
+
     private data class PagingFilter(
         val startDate: Long,
         val endDate: Long,
@@ -80,7 +85,6 @@ class TransactionViewModel(
     private val _searchQuery = MutableStateFlow<String?>(null)
     val searchQuery: StateFlow<String?> = _searchQuery.asStateFlow()
 
-    // Reactive Budget States - Now updated by refreshBudgetSettings
     private val _isBudgetModeEnabled = MutableStateFlow(false)
     val isBudgetModeEnabled: StateFlow<Boolean> = _isBudgetModeEnabled.asStateFlow()
 
@@ -96,10 +100,9 @@ class TransactionViewModel(
                 _selectedAccountId.value = it.id
             }
             ensureTransferCategoryExists()
-            refreshBudgetSettings() // Initial load
+            refreshBudgetSettings()
         }
         
-        // Auto-refresh budget when account changes
         _selectedAccountId.onEach { refreshBudgetSettings() }.launchIn(viewModelScope)
     }
 
@@ -214,13 +217,12 @@ class TransactionViewModel(
 
     fun refreshBudgetSettings() {
         val accountId = _selectedAccountId.value
-        // Use individual account settings if not global (-1L is All Accounts, we might want a global budget there or disable it)
         if (accountId != -1L) {
             _isBudgetModeEnabled.value = settingsManager.isBudgetModeEnabled(accountId)
             _monthlyBudget.value = settingsManager.getMonthlyBudget(accountId)
             _isIncludeIncomeEnabled.value = settingsManager.isIncludeIncomeInBudget(accountId)
         } else {
-            _isBudgetModeEnabled.value = false // Budget usually doesn't apply to "All Accounts" aggregate view
+            _isBudgetModeEnabled.value = false
         }
     }
 
@@ -439,7 +441,6 @@ class TransactionViewModel(
 
     fun addTransaction(transaction: Transaction) { 
         viewModelScope.launch { 
-            // Correct fallback: If All Accounts (-1L) is selected, save to Default account (1L)
             val activeId = if (_selectedAccountId.value == -1L) 1L else _selectedAccountId.value
             val txWithAccount = if (transaction.accountId == 0L || transaction.accountId == -1L) {
                 transaction.copy(accountId = activeId)

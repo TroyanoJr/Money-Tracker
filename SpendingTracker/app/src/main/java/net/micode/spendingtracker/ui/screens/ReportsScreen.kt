@@ -24,7 +24,6 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.micode.spendingtracker.R
@@ -73,7 +72,7 @@ fun ReportsScreen(viewModel: TransactionViewModel) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = dateText, color = Color.Gray, fontSize = 14.sp, fontFamily = FontFamily.Cursive)
+                Text(text = dateText, color = Color.Gray, fontSize = 14.sp)
                 
                 if (reportMode == "cash_flow") {
                     CashFlowLegend()
@@ -132,10 +131,10 @@ fun ReportsScreen(viewModel: TransactionViewModel) {
 fun CashFlowLegend() {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(ChalkGreen))
-        Text(" " + stringResource(R.string.income) + " ", color = ChalkWhite, fontSize = 12.sp, fontFamily = FontFamily.Cursive)
+        Text(" " + stringResource(R.string.income) + " ", color = ChalkWhite, fontSize = 12.sp)
         Spacer(Modifier.width(8.dp))
         Box(modifier = Modifier.size(8.dp).background(ChalkRed))
-        Text(" " + stringResource(R.string.expense), color = ChalkWhite, fontSize = 12.sp, fontFamily = FontFamily.Cursive)
+        Text(" " + stringResource(R.string.expense), color = ChalkWhite, fontSize = 12.sp)
     }
 }
 
@@ -187,8 +186,7 @@ fun ModeToggle(currentMode: String, onModeChange: (String) -> Unit) {
                 Text(
                     text = if (mode == "categories") stringResource(R.string.rep_categories) else stringResource(R.string.rep_cash_flow), 
                     color = ChalkWhite, 
-                    fontSize = 13.sp, 
-                    fontFamily = FontFamily.Cursive
+                    fontSize = 13.sp
                 )
             }
         }

@@ -23,7 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -70,7 +69,6 @@ fun SpendingScreen(
     }
 
     val cycleAccount = { direction: Int ->
-        // All Accounts option only if > 1 account
         val list = (if (accounts.size > 1) listOf(-1L) else emptyList()) + accounts.map { it.id }
         val currentIndex = list.indexOf(selectedAccountId)
         if (currentIndex != -1 && list.isNotEmpty()) {
@@ -88,11 +86,8 @@ fun SpendingScreen(
             modifier = Modifier.fillMaxSize().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header showing ONLY account name between arrows (arrows only if > 1 account)
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -100,8 +95,7 @@ fun SpendingScreen(
                     Text(
                         text = "< ", 
                         color = ChalkWhite, 
-                        fontSize = 24.sp, 
-                        fontFamily = FontFamily.Cursive,
+                        fontSize = 20.sp, 
                         modifier = Modifier.clickable { cycleAccount(-1) }.padding(horizontal = 16.dp)
                     )
                 }
@@ -109,8 +103,7 @@ fun SpendingScreen(
                 Text(
                     text = currentAccountName,
                     color = ChalkWhite,
-                    fontSize = 22.sp,
-                    fontFamily = FontFamily.Cursive,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.clickable { onSwitchAccountClick() }
                 )
@@ -119,8 +112,7 @@ fun SpendingScreen(
                     Text(
                         text = " >", 
                         color = ChalkWhite, 
-                        fontSize = 24.sp, 
-                        fontFamily = FontFamily.Cursive,
+                        fontSize = 20.sp, 
                         modifier = Modifier.clickable { cycleAccount(1) }.padding(horizontal = 16.dp)
                     )
                 }
@@ -131,13 +123,12 @@ fun SpendingScreen(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp).border(1.dp, ChalkWhite.copy(alpha = 0.4f), RoundedCornerShape(4.dp)).background(Color.White.copy(alpha = 0.05f)).padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Warning, null, tint = ChalkRed, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Warning, null, tint = ChalkRed, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(12.dp))
-                    Text(stringResource(R.string.pending_transactions, incompleteCount), color = ChalkWhite, fontSize = 14.sp, fontFamily = FontFamily.Cursive)
+                    Text(stringResource(R.string.pending_transactions, incompleteCount), color = ChalkWhite, fontSize = 12.sp)
                 }
             }
 
-            // Budget visibility
             AnimatedVisibility(visible = isBudgetEnabled && selectedPeriod == Period.MONTH && selectedAccountId != -1L) {
                 Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
                     val effectiveBudget = if (isIncludeIncomeEnabled) monthlyBudget + totalIncome else monthlyBudget
@@ -150,11 +141,11 @@ fun SpendingScreen(
                     }
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-                        Text(text = if (isIncludeIncomeEnabled) stringResource(R.string.dynamic_budget) else stringResource(R.string.monthly_budget), color = ChalkWhite.copy(alpha = 0.6f), fontSize = 14.sp, fontFamily = FontFamily.Cursive)
-                        Text(text = stringResource(R.string.amount_left, currencySymbol, remaining), color = progressColor, fontSize = 16.sp, fontFamily = FontFamily.Cursive, fontWeight = FontWeight.Bold)
+                        Text(text = if (isIncludeIncomeEnabled) stringResource(R.string.dynamic_budget) else stringResource(R.string.monthly_budget), color = ChalkWhite.copy(alpha = 0.6f), fontSize = 12.sp)
+                        Text(text = stringResource(R.string.amount_left, currencySymbol, remaining), color = progressColor, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    Box(modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(ChalkWhite.copy(alpha = 0.1f))) {
+                    Box(modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(ChalkWhite.copy(alpha = 0.1f))) {
                         Box(modifier = Modifier.fillMaxWidth(progress.coerceAtMost(1f)).fillMaxHeight().background(progressColor))
                     }
                 }
@@ -162,7 +153,7 @@ fun SpendingScreen(
 
             val total = totalIncome + totalExpense
             val incomeWeight = if (total > 0) (totalIncome / total).toFloat() else 0.5f
-            Row(modifier = Modifier.fillMaxWidth().height(14.dp).clip(RoundedCornerShape(7.dp))) {
+            Row(modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp))) {
                 if (incomeWeight > 0) Box(modifier = Modifier.weight(incomeWeight.coerceAtLeast(0.0001f)).fillMaxHeight().background(ChalkGreen))
                 if (1f - incomeWeight > 0) Box(modifier = Modifier.weight((1f - incomeWeight).coerceAtLeast(0.0001f)).fillMaxHeight().background(ChalkRed))
             }
@@ -173,9 +164,9 @@ fun SpendingScreen(
                 item { BalanceRow(stringResource(R.string.income), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, totalIncome), ChalkGreen) }
                 item { BalanceRow(stringResource(R.string.expense), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, totalExpense), ChalkRed) }
                 items(expensesByCategory) { (name, amount) ->
-                    Row(modifier = Modifier.fillMaxWidth().padding(start = 32.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(name, color = ChalkWhite, fontSize = 20.sp, fontFamily = FontFamily.Cursive)
-                        Text(String.format(Locale.getDefault(), "%s %.2f", currencySymbol, amount), color = ChalkWhite, fontSize = 20.sp, fontFamily = FontFamily.Cursive)
+                    Row(modifier = Modifier.fillMaxWidth().padding(start = 24.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(name, color = ChalkWhite, fontSize = 14.sp)
+                        Text(String.format(Locale.getDefault(), "%s %.2f", currencySymbol, amount), color = ChalkWhite, fontSize = 14.sp)
                     }
                 }
                 item {
@@ -186,8 +177,8 @@ fun SpendingScreen(
 
             Text(
                 text = stringResource(R.string.show_heatmap),
-                color = ChalkWhite, fontSize = 16.sp, fontFamily = FontFamily.Cursive,
-                modifier = Modifier.padding(bottom = 8.dp).clickable { showHeatmap = true }.border(1.dp, ChalkWhite.copy(alpha = 0.5f), RoundedCornerShape(4.dp)).padding(horizontal = 12.dp, vertical = 4.dp)
+                color = ChalkWhite, fontSize = 14.sp,
+                modifier = Modifier.padding(bottom = 8.dp).clickable { showHeatmap = true }.border(1.dp, ChalkWhite.copy(alpha = 0.5f), RoundedCornerShape(4.dp)).padding(horizontal = 10.dp, vertical = 4.dp)
             )
 
             Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -195,7 +186,7 @@ fun SpendingScreen(
                 ChalkButton(stringResource(R.string.add_income), onClick = onAddIncome)
             }
             
-            Text(text = stringResource(R.string.rotate_device_hint), color = Color.Gray, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+            Text(text = stringResource(R.string.rotate_device_hint), color = Color.Gray, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
         }
     }
 
@@ -208,8 +199,8 @@ fun SpendingScreen(
 fun HeatmapDialog(data: Map<Long, Double>, period: Period, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close), color = ChalkWhite, fontFamily = FontFamily.Cursive) } },
-        title = { Text(stringResource(R.string.balance_heatmap), color = ChalkWhite, fontFamily = FontFamily.Cursive, fontSize = 24.sp) },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close), color = ChalkWhite) } },
+        title = { Text(stringResource(R.string.balance_heatmap), color = ChalkWhite, fontSize = 18.sp) },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -221,7 +212,7 @@ fun HeatmapDialog(data: Map<Long, Double>, period: Period, onDismiss: () -> Unit
                 if (period == Period.YEAR) YearlyHeatmap(data) else {
                     Row(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
                         listOf("M", "T", "W", "T", "F", "S", "S").forEach { day ->
-                            Text(day, Modifier.weight(1f), textAlign = TextAlign.Center, color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(day, Modifier.weight(1f), textAlign = TextAlign.Center, color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                     val sortedKeys = remember(data) { data.keys.sorted() }
@@ -231,7 +222,7 @@ fun HeatmapDialog(data: Map<Long, Double>, period: Period, onDismiss: () -> Unit
                             val color = when { balanceVal > 0 -> ChalkGreen; balanceVal < 0 -> ChalkRed; else -> Color.DarkGray }
                             val label = Calendar.getInstance().apply { timeInMillis = timestamp }.get(Calendar.DAY_OF_MONTH).toString()
                             Box(modifier = Modifier.aspectRatio(1f).clip(RoundedCornerShape(4.dp)).background(color.copy(alpha = 0.8f)).border(0.5.dp, ChalkWhite.copy(alpha = 0.3f), RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
-                                Text(label, color = ChalkWhite.copy(alpha = 0.9f), fontSize = 10.sp, fontFamily = FontFamily.Cursive, fontWeight = FontWeight.Bold)
+                                Text(label, color = ChalkWhite.copy(alpha = 0.9f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -291,14 +282,14 @@ fun LegendItem(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(modifier = Modifier.size(12.dp).clip(RoundedCornerShape(2.dp)).background(color))
         Spacer(Modifier.width(4.dp))
-        Text(label, color = ChalkWhite, fontSize = 12.sp, fontFamily = FontFamily.Cursive)
+        Text(label, color = ChalkWhite, fontSize = 11.sp)
     }
 }
 
 @Composable
 fun BalanceRow(label: String, value: String, color: Color) {
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = ChalkWhite, fontSize = 28.sp, fontFamily = FontFamily.Cursive, fontWeight = FontWeight.Bold)
-        Text(value, color = color, fontSize = 28.sp, fontFamily = FontFamily.Cursive, fontWeight = FontWeight.Bold)
+        Text(label, color = ChalkWhite, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Text(value, color = color, fontSize = 18.sp, fontWeight = FontWeight.Bold)
     }
 }
