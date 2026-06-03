@@ -53,6 +53,26 @@ interface TransactionDao {
         categoryName: String?
     ): SummaryTotals
 
+    @Query(
+        """
+        SELECT 
+            COALESCE(SUM(CASE WHEN isExpense = 0 THEN amount ELSE -amount END), 0)
+        FROM transactions
+        WHERE (:accountId = -1 OR accountId = :accountId)
+          AND date < :beforeDate
+        """
+    )
+    suspend fun getBalanceBeforeDate(accountId: Long, beforeDate: Long): Double
+
+    @Query("SELECT MIN(date) FROM transactions WHERE (:accountId = -1 OR accountId = :accountId)")
+    suspend fun getOldestTransactionDate(accountId: Long): Long?
+
+    @Query("SELECT MIN(date) FROM transactions WHERE (:accountId = -1 OR accountId = :accountId) AND isExpense = 1 AND amount > 0")
+    suspend fun getFirstExpenseDate(accountId: Long): Long?
+
+    @Query("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE (:accountId = -1 OR accountId = :accountId) AND isExpense = 1 AND date < :beforeDate")
+    suspend fun getTotalExpensesBeforeDate(accountId: Long, beforeDate: Long): Double
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTransaction(transaction: Transaction): Long
 

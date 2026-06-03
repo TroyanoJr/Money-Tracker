@@ -60,7 +60,7 @@ fun CategorySelectorScreen(
                             if (searchQuery.isEmpty()) {
                                 Text(
                                     stringResource(R.string.search_categories), 
-                                    color = DarkBrownText.copy(alpha = 0.4f), 
+                                    color = DarkBrownText.copy(alpha = 0.4f),
                                     fontSize = 16.sp
                                 )
                             }

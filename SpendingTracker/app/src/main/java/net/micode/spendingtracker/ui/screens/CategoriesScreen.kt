@@ -154,18 +154,18 @@ fun CategoriesScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { 
+            title = {
                 Text(
-                    text = stringResource(R.string.delete_category), 
+                    text = stringResource(R.string.delete_category),
                     color = DarkBrownText,
                     fontWeight = FontWeight.Bold
-                ) 
+                )
             },
-            text = { 
+            text = {
                 Text(
                     text = stringResource(R.string.delete_confirm_msg),
                     color = DarkBrownText
-                ) 
+                )
             },
             confirmButton = {
                 TextButton(
@@ -204,21 +204,21 @@ fun CategoryTabButton(
             .then(
                 if (!selected) {
                     Modifier.border(
-                        1.dp, 
-                        DarkBrownText, 
-                        if (isStart) RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp) 
+                        1.dp,
+                        DarkBrownText,
+                        if (isStart) RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp)
                         else RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)
                     )
                 } else Modifier
             ),
         color = if (selected) DarkBrownText else Color.Transparent,
-        shape = if (isStart) RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp) 
+        shape = if (isStart) RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp)
                 else RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
-                text = text, 
-                color = if (selected) Color.White else DarkBrownText, 
+                text = text,
+                color = if (selected) Color.White else DarkBrownText,
                 fontSize = 14.sp
             )
         }

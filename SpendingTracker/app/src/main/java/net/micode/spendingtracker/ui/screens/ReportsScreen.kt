@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.micode.spendingtracker.R
@@ -44,8 +45,10 @@ fun ReportsScreen(viewModel: TransactionViewModel) {
     val selectedPeriod by viewModel.selectedPeriod.collectAsState()
     val selectedDate by viewModel.selectedDate.collectAsState()
     val currencySymbol by viewModel.currencySymbol.collectAsState()
+    val filterCategoryName by viewModel.filterCategoryName.collectAsState()
+    val reportIsExpense by viewModel.reportIsExpense.collectAsState()
+    val categories by viewModel.categories.collectAsState()
 
-    // Internal keys for UI logic
     var reportMode by remember { mutableStateOf("categories") }
     var unitMode by remember { mutableStateOf("cash") }
     var chartType by remember { mutableStateOf("bar") }
@@ -72,16 +75,26 @@ fun ReportsScreen(viewModel: TransactionViewModel) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = dateText, color = Color.Gray, fontSize = 14.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (reportMode == "categories") {
+                        IncomeExpenseToggle(isExpense = reportIsExpense) { viewModel.setReportIsExpense(it) }
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    Text(text = dateText, color = Color.Gray, fontSize = 14.sp)
+                }
                 
-                if (reportMode == "cash_flow") {
-                    CashFlowLegend()
-                } else {
-                    CategoryLegend(categoryData)
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    if (reportMode == "cash_flow") {
+                        CashFlowLegend()
+                    } else {
+                        CategoryLegend(categoryData)
+                    }
                 }
 
                 if (reportMode == "categories") {
                     UnitToggle(unitMode, currencySymbol) { unitMode = it }
+                } else {
+                    Spacer(Modifier.width(40.dp))
                 }
             }
         }
@@ -91,6 +104,20 @@ fun ReportsScreen(viewModel: TransactionViewModel) {
                 .fillMaxSize()
                 .padding(top = 45.dp, bottom = 55.dp, start = 50.dp, end = 20.dp)
         ) {
+            filterCategoryName?.let { categoryName ->
+                if (reportMode == "cash_flow") {
+                    val category = categories.find { it.name == categoryName }
+                    val isActuallyExpense = category?.isExpense ?: true
+                    Text(
+                        text = "${stringResource(if (isActuallyExpense) R.string.expense else R.string.income)}: $categoryName",
+                        color = ChalkWhite.copy(alpha = 0.8f),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.align(Alignment.TopCenter).padding(top = 4.dp)
+                    )
+                }
+            }
+
             if (reportMode == "cash_flow") {
                 CashFlowChart(data = cashFlowData, symbol = currencySymbol)
             } else {
@@ -142,7 +169,7 @@ fun CashFlowLegend() {
 fun CategoryLegend(data: List<CategoryReportItem>) {
     Row(
         modifier = Modifier
-            .widthIn(max = 250.dp)
+            .widthIn(max = 200.dp)
             .horizontalScroll(rememberScrollState())
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -151,6 +178,23 @@ fun CategoryLegend(data: List<CategoryReportItem>) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 12.dp)) {
                 Box(modifier = Modifier.size(10.dp).background(Color(item.color)))
                 Text(" ${item.name}", color = ChalkWhite, fontSize = 11.sp, maxLines = 1)
+            }
+        }
+    }
+}
+
+@Composable
+fun IncomeExpenseToggle(isExpense: Boolean, onToggle: (Boolean) -> Unit) {
+    Row(modifier = Modifier.border(0.5.dp, Color.Gray, RoundedCornerShape(2.dp))) {
+        listOf("E", "I").forEach { label ->
+            val active = (label == "E" && isExpense) || (label == "I" && !isExpense)
+            Box(
+                modifier = Modifier
+                    .clickable { onToggle(label == "E") }
+                    .background(if (active) Color.Gray.copy(alpha = 0.4f) else Color.Transparent)
+                    .padding(horizontal = 10.dp, vertical = 2.dp)
+            ) {
+                Text(label, color = ChalkWhite, fontSize = 12.sp, fontWeight = if (active) FontWeight.Bold else FontWeight.Normal)
             }
         }
     }

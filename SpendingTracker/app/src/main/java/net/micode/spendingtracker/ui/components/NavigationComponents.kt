@@ -61,11 +61,12 @@ fun TopNavigation(
     }
     
     val dateText = dateFormatter.format(Date(selectedDate))
+    val showDate = selectedTabIndex == 0 || selectedTabIndex == 1
 
     Column(modifier = Modifier.background(BeigeHeader)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = if (isSearchActive || showDate) Arrangement.SpaceBetween else Arrangement.End,
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (isSearchActive) {
@@ -91,19 +92,23 @@ fun TopNavigation(
                     )
                 }
             } else {
-                Box {
-                    Box(modifier = Modifier.border(1.dp, DarkBrownText.copy(alpha = 0.5f), RoundedCornerShape(4.dp)).clickable { showPeriodMenu = true }.padding(horizontal = 16.dp, vertical = 4.dp)) {
-                        Text(dateText, color = DarkBrownText, fontWeight = FontWeight.Medium)
-                    }
-                    DropdownMenu(expanded = showPeriodMenu, onDismissRequest = { showPeriodMenu = false }, modifier = Modifier.background(BeigeHeader)) {
-                        Period.entries.forEach { period ->
-                            DropdownMenuItem(text = { Text(period.name, color = DarkBrownText) }, onClick = { onPeriodSelected(period); showPeriodMenu = false })
+                if (showDate) {
+                    Box {
+                        Box(modifier = Modifier.border(1.dp, DarkBrownText.copy(alpha = 0.5f), RoundedCornerShape(4.dp)).clickable { showPeriodMenu = true }.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                            Text(dateText, color = DarkBrownText, fontWeight = FontWeight.Medium)
+                        }
+                        DropdownMenu(expanded = showPeriodMenu, onDismissRequest = { showPeriodMenu = false }, modifier = Modifier.background(BeigeHeader)) {
+                            Period.entries.forEach { period ->
+                                DropdownMenuItem(text = { Text(period.name, color = DarkBrownText) }, onClick = { onPeriodSelected(period); showPeriodMenu = false })
+                            }
                         }
                     }
                 }
                 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onAddClick) { Icon(Icons.Default.Add, contentDescription = "Add", tint = DarkBrownText) }
+                    if (selectedTabIndex != 0) {
+                        IconButton(onClick = onAddClick) { Icon(Icons.Default.Add, contentDescription = "Add", tint = DarkBrownText) }
+                    }
                     
                     // Show account icon ONLY on Spending tab (Image 1) - Now with dynamic color
                     if (selectedTabIndex == 0) {

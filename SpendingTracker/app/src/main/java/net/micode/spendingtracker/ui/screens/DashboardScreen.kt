@@ -54,7 +54,6 @@ fun DashboardScreen(
     var showAddAccount by rememberSaveable { mutableStateOf(false) }
     var accountToEdit by remember { mutableStateOf<Account?>(null) }
     
-    // Account Switcher State
     var showAccountPicker by rememberSaveable { mutableStateOf(false) }
     val accounts by accountViewModel.allAccounts.collectAsState()
     val selectedAccountId by viewModel.selectedAccountId.collectAsState()
@@ -64,12 +63,10 @@ fun DashboardScreen(
         else accounts.find { it.id == selectedAccountId }?.name ?: "Default"
     }
 
-    // Get current account color for TopNavigation
     val currentAccountColor = remember(selectedAccountId, accounts) {
         accounts.find { it.id == selectedAccountId }?.color?.let { Color(it) }
     }
 
-    // Sync Logic: If the current account is deleted, switch to the system "Default" (ID 1)
     LaunchedEffect(accounts) {
         if (selectedAccountId != -1L && selectedAccountId != 1L && accounts.isNotEmpty() && accounts.none { it.id == selectedAccountId }) {
             viewModel.setSelectedAccount(1L)
@@ -82,7 +79,7 @@ fun DashboardScreen(
     val expenseCategories by viewModel.expenseCategories.collectAsState()
     val incomeCategories by viewModel.incomeCategories.collectAsState()
     val categories by viewModel.categories.collectAsState()
-    
+
     val selectedPeriod by viewModel.selectedPeriod.collectAsState()
     val selectedDate by viewModel.selectedDate.collectAsState()
 
@@ -111,22 +108,19 @@ fun DashboardScreen(
         }
     }
 
-    // FIX: Determinamos si es seguro mostrar reportes (solo en el dashboard y sin diálogos activos)
-    val canShowReports = currentScreen == "dashboard" && 
-            !showAddCategory && 
-            !showAddTransaction && 
-            !showAddAccount && 
-            !showAccountPicker && 
-            !isSearchActive
+    val canShowReports = currentScreen == "dashboard" &&
+            !showAddCategory && !showAddTransaction && 
+            !showAddAccount && !showAccountPicker && !isSearchActive
 
     if (isLandscape && canShowReports) {
         ReportsScreen(viewModel = viewModel)
     } else {
         when (currentScreen) {
             "settings" -> {
-                val leaveSettings = {
+                val leaveSettings = { 
                     viewModel.refreshCurrency()
-                    currentScreen = "dashboard"
+                    viewModel.refreshBudgetSettings()
+                    currentScreen = "dashboard" 
                 }
                 BackHandler(onBack = leaveSettings)
                 SettingsScreen(
@@ -190,7 +184,8 @@ fun DashboardScreen(
                         HorizontalPager(
                             state = pagerState, 
                             modifier = Modifier.weight(1f), 
-                            userScrollEnabled = !isSearchActive
+                            userScrollEnabled = !isSearchActive,
+                            beyondViewportPageCount = 1
                         ) { page ->
                             when (page) {
                                 0 -> SpendingScreen(
@@ -203,53 +198,47 @@ fun DashboardScreen(
                                 1 -> TransactionsScreen(
                                     viewModel = viewModel, 
                                     accounts = accounts,
-                                    onEditTransaction = { transaction -> transactionToEdit = transaction; showAddTransaction = true }, 
-                                    onDeleteTransactions = { txs -> viewModel.deleteTransactions(txs) }, 
+                                    onEditTransaction = { tx -> transactionToEdit = tx; showAddTransaction = true },
+                                    onDeleteTransactions = { txs -> viewModel.deleteTransactions(txs) },
                                     onExportCsv = { currentScreen = "csv_export" },
                                     onSwitchAccountClick = { showAccountPicker = true }
                                 )
-                                2 -> CategoriesScreen(expenseCategories = expenseCategories, incomeCategories = incomeCategories, selectedSubTab = selectedCategorySubTab, onSubTabChanged = { selectedCategorySubTab = it }, onEditCategory = { category -> categoryToEdit = category; showAddCategory = true }, onDeleteCategories = { cats -> viewModel.deleteCategories(categories = cats) })
+                                2 -> CategoriesScreen(expenseCategories = expenseCategories, incomeCategories = incomeCategories, selectedSubTab = selectedCategorySubTab, onSubTabChanged = { selectedCategorySubTab = it }, onEditCategory = { cat -> categoryToEdit = cat; showAddCategory = true }, onDeleteCategories = { cats -> viewModel.deleteCategories(categories = cats) })
                                 3 -> AccountsScreen(
                                     viewModel = accountViewModel, 
                                     selectedAccountId = selectedAccountId,
-                                    onEditAccount = { account -> accountToEdit = account; showAddAccount = true }
+                                    onEditAccount = { acc -> accountToEdit = acc; showAddAccount = true }
                                 )
                             }
                         }
-                        
+
                         BannerAdView(modifier = Modifier.padding(vertical = 4.dp))
                     }
 
                     if (showAddCategory) {
-                        AddCategoryScreen(categoryToEdit = categoryToEdit, isExpense = selectedCategorySubTab == 0, onClose = { showAddCategory = false; categoryToEdit = null }, onDone = { category -> if (categoryToEdit == null) viewModel.addCategory(category) else viewModel.updateCategory(category); showAddCategory = false; categoryToEdit = null })
+                        AddCategoryScreen(categoryToEdit = categoryToEdit, isExpense = selectedCategorySubTab == 0, onClose = { showAddCategory = false; categoryToEdit = null }, onDone = { cat -> if (categoryToEdit == null) viewModel.addCategory(cat) else viewModel.updateCategory(cat); showAddCategory = false; categoryToEdit = null })
                     }
-
                     if (showAddTransaction) {
                         AddTransactionScreen(transactionToEdit = transactionToEdit, viewModel = viewModel, accounts = accounts, initialType = initialTransactionType, onClose = { showAddTransaction = false; transactionToEdit = null }, onDone = { showAddTransaction = false; transactionToEdit = null })
                     }
-
                     if (showAddAccount) {
                         AddAccountScreen(
                             accountToEdit = accountToEdit, 
                             onClose = { showAddAccount = false; accountToEdit = null }, 
-                            onDone = { account -> 
-                                if (accountToEdit == null) accountViewModel.addAccount(account.name, account.color) 
-                                else accountViewModel.updateAccount(account)
-                                showAddAccount = false
-                                accountToEdit = null
+                            onDone = { acc ->
+                                if (accountToEdit == null) accountViewModel.addAccount(acc.name, acc.color)
+                                else accountViewModel.updateAccount(acc)
+                                showAddAccount = false; accountToEdit = null
                             }
                         )
                     }
-
                     if (showAccountPicker) {
                         AccountPickerDialog(
                             accounts = accounts,
                             selectedAccountId = selectedAccountId,
                             onAccountSelected = { id ->
                                 viewModel.setSelectedAccount(id)
-                                if (id != -1L) {
-                                    accountViewModel.selectAccount(id)
-                                }
+                                if (id != -1L) accountViewModel.selectAccount(id)
                             },
                             onDismiss = { showAccountPicker = false }
                         )

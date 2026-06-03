@@ -48,6 +48,8 @@ fun SpendingScreen(
     val totalIncome by viewModel.totalIncome.collectAsState()
     val totalExpense by viewModel.totalExpense.collectAsState()
     val balance by viewModel.balance.collectAsState()
+    val carryOverAmount by viewModel.carryOverAmount.collectAsState()
+    val dynamicBudget by viewModel.dynamicBudget.collectAsState()
     val expensesByCategory by viewModel.expensesByCategory.collectAsState()
     val heatmapData by viewModel.heatmapData.collectAsState()
     val selectedPeriod by viewModel.selectedPeriod.collectAsState()
@@ -56,28 +58,21 @@ fun SpendingScreen(
     val isBudgetEnabled by viewModel.isBudgetModeEnabled.collectAsState()
     val monthlyBudget by viewModel.monthlyBudget.collectAsState()
     val isIncludeIncomeEnabled by viewModel.isIncludeIncomeEnabled.collectAsState()
+    val isCarryOverEnabled by viewModel.isCarryOverEnabled.collectAsState()
+    val isCarryOverAddToIncome by viewModel.isCarryOverAddToIncome.collectAsState()
 
     val incompleteCount by viewModel.incompleteTransactionsCount.collectAsState()
     var showHeatmap by rememberSaveable { mutableStateOf(false) }
 
     val accounts by accountViewModel.allAccounts.collectAsState()
     val selectedAccountId by viewModel.selectedAccountId.collectAsState()
-    
+
     val currentAccountName = remember(selectedAccountId, accounts) {
         if (selectedAccountId == -1L && accounts.size > 1) "All Accounts"
         else accounts.find { it.id == selectedAccountId }?.name ?: "Default"
     }
 
-    val cycleAccount = { direction: Int ->
-        val list = (if (accounts.size > 1) listOf(-1L) else emptyList()) + accounts.map { it.id }
-        val currentIndex = list.indexOf(selectedAccountId)
-        if (currentIndex != -1 && list.isNotEmpty()) {
-            val nextIndex = (currentIndex + direction + list.size) % list.size
-            viewModel.setSelectedAccount(list[nextIndex])
-        }
-    }
-
-    LaunchedEffect(isBudgetEnabled, monthlyBudget, isIncludeIncomeEnabled) {
+    LaunchedEffect(isBudgetEnabled, monthlyBudget, isIncludeIncomeEnabled, isCarryOverEnabled, isCarryOverAddToIncome) {
         viewModel.refreshBudgetSettings()
     }
 
@@ -91,14 +86,12 @@ fun SpendingScreen(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (accounts.size > 1) {
-                    Text(
-                        text = "< ", 
-                        color = ChalkWhite, 
-                        fontSize = 20.sp, 
-                        modifier = Modifier.clickable { cycleAccount(-1) }.padding(horizontal = 16.dp)
-                    )
-                }
+                Text(
+                    text = "< ",
+                    color = ChalkWhite,
+                    fontSize = 20.sp,
+                    modifier = Modifier.clickable { viewModel.previousPeriod() }.padding(horizontal = 16.dp)
+                )
 
                 Text(
                     text = currentAccountName,
@@ -108,14 +101,12 @@ fun SpendingScreen(
                     modifier = Modifier.clickable { onSwitchAccountClick() }
                 )
                 
-                if (accounts.size > 1) {
-                    Text(
-                        text = " >", 
-                        color = ChalkWhite, 
-                        fontSize = 20.sp, 
-                        modifier = Modifier.clickable { cycleAccount(1) }.padding(horizontal = 16.dp)
-                    )
-                }
+                Text(
+                    text = " >",
+                    color = ChalkWhite,
+                    fontSize = 20.sp,
+                    modifier = Modifier.clickable { viewModel.nextPeriod() }.padding(horizontal = 16.dp)
+                )
             }
 
             if (incompleteCount > 0) {
@@ -129,49 +120,77 @@ fun SpendingScreen(
                 }
             }
 
-            AnimatedVisibility(visible = isBudgetEnabled && selectedPeriod == Period.MONTH && selectedAccountId != -1L) {
-                Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
-                    val effectiveBudget = if (isIncludeIncomeEnabled) monthlyBudget + totalIncome else monthlyBudget
-                    val progress = if (effectiveBudget > 0) (totalExpense / effectiveBudget).toFloat() else 0f
-                    val remaining = effectiveBudget - totalExpense
-                    val progressColor = when {
-                        progress >= 1.0f -> ChalkRed
-                        progress >= 0.8f -> Color(0xFFFFD54F)
-                        else -> ChalkWhite.copy(alpha = 0.8f)
-                    }
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-                        Text(text = if (isIncludeIncomeEnabled) stringResource(R.string.dynamic_budget) else stringResource(R.string.monthly_budget), color = ChalkWhite.copy(alpha = 0.6f), fontSize = 12.sp)
-                        Text(text = stringResource(R.string.amount_left, currencySymbol, remaining), color = progressColor, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Box(modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(ChalkWhite.copy(alpha = 0.1f))) {
-                        Box(modifier = Modifier.fillMaxWidth(progress.coerceAtMost(1f)).fillMaxHeight().background(progressColor))
-                    }
-                }
-            }
-
-            val total = totalIncome + totalExpense
-            val incomeWeight = if (total > 0) (totalIncome / total).toFloat() else 0.5f
+            // Progress Bar Logic based on Images
+            val totalLimit = if (isIncludeIncomeEnabled) dynamicBudget + totalIncome else dynamicBudget
             Row(modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp))) {
-                if (incomeWeight > 0) Box(modifier = Modifier.weight(incomeWeight.coerceAtLeast(0.0001f)).fillMaxHeight().background(ChalkGreen))
-                if (1f - incomeWeight > 0) Box(modifier = Modifier.weight((1f - incomeWeight).coerceAtLeast(0.0001f)).fillMaxHeight().background(ChalkRed))
+                if (isBudgetEnabled && selectedPeriod == Period.MONTH && selectedAccountId != -1L) {
+                    if (totalExpense <= totalLimit) {
+                        val spentWeight = if (totalLimit > 0) (totalExpense / totalLimit).toFloat().coerceIn(0f, 1f) else 0f
+                        // Green is remaining, Red is spent (Image 3 logic)
+                        Box(modifier = Modifier.weight((1f - spentWeight).coerceAtLeast(0.0001f)).fillMaxHeight().background(ChalkGreen))
+                        Box(modifier = Modifier.weight(spentWeight.coerceAtLeast(0.0001f)).fillMaxHeight().background(ChalkRed))
+                    } else {
+                        // Full red if over budget (Image 5 logic)
+                        Box(modifier = Modifier.weight(1f).fillMaxHeight().background(ChalkRed))
+                    }
+                } else {
+                    val total = totalIncome + totalExpense
+                    val incomeWeight = if (total > 0) (totalIncome / total).toFloat() else 0.5f
+                    if (incomeWeight > 0) Box(modifier = Modifier.weight(incomeWeight.coerceAtLeast(0.0001f)).fillMaxHeight().background(ChalkGreen))
+                    if (1f - incomeWeight > 0) Box(modifier = Modifier.weight((1f - incomeWeight).coerceAtLeast(0.0001f)).fillMaxHeight().background(ChalkRed))
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
             LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                item { BalanceRow(stringResource(R.string.income), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, totalIncome), ChalkGreen) }
+                if (isBudgetEnabled && selectedPeriod == Period.MONTH && selectedAccountId != -1L) {
+                    item { 
+                        val budgetLabel = stringResource(R.string.monthly_budget)
+                        val budgetToShow = if (isCarryOverEnabled) dynamicBudget else monthlyBudget
+                        BalanceRow(budgetLabel, String.format(Locale.getDefault(), "%s %.2f", currencySymbol, budgetToShow), ChalkGreen) 
+                    }
+                    
+                    if (isCarryOverEnabled && !isCarryOverAddToIncome) {
+                        item {
+                            Row(modifier = Modifier.fillMaxWidth().padding(start = 24.dp, top = 2.dp, bottom = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(stringResource(R.string.carry_over), color = ChalkWhite, fontSize = 16.sp)
+                                val sign = if (carryOverAmount >= 0) "+" else "-"
+                                Text(String.format(Locale.getDefault(), "%s %s%.2f", sign, currencySymbol, abs(carryOverAmount)), color = ChalkWhite, fontSize = 16.sp)
+                            }
+                        }
+                    }
+
+                    if (isIncludeIncomeEnabled) {
+                        item { BalanceRow(stringResource(R.string.income), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, totalIncome), ChalkGreen) }
+                    }
+                } else {
+                    item { BalanceRow(stringResource(R.string.income), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, totalIncome), ChalkGreen) }
+                    if (isCarryOverEnabled && !isCarryOverAddToIncome) {
+                        item { BalanceRow(stringResource(R.string.carry_over), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, carryOverAmount), ChalkOrange) }
+                    }
+                }
+
                 item { BalanceRow(stringResource(R.string.expense), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, totalExpense), ChalkRed) }
+                
                 items(expensesByCategory) { (name, amount) ->
                     Row(modifier = Modifier.fillMaxWidth().padding(start = 24.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(name, color = ChalkWhite, fontSize = 14.sp)
                         Text(String.format(Locale.getDefault(), "%s %.2f", currencySymbol, amount), color = ChalkWhite, fontSize = 14.sp)
                     }
                 }
+
                 item {
                     DottedDivider(modifier = Modifier.padding(vertical = 16.dp))
-                    BalanceRow(stringResource(R.string.balance), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, balance), ChalkBlue)
+                    val balanceLabel = if (isBudgetEnabled) {
+                        if (balance >= 0) stringResource(R.string.remaining) else stringResource(R.string.over_spending)
+                    } else {
+                        stringResource(R.string.balance)
+                    }
+                    val sign = if (balance >= 0) "+" else "-"
+                    val formattedValue = String.format(Locale.getDefault(), "%s %s%.2f", sign, currencySymbol, abs(balance))
+                    val balanceColor = if (isBudgetEnabled) ChalkBlue else (if (balance >= 0) ChalkBlue else ChalkRed)
+                    BalanceRow(balanceLabel, formattedValue, balanceColor)
                 }
             }
 
@@ -185,7 +204,7 @@ fun SpendingScreen(
                 ChalkButton(stringResource(R.string.add_expense), onClick = onAddExpense)
                 ChalkButton(stringResource(R.string.add_income), onClick = onAddIncome)
             }
-            
+
             Text(text = stringResource(R.string.rotate_device_hint), color = Color.Gray, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
         }
     }

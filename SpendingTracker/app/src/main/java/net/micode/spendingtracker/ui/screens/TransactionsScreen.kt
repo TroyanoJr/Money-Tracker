@@ -10,11 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Sell
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.SyncAlt
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -55,8 +51,6 @@ fun TransactionsScreen(
     val context = LocalContext.current
     val pagedTransactions = viewModel.pagedTransactions.collectAsLazyPagingItems()
     
-    // --- SOLUCIÓN AL PROBLEMA DE ACTUALIZACIÓN ---
-    // Escuchamos cambios globales en el repositorio para refrescar la lista de Paging
     LaunchedEffect(Unit) {
         viewModel.dataChangedEvent.collectLatest {
             pagedTransactions.refresh()
@@ -66,6 +60,9 @@ fun TransactionsScreen(
     val categories by viewModel.categories.collectAsState()
     val totalIncome by viewModel.totalIncome.collectAsState()
     val totalExpense by viewModel.totalExpense.collectAsState()
+    val carryOverAmount by viewModel.carryOverAmount.collectAsState()
+    val isCarryOverEnabled by viewModel.isCarryOverEnabled.collectAsState()
+    
     val activeFilter by viewModel.activeFilterType.collectAsState()
     val filterCategoryName by viewModel.filterCategoryName.collectAsState()
     val currencySymbol by viewModel.currencySymbol.collectAsState()
@@ -76,7 +73,7 @@ fun TransactionsScreen(
     val currentAccount = remember(selectedAccountId, accounts) {
         accounts.find { it.id == selectedAccountId }
     }
-    
+
     val currentAccountName = remember(selectedAccountId, accounts) {
         if (selectedAccountId == -1L) "All Accounts"
         else currentAccount?.name ?: "Default"
@@ -167,7 +164,7 @@ fun TransactionsScreen(
                     ) { index ->
                         val transaction = pagedTransactions[index] ?: return@items
                         val isSelected = selectedTransactionIds.contains(transaction.id)
-                        
+
                         val category = categories.find { it.name == transaction.categoryName }
                         val icon = if (transaction.categoryName == "Transfer") Icons.Default.SyncAlt else if (category != null) IconCatalog.getIconByName(category.iconName) else Icons.Default.Sell
 
@@ -186,6 +183,17 @@ fun TransactionsScreen(
                             onLongClick = { selectedTransactionIds = selectedTransactionIds + transaction.id }
                         )
                         HorizontalDivider(modifier = Modifier.padding(start = 56.dp), thickness = 0.5.dp, color = Color.LightGray)
+                    }
+
+                    if (isCarryOverEnabled && activeFilter == FilterType.ALL) {
+                        item {
+                            CarryOverItem(
+                                amount = carryOverAmount,
+                                symbol = currencySymbol,
+                                date = selectedDate // Usamos la fecha seleccionada para mostrar el inicio del periodo
+                            )
+                            HorizontalDivider(modifier = Modifier.padding(start = 56.dp), thickness = 0.5.dp, color = Color.LightGray)
+                        }
                     }
 
                     if (pagedTransactions.loadState.append is LoadState.Loading) {
@@ -226,8 +234,8 @@ fun TransactionsScreen(
                 }
                 IconButton(onClick = onSwitchAccountClick) {
                     Icon(
-                        imageVector = Icons.Default.AccountCircle, 
-                        contentDescription = "Switch Account", 
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = "Switch Account",
                         tint = if (currentAccount != null) Color(currentAccount.color) else DarkBrownText
                     )
                 }
@@ -243,7 +251,7 @@ fun TransactionsScreen(
                 Column {
                     ListItem(
                         headlineContent = { Text(stringResource(R.string.csv_format), color = DarkBrownText) },
-                        modifier = Modifier.clickable { 
+                        modifier = Modifier.clickable {
                             showExportDialog = false
                             onExportCsv()
                         },
@@ -251,7 +259,7 @@ fun TransactionsScreen(
                     )
                     ListItem(
                         headlineContent = { Text(stringResource(R.string.pdf_format), color = DarkBrownText) },
-                        modifier = Modifier.clickable { 
+                        modifier = Modifier.clickable {
                             showExportDialog = false
                             val periodLabel = run {
                                 val cal = Calendar.getInstance().apply { timeInMillis = selectedDate }
@@ -292,13 +300,13 @@ fun TransactionsScreen(
     if (showFilterDialog) {
         AlertDialog(
             onDismissRequest = { showFilterDialog = false },
-            title = { 
+            title = {
                 Text(
-                    stringResource(R.string.category_filter), 
-                    fontSize = 20.sp, 
+                    stringResource(R.string.category_filter),
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Normal,
                     color = DarkBrownText
-                ) 
+                )
             },
             text = {
                 Column(modifier = Modifier.fillMaxWidth().heightIn(max = 450.dp)) {
@@ -458,6 +466,34 @@ fun TransactionItem(
         Text(
             text = String.format(Locale.getDefault(), "%s%s %.2f", if (transaction.isExpense) "-" else "+", symbol, transaction.amount),
             color = if (transaction.isExpense) Color(0xFFD32F2F) else Color(0xFF388E3C),
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+fun CarryOverItem(
+    amount: Double,
+    symbol: String,
+    date: Long
+) {
+    val dateFormatter = remember { SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.getDefault()) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFFFB74D).copy(alpha = 0.1f)) // Fondo sutil naranja para destacar
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Icon(imageVector = Icons.Default.Savings, contentDescription = null, tint = Color(0xFFE67E22), modifier = Modifier.size(24.dp))
+        Spacer(Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = stringResource(R.string.carry_over), color = DarkBrownText, fontSize = 18.sp)
+            Text(text = dateFormatter.format(Date(date)), color = Color.Gray, fontSize = 12.sp)
+        }
+        Text(
+            text = String.format(Locale.getDefault(), "%s%s %.2f", if (amount >= 0) "" else "-", symbol, amount),
+            color = Color(0xFFE67E22), // Color naranja/oro
             fontSize = 18.sp,
             fontWeight = FontWeight.Medium
         )

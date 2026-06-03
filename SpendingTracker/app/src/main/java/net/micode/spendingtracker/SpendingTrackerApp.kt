@@ -78,7 +78,8 @@ class SpendingTrackerApp : Application(), Application.ActivityLifecycleCallbacks
             .openHelperFactory(SupportFactory(passphrase))
             .build()
         
-        database.openHelper.writableDatabase
+        // Removed forced writableDatabase access on the main thread to improve startup performance.
+        // Room will initialize the database lazily when first accessed from the ViewModel/Repository.
         markEncryptedDatabaseReady()
         return database
     }

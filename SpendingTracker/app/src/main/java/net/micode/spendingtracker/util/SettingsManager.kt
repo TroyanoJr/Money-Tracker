@@ -22,6 +22,9 @@ class SettingsManager(context: Context) {
         const val KEY_BUDGET_MODE_ENABLED = "budget_mode_enabled"
         const val KEY_MONTHLY_BUDGET_AMOUNT = "monthly_budget_amount"
         const val KEY_INCLUDE_INCOME_IN_BUDGET = "include_income_in_budget"
+        const val KEY_CARRY_OVER_ENABLED = "carry_over_enabled"
+        const val KEY_CARRY_OVER_POSITIVE_ONLY = "carry_over_positive_only"
+        const val KEY_CARRY_OVER_ADD_TO_INCOME = "carry_over_add_to_income"
         const val KEY_REMINDER_FREQUENCY = "reminder_frequency"
         const val KEY_REMINDER_HOUR = "reminder_hour"
         const val KEY_REMINDER_MINUTE = "reminder_minute"
@@ -77,6 +80,24 @@ class SettingsManager(context: Context) {
     
     fun setIncludeIncomeInBudget(accountId: Long, enabled: Boolean) = 
         prefs.edit().putBoolean(userKey(KEY_INCLUDE_INCOME_IN_BUDGET, accountId), enabled).apply()
+
+    fun isCarryOverEnabled(accountId: Long): Boolean = 
+        prefs.getBoolean(userKey(KEY_CARRY_OVER_ENABLED, accountId), false)
+    
+    fun setCarryOverEnabled(accountId: Long, enabled: Boolean) = 
+        prefs.edit().putBoolean(userKey(KEY_CARRY_OVER_ENABLED, accountId), enabled).apply()
+
+    fun isCarryOverPositiveOnly(accountId: Long): Boolean = 
+        prefs.getBoolean(userKey(KEY_CARRY_OVER_POSITIVE_ONLY, accountId), false)
+    
+    fun setCarryOverPositiveOnly(accountId: Long, enabled: Boolean) = 
+        prefs.edit().putBoolean(userKey(KEY_CARRY_OVER_POSITIVE_ONLY, accountId), enabled).apply()
+
+    fun isCarryOverAddToIncome(accountId: Long): Boolean = 
+        prefs.getBoolean(userKey(KEY_CARRY_OVER_ADD_TO_INCOME, accountId), false)
+    
+    fun setCarryOverAddToIncome(accountId: Long, enabled: Boolean) = 
+        prefs.edit().putBoolean(userKey(KEY_CARRY_OVER_ADD_TO_INCOME, accountId), enabled).apply()
 
     // --- General Settings ---
 

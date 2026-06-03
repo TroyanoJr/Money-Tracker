@@ -43,6 +43,22 @@ fun SettingsScreen(
                 onBack = { currentSubScreen = null }
             )
         }
+        "budget" -> {
+            BudgetSettingsScreen(
+                settingsManager = settingsManager,
+                accountId = selectedAccountId,
+                accountName = currentAccountName,
+                currentCurrency = currencySymbol,
+                onBack = { currentSubScreen = null }
+            )
+        }
+        "carry_over" -> {
+            CarryOverSettingsScreen(
+                settingsManager = settingsManager,
+                accountId = selectedAccountId,
+                onBack = { currentSubScreen = null }
+            )
+        }
         "setup_pin" -> {
             PinEntryScreen(
                 settingsManager = settingsManager,
@@ -68,6 +84,8 @@ fun SettingsScreen(
                     onCurrencyChanged()
                 },
                 onNavigateToReminders = { currentSubScreen = "reminders" },
+                onNavigateToBudget = { currentSubScreen = "budget" },
+                onNavigateToCarryOver = { currentSubScreen = "carry_over" },
                 onNavigateToSetupPin = { isChange ->
                     isChangingPin = isChange
                     currentSubScreen = "setup_pin"
@@ -87,6 +105,8 @@ fun MainSettingsList(
     onBack: () -> Unit,
     onCurrencyChanged: () -> Unit,
     onNavigateToReminders: () -> Unit,
+    onNavigateToBudget: () -> Unit,
+    onNavigateToCarryOver: () -> Unit,
     onNavigateToSetupPin: (Boolean) -> Unit,
     selectedAccountId: Long,
     currentAccountName: String
@@ -115,7 +135,9 @@ fun MainSettingsList(
                 settingsManager = settingsManager,
                 currentCurrency = currencySymbol,
                 accountId = selectedAccountId,
-                accountName = currentAccountName
+                accountName = currentAccountName,
+                onNavigateToBudget = onNavigateToBudget,
+                onNavigateToCarryOver = onNavigateToCarryOver
             )
             
             SecuritySection(

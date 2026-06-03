@@ -14,7 +14,6 @@ import androidx.compose.ui.unit.dp
 import net.micode.spendingtracker.R
 import net.micode.spendingtracker.ui.theme.DarkBrownText
 import net.micode.spendingtracker.util.SettingsManager
-import java.util.Locale
 
 /**
  * Section for Budget and Spending settings.
@@ -25,55 +24,27 @@ fun SpendingSection(
     settingsManager: SettingsManager,
     currentCurrency: String,
     accountId: Long,
-    accountName: String
+    accountName: String,
+    onNavigateToBudget: () -> Unit,
+    onNavigateToCarryOver: () -> Unit
 ) {
-    var budgetModeEnabled by remember(accountId) { mutableStateOf(settingsManager.isBudgetModeEnabled(accountId)) }
-    var includeIncome by remember(accountId) { mutableStateOf(settingsManager.isIncludeIncomeInBudget(accountId)) }
-    var monthlyBudget by remember(accountId) { mutableDoubleStateOf(settingsManager.getMonthlyBudget(accountId)) }
-    var showBudgetDialog by remember { mutableStateOf(false) }
+    val budgetModeEnabled = settingsManager.isBudgetModeEnabled(accountId)
+    val carryOverEnabled = settingsManager.isCarryOverEnabled(accountId)
 
     // Header with current account name: Spending (AccountName)
     SettingsSectionHeader("${stringResource(R.string.spending_section)} ($accountName)")
     
-    SettingsToggleRow(
+    SettingsClickableRow(
         title = stringResource(R.string.budget_mode),
-        subtitle = stringResource(R.string.budget_mode_desc),
-        checked = budgetModeEnabled
-    ) { 
-        budgetModeEnabled = it
-        settingsManager.setBudgetModeEnabled(accountId, it) 
-    }
+        value = if (budgetModeEnabled) stringResource(R.string.on) else stringResource(R.string.off),
+        onClick = onNavigateToBudget
+    )
 
     SettingsClickableRow(
-        title = stringResource(R.string.monthly_budget),
-        value = String.format(Locale.getDefault(), "%s %.2f", currentCurrency, monthlyBudget),
-        enabled = budgetModeEnabled
-    ) { 
-        showBudgetDialog = true
-    }
-
-    SettingsToggleRow(
-        title = stringResource(R.string.include_income),
-        subtitle = stringResource(R.string.include_income_desc),
-        checked = includeIncome,
-        enabled = budgetModeEnabled
-    ) { 
-        includeIncome = it
-        settingsManager.setIncludeIncomeInBudget(accountId, it) 
-    }
-
-    if (showBudgetDialog) {
-        BudgetAmountDialog(
-            currentAmount = monthlyBudget,
-            currencySymbol = currentCurrency,
-            onDismiss = { showBudgetDialog = false },
-            onConfirm = { 
-                monthlyBudget = it
-                settingsManager.setMonthlyBudget(accountId, it)
-                showBudgetDialog = false
-            }
-        )
-    }
+        title = stringResource(R.string.carry_over),
+        value = if (carryOverEnabled) stringResource(R.string.on) else stringResource(R.string.off),
+        onClick = onNavigateToCarryOver
+    )
 }
 
 @Composable

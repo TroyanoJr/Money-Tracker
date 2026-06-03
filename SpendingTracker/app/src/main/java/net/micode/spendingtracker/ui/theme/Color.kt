@@ -9,6 +9,7 @@ val ChalkGreen = Color(0xFF81C784)
 val ChalkRed = Color(0xFFE57373)
 val ChalkBlue = Color(0xFF4FC3F7)
 val ChalkYellow = Color(0xFFFFD54F)
+val ChalkOrange = Color(0xFFFFB74D)
 
 // --- TEMA ARMÓNICO: "Vintage Khaki" (Basado en #D9CEB2) ---
 // Logramos armonía usando colores de la misma familia (mismo tono, distinta saturación)

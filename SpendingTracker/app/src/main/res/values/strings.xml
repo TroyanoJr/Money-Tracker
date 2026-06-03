@@ -29,6 +29,8 @@
     <string name="add_income">+ Income</string>
     <string name="rotate_device_hint">** Rotate device to view reports **</string>
     <string name="balance">Balance</string>
+    <string name="remaining">Remaining</string>
+    <string name="over_spending">Over Spending</string>
     <string name="next">Next</string>
     <string name="share_csv">Share CSV</string>
 
@@ -117,6 +119,9 @@
     <string name="every_week">Every Week</string>
     <string name="every_month">Every Month</string>
     <string name="never">Never</string>
+    <string name="on">On</string>
+    <string name="off">Off</string>
+    <string name="info">Info</string>
 
     <!-- Backups -->
     <string name="backups">Backups</string>
@@ -140,6 +145,23 @@
     <string name="include_income">Include Income</string>
     <string name="include_income_desc">Add earnings to budget</string>
     <string name="save">Save</string>
+
+    <!-- Carry Over Settings -->
+    <string name="carry_over">Carry Over</string>
+    <string name="carry_over_desc">Whether the balance is carried over or not.</string>
+    <string name="balance_carry_over">Balance Carry Over</string>
+    <string name="positive_only">Positive Only</string>
+    <string name="positive_only_desc">Turn this on if you only want positive balances to be carried forward.</string>
+    <string name="add_to_income">Add To Income</string>
+    <string name="add_to_income_desc">Turn this on if you want the Carry Over to be added to your total Income for the Time Period.</string>
+    <string name="carry_over_footer_desc">Carry Over determines whether the remaining Balance at the end of one Time Period is carried over to the next Time Period.</string>
+    <string name="carry_over_info_main">Balance Carry Over determines whether the remaining Balance at the end of one Time Period is carried over to the next Time Period:</string>
+    <string name="carry_over_info_label">Carry Over:</string>
+    <string name="carry_over_info_desc">Whether the balance is carried over or not.</string>
+    <string name="positive_only_label">Positive Only:</string>
+    <string name="positive_only_info_desc">Turn this on if you only want positive balances to be carried forward.</string>
+    <string name="add_to_income_label">Add To Income:</string>
+    <string name="add_to_income_info_desc">Turn this on if you want the Carry Over to be added to your total Income for the Time Period.</string>
 
     <!-- Security Section Settings -->
     <string name="security">Security</string>
