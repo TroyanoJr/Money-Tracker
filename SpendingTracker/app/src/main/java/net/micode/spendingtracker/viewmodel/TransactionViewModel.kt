@@ -196,9 +196,7 @@ class TransactionViewModel(
     val totalExpense = allTransactionsInPeriod.map { it.filter { t -> t.isExpense }.sumOf { t -> t.amount } }.distinctUntilChanged().flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
     
     private val carryOverSettings = combine(_isCarryOverEnabled, _isCarryOverPositiveOnly) { enabled, posOnly -> enabled to posOnly }
-    private val budgetBasicSettings = combine(_isBudgetModeEnabled, _monthlyBudget, _isIncludeIncomeEnabled) { enabled, budget, includeIncome -> 
-        Triple(enabled, budget, includeIncome) 
-    }
+    private val budgetBasicSettings = combine(_isBudgetModeEnabled, _monthlyBudget) { enabled, budget -> enabled to budget }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val carryOverAmount: StateFlow<Double> = combine(
@@ -209,17 +207,17 @@ class TransactionViewModel(
         dataChangedEvent.onStart { emit(Unit) }
     ) { id, range, cSettings, bSettings, _ ->
         val (enabled, posOnly) = cSettings
-        val (budgetEnabled, mBudget, includeIncome) = bSettings
+        val (budgetEnabled, mBudget) = bSettings
         
         if (!enabled || id == -1L) return@combine 0.0
         
         if (budgetEnabled) {
-            val oldestTxDate = repository.getOldestTransactionDate(id)
-            if (oldestTxDate == null) {
+            val firstExpenseDate = repository.getFirstExpenseDate(id)
+            if (firstExpenseDate == null) {
                 0.0
             } else {
                 val calStart = Calendar.getInstance().apply { 
-                    timeInMillis = oldestTxDate 
+                    timeInMillis = firstExpenseDate 
                     set(Calendar.DAY_OF_MONTH, 1)
                     set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
                 }
@@ -233,13 +231,9 @@ class TransactionViewModel(
                 if (monthsDiff <= 0) {
                     0.0
                 } else {
+                    val totalExpensesBefore = repository.getTotalExpensesBeforeDate(id, range.start)
                     val cumulativeFixedBudget = mBudget * monthsDiff
-                    val carry = if (includeIncome) {
-                        cumulativeFixedBudget + repository.getBalanceBeforeDate(id, range.start)
-                    } else {
-                        cumulativeFixedBudget - repository.getTotalExpensesBeforeDate(id, range.start)
-                    }
-                    
+                    val carry = cumulativeFixedBudget - totalExpensesBefore
                     if (posOnly && carry < 0.0) 0.0 else carry
                 }
             }
@@ -272,14 +266,22 @@ class TransactionViewModel(
         Triple(enabled, includeIncome, dBudget)
     }
 
-    val balance = combine(totalIncome, totalExpense, fullBudgetSettings) { income, expense, bSettings ->
+    val balance = combine(
+        totalIncome, 
+        totalExpense, 
+        carryOverAmount, 
+        _isCarryOverAddToIncome, 
+        fullBudgetSettings
+    ) { income, expense, carry, add, bSettings ->
         val (budgetEnabled, includeIncome, dBudget) = bSettings
 
         if (budgetEnabled) {
             val base = if (includeIncome) dBudget + income else dBudget
             base - expense
         } else {
-            income - expense
+            val net = income - expense
+            // If carry wasn't added to income for display, add it here for a cumulative balance
+            if (!add) net + carry else net
         }
     }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
