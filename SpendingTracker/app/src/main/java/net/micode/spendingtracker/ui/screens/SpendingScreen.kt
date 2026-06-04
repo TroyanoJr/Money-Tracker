@@ -37,6 +37,10 @@ import net.micode.spendingtracker.viewmodel.TransactionViewModel
 import java.util.*
 import kotlin.math.abs
 
+/**
+ * Main dashboard screen displaying the financial summary for a selected period.
+ * It follows a "Blackboard" aesthetic with chalk-like colors.
+ */
 @Composable
 fun SpendingScreen(
     viewModel: TransactionViewModel,
@@ -45,6 +49,7 @@ fun SpendingScreen(
     onAddIncome: () -> Unit,
     onSwitchAccountClick: () -> Unit
 ) {
+    // Collect state flows from ViewModel as Compose state
     val totalIncome by viewModel.totalIncome.collectAsState()
     val totalExpense by viewModel.totalExpense.collectAsState()
     val balance by viewModel.balance.collectAsState()
@@ -55,6 +60,7 @@ fun SpendingScreen(
     val selectedPeriod by viewModel.selectedPeriod.collectAsState()
     val currencySymbol by viewModel.currencySymbol.collectAsState()
     
+    // User preferences for financial logic
     val isBudgetEnabled by viewModel.isBudgetModeEnabled.collectAsState()
     val monthlyBudget by viewModel.monthlyBudget.collectAsState()
     val isIncludeIncomeEnabled by viewModel.isIncludeIncomeEnabled.collectAsState()
@@ -67,11 +73,13 @@ fun SpendingScreen(
     val accounts by accountViewModel.allAccounts.collectAsState()
     val selectedAccountId by viewModel.selectedAccountId.collectAsState()
 
+    // Determine displayed account name
     val currentAccountName = remember(selectedAccountId, accounts) {
         if (selectedAccountId == -1L && accounts.size > 1) "All Accounts"
         else accounts.find { it.id == selectedAccountId }?.name ?: "Default"
     }
 
+    // Refresh settings whenever account or core preferences change
     LaunchedEffect(isBudgetEnabled, monthlyBudget, isIncludeIncomeEnabled, isCarryOverEnabled, isCarryOverAddToIncome) {
         viewModel.refreshBudgetSettings()
     }
@@ -81,6 +89,7 @@ fun SpendingScreen(
             modifier = Modifier.fillMaxSize().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Period navigation header
             Row(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                 horizontalArrangement = Arrangement.Center,
@@ -109,6 +118,7 @@ fun SpendingScreen(
                 )
             }
 
+            // Warning bar for pending (incomplete) transactions
             if (incompleteCount > 0) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp).border(1.dp, ChalkWhite.copy(alpha = 0.4f), RoundedCornerShape(4.dp)).background(Color.White.copy(alpha = 0.05f)).padding(12.dp),
@@ -120,7 +130,12 @@ fun SpendingScreen(
                 }
             }
 
-            // Progress Bar
+            /**
+             * Visual Progress Bar
+             * Logic: 
+             * - In Budget Mode: Green bar shrinks as red bar (expenses) grows towards the limit.
+             * - In Standard Mode: Shows relative weight of Income (Green) vs Expense (Red).
+             */
             val totalLimit = if (isIncludeIncomeEnabled) dynamicBudget + totalIncome else dynamicBudget
             Row(modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp))) {
                 if (isBudgetEnabled && selectedPeriod == Period.MONTH && selectedAccountId != -1L) {
@@ -141,25 +156,79 @@ fun SpendingScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // Main financial summary list
             LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                // INCOME ROW
+                
+                // INCOME SECTION - Shows monthly income or budget limit
                 if (isBudgetEnabled && selectedPeriod == Period.MONTH && selectedAccountId != -1L) {
                     item { 
                         val budgetLabel = stringResource(R.string.monthly_budget)
                         val budgetToShow = if (isCarryOverEnabled) dynamicBudget else monthlyBudget
                         BalanceRow(budgetLabel, String.format(Locale.getDefault(), "%s %.2f", currencySymbol, budgetToShow), ChalkGreen) 
                     }
+                    
+                    /**
+                     * CARRY OVER SUB-ITEM (Budget Mode)
+                     * Displays Carry Over as a detailed breakdown under Budget when active.
+                     */
+                    if (isCarryOverEnabled && carryOverAmount != 0.0) {
+                        item {
+                            val sign = if (carryOverAmount < 0) "- " else "+ "
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(start = 24.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.carry_over),
+                                    color = ChalkWhite,
+                                    fontSize = 14.sp
+                                )
+                                Text(
+                                    text = String.format(Locale.getDefault(), "%s%s %.2f", sign, currencySymbol, abs(carryOverAmount)),
+                                    color = ChalkWhite,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                    }
+
                     if (isIncludeIncomeEnabled) {
                         item { BalanceRow(stringResource(R.string.income), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, totalIncome), ChalkGreen) }
                     }
                 } else {
                     item { BalanceRow(stringResource(R.string.income), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, totalIncome), ChalkGreen) }
+                    
+                    /**
+                     * CARRY OVER SUB-ITEM
+                     * If 'Add to Income' is enabled, display Carry Over as a detailed breakdown under Income.
+                     * Using ChalkWhite color and indentation to match the itemized expense style.
+                     */
+                    if (isCarryOverEnabled && isCarryOverAddToIncome && carryOverAmount != 0.0) {
+                        item {
+                            val sign = if (carryOverAmount < 0) "- " else "+ "
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(start = 24.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.carry_over),
+                                    color = ChalkWhite,
+                                    fontSize = 14.sp
+                                )
+                                Text(
+                                    text = String.format(Locale.getDefault(), "%s%s %.2f", sign, currencySymbol, abs(carryOverAmount)),
+                                    color = ChalkWhite,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                    }
                 }
 
-                // EXPENSE ROW
+                // EXPENSE ROW - Always red
                 item { BalanceRow(stringResource(R.string.expense), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, totalExpense), ChalkRed) }
                 
-                // SUB-CATEGORIES
+                // DETAILED EXPENSES - Itemized by category
                 items(expensesByCategory) { (name, amount) ->
                     Row(modifier = Modifier.fillMaxWidth().padding(start = 24.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(name, color = ChalkWhite, fontSize = 14.sp)
@@ -167,8 +236,12 @@ fun SpendingScreen(
                     }
                 }
 
-                // CARRY OVER ROW (Positioned after categories as in images)
-                if (isCarryOverEnabled && !isCarryOverAddToIncome) {
+                /**
+                 * STANDALONE CARRY OVER ROW
+                 * Only displayed if Carry Over is NOT integrated into the Income total and Budget is disabled.
+                 * Uses ChalkOrange for high visibility.
+                 */
+                if (!isBudgetEnabled && isCarryOverEnabled && !isCarryOverAddToIncome && carryOverAmount != 0.0) {
                     item {
                         val sign = if (carryOverAmount < 0) "- " else ""
                         val formattedValue = String.format(Locale.getDefault(), "%s%s %.2f", sign, currencySymbol, abs(carryOverAmount))
@@ -176,7 +249,10 @@ fun SpendingScreen(
                     }
                 }
 
-                // BALANCE SECTION
+                /**
+                 * FINAL BALANCE SECTION
+                 * Displays net cumulative profit/loss or remaining budget.
+                 */
                 item {
                     DottedDivider(modifier = Modifier.padding(vertical = 16.dp))
                     val balanceLabel = if (isBudgetEnabled) {
@@ -185,13 +261,14 @@ fun SpendingScreen(
                         stringResource(R.string.balance)
                     }
                     
-                    val sign = if (balance < 0) "- " else ""
+                    // Display '+' for positive balance and '-' for negative to match user reference images
+                    val sign = if (balance < 0) "- " else if (balance > 0) "+ " else ""
                     val formattedValue = String.format(Locale.getDefault(), "%s%s %.2f", sign, currencySymbol, abs(balance))
-                    // Balance is blue in images regardless of sign
                     BalanceRow(balanceLabel, formattedValue, ChalkBlue)
                 }
             }
 
+            // Secondary actions and heatmap entry
             Text(
                 text = stringResource(R.string.show_heatmap),
                 color = ChalkWhite, fontSize = 14.sp,
@@ -212,6 +289,9 @@ fun SpendingScreen(
     }
 }
 
+/**
+ * Dialog displaying a grid/calendar heatmap of financial activity.
+ */
 @Composable
 fun HeatmapDialog(data: Map<Long, Double>, period: Period, onDismiss: () -> Unit) {
     AlertDialog(
@@ -251,6 +331,9 @@ fun HeatmapDialog(data: Map<Long, Double>, period: Period, onDismiss: () -> Unit
     )
 }
 
+/**
+ * Compact horizontal heatmap representation for the yearly view.
+ */
 @Composable
 fun YearlyHeatmap(data: Map<Long, Double>) {
     val sortedDays = remember(data) { data.keys.sorted() }
@@ -276,18 +359,13 @@ fun YearlyHeatmap(data: Map<Long, Double>) {
         itemsIndexed(weeks) { _, week ->
             Column {
                 for (timestamp in week) {
-                    if (timestamp == null) {
-                        Spacer(Modifier.size(12.dp))
-                    } else {
-                        val balanceVal = data[timestamp] ?: 0.0
-                        val color = when {
-                            balanceVal > 0 -> ChalkGreen.copy(alpha = (0.3f + (balanceVal / maxProfit) * 0.7f).toFloat())
-                            balanceVal < 0 -> ChalkRed.copy(alpha = (0.3f + (abs(balanceVal) / maxLoss) * 0.7f).toFloat())
-                            else -> Color.DarkGray.copy(alpha = 0.2f)
-                        }
-                        Box(modifier = Modifier.size(12.dp).clip(RoundedCornerShape(2.dp)).background(color))
+                    val balanceVal = timestamp?.let { data[it] } ?: 0.0
+                    val color = when {
+                        balanceVal > 0 -> ChalkGreen.copy(alpha = (abs(balanceVal) / maxProfit).toFloat().coerceIn(0.2f, 1f))
+                        balanceVal < 0 -> ChalkRed.copy(alpha = (abs(balanceVal) / maxLoss).toFloat().coerceIn(0.2f, 1f))
+                        else -> Color.DarkGray.copy(alpha = 0.3f)
                     }
-                    Spacer(Modifier.height(3.dp))
+                    Box(modifier = Modifier.size(10.dp).padding(1.dp).clip(RoundedCornerShape(2.dp)).background(color))
                 }
             }
         }
@@ -297,16 +375,16 @@ fun YearlyHeatmap(data: Map<Long, Double>) {
 @Composable
 fun LegendItem(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.size(12.dp).clip(RoundedCornerShape(2.dp)).background(color))
-        Spacer(Modifier.width(4.dp))
-        Text(label, color = ChalkWhite, fontSize = 11.sp)
+        Box(modifier = Modifier.size(10.dp).clip(RoundedCornerShape(2.dp)).background(color))
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(label, color = ChalkWhite, fontSize = 10.sp)
     }
 }
 
 @Composable
 fun BalanceRow(label: String, value: String, color: Color) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = ChalkWhite, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, color = ChalkWhite, fontSize = 18.sp, fontWeight = FontWeight.Medium)
         Text(value, color = color, fontSize = 18.sp, fontWeight = FontWeight.Bold)
     }
 }

@@ -15,19 +15,46 @@ import net.micode.spendingtracker.util.SettingsManager
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * Supported time periods for transaction filtering and reporting.
+ */
 enum class Period { DAY, WEEK, MONTH, YEAR }
+
+/**
+ * Filter types for the transaction list.
+ */
 enum class FilterType { ALL, ONLY_EXPENSE, ONLY_INCOME, BY_CATEGORY }
+
+/**
+ * Sorting options for transaction records.
+ */
 enum class SortOrder { DATE_ASC, DATE_DESC, AMOUNT_ASC, AMOUNT_DESC, CATEGORY }
 
+/**
+ * Data point for cash flow charts (Income vs Expense over time).
+ */
 data class CashFlowPoint(val label: String, val income: Double, val expense: Double, val timestamp: Long)
+
+/**
+ * Represent a category's contribution to total spending/income in reports.
+ */
 data class CategoryReportItem(val name: String, val amount: Double, val color: Int, val percentage: Float)
+
+/**
+ * Internal helper to manage start and end timestamps for a given period.
+ */
 private data class DateRange(val start: Long, val end: Long)
 
+/**
+ * Main ViewModel for managing transactions, budgets, and financial reports.
+ * Uses a reactive approach with StateFlows to ensure the UI stays synchronized with the database.
+ */
 class TransactionViewModel(
     private val repository: TransactionRepository,
     private val settingsManager: SettingsManager
 ) : ViewModel() {
     
+    // Event stream triggered whenever transaction data changes in the repository
     val dataChangedEvent = repository.dataChanged
 
     private val _selectedPeriod = MutableStateFlow(Period.MONTH)
@@ -51,6 +78,7 @@ class TransactionViewModel(
     private val _searchQuery = MutableStateFlow<String?>(null)
     val searchQuery: StateFlow<String?> = _searchQuery.asStateFlow()
 
+    // Budget and Carry Over settings synced from SettingsManager
     private val _isBudgetModeEnabled = MutableStateFlow(false)
     val isBudgetModeEnabled: StateFlow<Boolean> = _isBudgetModeEnabled.asStateFlow()
     private val _monthlyBudget = MutableStateFlow(0.0)
@@ -70,13 +98,19 @@ class TransactionViewModel(
 
     init {
         viewModelScope.launch {
+            // Initialize default account and ensure mandatory categories exist
             repository.getDefaultAccount()?.let { _selectedAccountId.value = it.id }
             ensureTransferCategoryExists()
             refreshBudgetSettings()
         }
+        // Re-fetch budget settings whenever the active account changes
         _selectedAccountId.onEach { refreshBudgetSettings() }.launchIn(viewModelScope)
     }
 
+    /**
+     * Observable list of categories, excluding internal categories like "Transfer".
+     * Triggers category seeding if the database is empty.
+     */
     val categories: StateFlow<List<Category>> = repository.allCategories
         .map { list -> list.filter { it.name != "Transfer" } }
         .onEach { list ->
@@ -88,18 +122,30 @@ class TransactionViewModel(
     val expenseCategories = categories.map { l -> l.filter { it.isExpense } }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val incomeCategories = categories.map { l -> l.filter { !it.isExpense } }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /**
+     * Calculates the time window based on current period (e.g., Month, Year) and selected date.
+     */
     private val selectedDateRange = combine(_selectedPeriod, _selectedDate) { p, d -> calculateDateRange(p, d) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), calculateDateRange(Period.MONTH, System.currentTimeMillis()))
 
+    /**
+     * Source flow for all transactions within the selected period and account.
+     */
     @OptIn(ExperimentalCoroutinesApi::class)
     private val periodTransactionsFlow = combine(selectedDateRange, _selectedAccountId) { range, id ->
         range to id
     }.flatMapLatest { (range, id) -> repository.getTransactionsByDateRange(id, range.start, range.end) }
 
+    /**
+     * List of all transactions in the current period, used for summary calculations.
+     */
     val allTransactionsInPeriod: StateFlow<List<Transaction>> = periodTransactionsFlow
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /**
+     * Filtered version of transactions for display in the main list.
+     */
     val transactions: StateFlow<List<Transaction>> = combine(allTransactionsInPeriod, _activeFilterType, _filterCategoryName) { txs, type, cat ->
         when (type) {
             FilterType.ALL -> txs
@@ -109,18 +155,25 @@ class TransactionViewModel(
         }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /**
+     * Paging-enabled transaction flow for efficient scrolling of large datasets.
+     */
     @OptIn(ExperimentalCoroutinesApi::class)
     val pagedTransactions: Flow<PagingData<Transaction>> = combine(selectedDateRange, _activeFilterType, _filterCategoryName, _searchQuery, _selectedAccountId) { range, type, cat, q, id ->
         val isExp = when (type) { FilterType.ONLY_EXPENSE -> true; FilterType.ONLY_INCOME -> false; else -> null }
         repository.getPagedTransactions(id, range.start, range.end, isExp, if (type == FilterType.BY_CATEGORY) cat else null, q)
     }.flatMapLatest { it }.cachedIn(viewModelScope)
 
+    // UI state modifiers
     fun setSearchQuery(query: String?) { _searchQuery.value = if (query.isNullOrBlank()) null else query }
     fun setFilter(type: FilterType, categoryName: String? = null) { _activeFilterType.value = type; _filterCategoryName.value = categoryName }
     fun setSelectedAccount(id: Long) { _selectedAccountId.value = id }
     fun refreshCurrency() { _currencySymbol.value = settingsManager.getCurrencySymbol() }
     fun setReportIsExpense(isExpense: Boolean) { _reportIsExpense.value = isExpense }
 
+    /**
+     * Syncs local state with SettingsManager for the specific account.
+     */
     fun refreshBudgetSettings() {
         val id = _selectedAccountId.value
         if (id != -1L) {
@@ -137,6 +190,7 @@ class TransactionViewModel(
         }
     }
 
+    // Navigation through time periods
     fun setPeriod(period: Period) { _selectedPeriod.value = period }
     fun setDate(dateMillis: Long) { _selectedDate.value = dateMillis }
     fun nextPeriod() { _selectedDate.value = adjustDate(_selectedDate.value, _selectedPeriod.value, 1) }
@@ -193,11 +247,19 @@ class TransactionViewModel(
         repository.insertTransaction(Transaction(id = "${uuid}_in", amount = amount, categoryName = "Transfer", date = date, note = note, isExpense = false, accountId = toAccountId))
     }
 
+    /**
+     * Sum of all expenses in the current period.
+     */
     val totalExpense = allTransactionsInPeriod.map { it.filter { t -> t.isExpense }.sumOf { t -> t.amount } }.distinctUntilChanged().flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
     
     private val carryOverSettings = combine(_isCarryOverEnabled, _isCarryOverPositiveOnly) { enabled, posOnly -> enabled to posOnly }
     private val budgetBasicSettings = combine(_isBudgetModeEnabled, _monthlyBudget) { enabled, budget -> enabled to budget }
 
+    /**
+     * Core logic for calculating the amount carried over from previous months.
+     * In Standard Mode: Returns the total historical balance before the current period.
+     * In Budget Mode: Returns the cumulative difference between fixed budget and actual spending.
+     */
     @OptIn(ExperimentalCoroutinesApi::class)
     val carryOverAmount: StateFlow<Double> = combine(
         _selectedAccountId,
@@ -212,6 +274,7 @@ class TransactionViewModel(
         if (!enabled || id == -1L) return@combine 0.0
         
         if (budgetEnabled) {
+            // Budget carry over: cumulative (Budget * months) - (Expenses since the beginning)
             val firstExpenseDate = repository.getFirstExpenseDate(id)
             if (firstExpenseDate == null) {
                 0.0
@@ -238,11 +301,15 @@ class TransactionViewModel(
                 }
             }
         } else {
+            // Standard carry over: simple balance summation up to the start of current period
             val previousBalance = repository.getBalanceBeforeDate(id, range.start)
             if (posOnly && previousBalance < 0.0) 0.0 else previousBalance
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
+    /**
+     * The effective budget for the month, including any carried over savings/debt.
+     */
     val dynamicBudget: StateFlow<Double> = combine(
         _monthlyBudget,
         carryOverAmount,
@@ -252,6 +319,10 @@ class TransactionViewModel(
         if (budgetEnabled && carryEnabled) fixed + carry else fixed
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
+    /**
+     * Total income for the period. 
+     * If 'Carry Over Add to Income' is true, it incorporates the historical balance into this figure.
+     */
     val totalIncome = combine(
         allTransactionsInPeriod.map { it.filter { t -> !t.isExpense }.sumOf { t -> t.amount } },
         carryOverAmount,
@@ -266,6 +337,11 @@ class TransactionViewModel(
         Triple(enabled, includeIncome, dBudget)
     }
 
+    /**
+     * Final calculation of the current period's financial state.
+     * In Standard Mode: Net profit/loss + Carry Over (if not already in totalIncome).
+     * In Budget Mode: Remaining funds relative to the dynamic budget limit.
+     */
     val balance = combine(
         totalIncome, 
         totalExpense, 
@@ -280,15 +356,22 @@ class TransactionViewModel(
             base - expense
         } else {
             val net = income - expense
-            // If carry wasn't added to income for display, add it here for a cumulative balance
+            // If carry wasn't added to totalIncome for display, we add it here 
+            // to maintain a cumulative historical balance (Cumulative Flow Logic).
             if (!add) net + carry else net
         }
     }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
+    /**
+     * Aggregated expenses grouped by category for the summary chart.
+     */
     val expensesByCategory = allTransactionsInPeriod.map { list ->
         list.filter { it.isExpense }.groupBy { it.categoryName }.map { (n, ts) -> n to ts.sumOf { it.amount } }.sortedByDescending { it.second }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /**
+     * Daily balance changes used to populate the Heatmap calendar.
+     */
     val heatmapData = combine(selectedDateRange, allTransactionsInPeriod) { range, list ->
         val map = mutableMapOf<Long, Double>()
         val cal = Calendar.getInstance()
@@ -312,6 +395,9 @@ class TransactionViewModel(
         repository.getAllTransactions(id).map { l -> l.count { !it.isComplete } }
     }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    /**
+     * Detailed timeline data for the Cash Flow chart (Bar Chart).
+     */
     val cashFlowData: StateFlow<List<CashFlowPoint>> = combine(transactions, _selectedPeriod, _selectedDate) { list, period, date ->
         val cal = Calendar.getInstance().apply { timeInMillis = date }
         val points = mutableListOf<CashFlowPoint>()
@@ -361,6 +447,9 @@ class TransactionViewModel(
         points
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /**
+     * Percentage-based data for the Category Pie/List report.
+     */
     val categoryReportData = combine(allTransactionsInPeriod, categories, _reportIsExpense) { txs, cats, isExp ->
         val filtered = txs.filter { it.isExpense == isExp }
         val total = filtered.sumOf { it.amount }
@@ -371,6 +460,7 @@ class TransactionViewModel(
         }.sortedByDescending { it.amount }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // Database operations exposed to the UI
     fun addTransaction(transaction: Transaction) = viewModelScope.launch {
         val aid = if (_selectedAccountId.value == -1L) 1L else _selectedAccountId.value
         repository.insertTransaction(if (transaction.accountId <= 0L) transaction.copy(accountId = aid) else transaction)
