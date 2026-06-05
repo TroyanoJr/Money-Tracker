@@ -190,20 +190,23 @@ class TransactionViewModel(
 
     /**
      * Syncs local state with SettingsManager for the specific account.
+     * All Accounts (-1L) has its own independent Budget settings but Carry Over remains disabled.
      */
     fun refreshBudgetSettings() {
         val id = _selectedAccountId.value
+        _isBudgetModeEnabled.value = settingsManager.isBudgetModeEnabled(id)
+        _monthlyBudget.value = settingsManager.getMonthlyBudget(id)
+        _isIncludeIncomeEnabled.value = settingsManager.isIncludeIncomeInBudget(id)
+        
         if (id != -1L) {
-            _isBudgetModeEnabled.value = settingsManager.isBudgetModeEnabled(id)
-            _monthlyBudget.value = settingsManager.getMonthlyBudget(id)
-            _isIncludeIncomeEnabled.value = settingsManager.isIncludeIncomeInBudget(id)
-            
             _isCarryOverEnabled.value = settingsManager.isCarryOverEnabled(id)
             _isCarryOverPositiveOnly.value = settingsManager.isCarryOverPositiveOnly(id)
             _isCarryOverAddToIncome.value = settingsManager.isCarryOverAddToIncome(id)
         } else { 
-            _isBudgetModeEnabled.value = false 
+            // Carry Over is not supported for All Accounts mode
             _isCarryOverEnabled.value = false
+            _isCarryOverPositiveOnly.value = false
+            _isCarryOverAddToIncome.value = false
         }
     }
 

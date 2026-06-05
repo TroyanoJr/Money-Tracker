@@ -1,6 +1,7 @@
 package net.micode.spendingtracker.ui.screens.settings
 
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -29,7 +30,12 @@ fun SpendingSection(
     onNavigateToCarryOver: () -> Unit
 ) {
     val budgetModeEnabled = settingsManager.isBudgetModeEnabled(accountId)
-    val carryOverEnabled = settingsManager.isCarryOverEnabled(accountId)
+    val isAllAccounts = accountId == -1L
+    
+    // In "All Accounts" mode, Carry Over is always displayed as "Off"
+    val carryOverEnabled = if (isAllAccounts) false else settingsManager.isCarryOverEnabled(accountId)
+    
+    var showCarryOverError by remember { mutableStateOf(false) }
 
     // Header with current account name: Spending (AccountName)
     SettingsSectionHeader("${stringResource(R.string.spending_section)} ($accountName)")
@@ -43,8 +49,33 @@ fun SpendingSection(
     SettingsClickableRow(
         title = stringResource(R.string.carry_over),
         value = if (carryOverEnabled) stringResource(R.string.on) else stringResource(R.string.off),
-        onClick = onNavigateToCarryOver
+        onClick = {
+            if (isAllAccounts) {
+                showCarryOverError = true
+            } else {
+                onNavigateToCarryOver()
+            }
+        }
     )
+
+    if (showCarryOverError) {
+        AlertDialog(
+            onDismissRequest = { showCarryOverError = false },
+            title = { Text(text = "Error", fontWeight = FontWeight.Bold) },
+            text = { 
+                Text(
+                    text = "'Carry Over' cannot be set for 'All Accounts', only for specific Accounts.\n\nPlease switch to a specific Account and try again."
+                ) 
+            },
+            confirmButton = {
+                TextButton(onClick = { showCarryOverError = false }) {
+                    Text("CLOSE", color = DarkBrownText, fontWeight = FontWeight.Bold)
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(8.dp)
+        )
+    }
 }
 
 @Composable
