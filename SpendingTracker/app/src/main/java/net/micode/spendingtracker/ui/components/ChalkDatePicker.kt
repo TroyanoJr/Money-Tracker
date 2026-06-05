@@ -31,6 +31,14 @@ import net.micode.spendingtracker.ui.theme.ChalkWhite
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * A custom date picker dialog with a "chalk and blackboard" aesthetic.
+ * Supports day, month, and year selection.
+ * 
+ * @param initialDateMillis The initial date to show in the picker, in milliseconds.
+ * @param onDateSelected Callback triggered when a date is confirmed.
+ * @param onDismiss Callback to close the dialog without selecting a date.
+ */
 @Composable
 fun ChalkDatePickerDialog(
     initialDateMillis: Long,
@@ -156,6 +164,9 @@ fun ChalkDatePickerDialog(
     }
 }
 
+/**
+ * Grid view displaying days of the month for selection.
+ */
 @Composable
 fun CalendarView(currentMonth: Calendar, selectedDate: Calendar, onDaySelected: (Int) -> Unit) {
     Column {
@@ -227,6 +238,9 @@ fun CalendarView(currentMonth: Calendar, selectedDate: Calendar, onDaySelected: 
     }
 }
 
+/**
+ * Grid view for selecting a month.
+ */
 @Composable
 fun MonthPicker(onMonthSelected: (Int) -> Unit) {
     val months = SimpleDateFormat("MMM", Locale.getDefault()).let { sdf ->
@@ -260,6 +274,9 @@ fun MonthPicker(onMonthSelected: (Int) -> Unit) {
     }
 }
 
+/**
+ * Grid view for selecting a year within a 100-year range around the current year.
+ */
 @Composable
 fun YearPicker(currentYear: Int, onYearSelected: (Int) -> Unit) {
     val years = (currentYear - 50..currentYear + 50).toList()
@@ -289,6 +306,9 @@ fun YearPicker(currentYear: Int, onYearSelected: (Int) -> Unit) {
     }
 }
 
+/**
+ * Checks if two calendar instances represent the same day.
+ */
 private fun isSameDay(day: Int, monthCal: Calendar, targetCal: Calendar): Boolean {
     return monthCal.get(Calendar.YEAR) == targetCal.get(Calendar.YEAR) &&
            monthCal.get(Calendar.MONTH) == targetCal.get(Calendar.MONTH) &&

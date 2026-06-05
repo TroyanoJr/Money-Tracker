@@ -29,6 +29,15 @@ import net.micode.spendingtracker.viewmodel.TransactionViewModel
 import net.micode.spendingtracker.viewmodel.AccountViewModel
 import java.io.File
 
+/**
+ * The main container screen of the application.
+ * It manages the [HorizontalPager] for the primary tabs (Spending, Transactions, Categories, Accounts)
+ * and handles the visibility of sub-screens like Settings, Backups, and Add/Edit forms.
+ * 
+ * @param viewModel The shared transaction view model.
+ * @param accountViewModel The shared account view model.
+ * @param initialTransactionIdToEdit Optional ID of a transaction to open directly in the editor.
+ */
 @Composable
 fun DashboardScreen(
     viewModel: TransactionViewModel = viewModel(),
@@ -178,7 +187,8 @@ fun DashboardScreen(
                             onToggleSearch = { active -> isSearchActive = active; if (!active) viewModel.setSearchQuery(null) },
                             showSearchOption = pagerState.currentPage == 1,
                             onSwitchAccountClick = { showAccountPicker = true },
-                            selectedAccountColor = currentAccountColor
+                            selectedAccountColor = currentAccountColor,
+                            showAccountOption = accounts.size > 1
                         )
 
                         HorizontalPager(

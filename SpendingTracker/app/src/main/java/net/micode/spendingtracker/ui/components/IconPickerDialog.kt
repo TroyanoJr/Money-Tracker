@@ -37,6 +37,14 @@ import net.micode.spendingtracker.ui.theme.BeigeHeader
 import net.micode.spendingtracker.ui.theme.DarkBrownText
 import net.micode.spendingtracker.util.IconCatalog
 
+/**
+ * A full-screen dialog that displays an organized grid of icons for selection.
+ * Icons are categorized into sections as defined in the [IconCatalog].
+ * 
+ * @param selectedIconName The name of the currently selected icon.
+ * @param onDismiss Callback triggered when the dialog is closed without selection.
+ * @param onIconSelected Callback triggered when an icon is picked.
+ */
 @Composable
 fun IconPickerDialog(
     selectedIconName: String,
@@ -52,7 +60,7 @@ fun IconPickerDialog(
             color = BeigeHeader
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // Header
+                // Header with title and close button
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -71,7 +79,7 @@ fun IconPickerDialog(
                     )
                 }
 
-                // Tabs
+                // Decorative Tabs (Future support for different icon styles)
                 Row(
                     modifier = Modifier
                         .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -98,7 +106,7 @@ fun IconPickerDialog(
                     }
                 }
 
-                // Icon Grid
+                // Scrollable Grid of categorized icons
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(7),
                     modifier = Modifier
@@ -107,7 +115,7 @@ fun IconPickerDialog(
                     contentPadding = PaddingValues(bottom = 16.dp)
                 ) {
                     IconCatalog.filledIconSections.forEach { section ->
-                        // Section Header
+                        // Section header (e.g., "Food", "Travel")
                         item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(7) }) {
                             Text(
                                 text = section.name,
@@ -117,7 +125,7 @@ fun IconPickerDialog(
                             )
                         }
                         
-                        // Section Icons
+                        // Icons in this section
                         items(section.icons) { (name, icon) ->
                             val isSelected = name == selectedIconName
                             Box(

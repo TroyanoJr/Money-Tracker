@@ -17,6 +17,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.micode.spendingtracker.ui.theme.ChalkWhite
 
+/**
+ * A custom button component with a "chalk-like" outlined aesthetic.
+ * 
+ * @param text The label text to display on the button.
+ * @param onClick Callback triggered when the button is clicked.
+ * @param modifier The modifier to be applied to the button.
+ */
 @Composable
 fun ChalkButton(
     text: String,
@@ -33,11 +40,17 @@ fun ChalkButton(
         Text(
             text = text,
             fontSize = 18.sp
-            // Se eliminó FontFamily.Cursive
         )
     }
 }
 
+/**
+ * A custom horizontal divider component that draws a dashed (dotted) line.
+ * Mimics a chalk line drawn on a blackboard.
+ * 
+ * @param modifier The modifier to be applied to the divider.
+ * @param color The color of the dotted line.
+ */
 @Composable
 fun DottedDivider(
     modifier: Modifier = Modifier,

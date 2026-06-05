@@ -10,13 +10,18 @@ import net.micode.spendingtracker.MainActivity
 import net.micode.spendingtracker.util.ReminderManager
 
 /**
- * Foreground Service to ensure reminders are delivered even if the app is closed.
- * This is the standard production approach for high-reliability notifications.
+ * Foreground Service that ensures reminders are delivered even if the application is closed.
+ * This service runs with a low-priority notification to comply with Android's foreground
+ * service requirements while maintaining the reliability of scheduled alarms.
  */
 class NotificationService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    /**
+     * Initializes the service and starts it in the foreground.
+     * It also triggers the [ReminderManager] to ensure alarms are properly scheduled.
+     */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val channelId = "spending_tracker_service"
         
@@ -37,7 +42,7 @@ class NotificationService : Service() {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
 
-        // Start as foreground service to prevent being killed
+        // Start as foreground service to prevent the system from killing the process
         startForeground(1, notification)
 
         // Reschedule alarm from service context

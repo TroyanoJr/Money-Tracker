@@ -22,13 +22,22 @@ import net.micode.spendingtracker.model.Account
 import net.micode.spendingtracker.ui.theme.BeigeHeader
 import net.micode.spendingtracker.ui.theme.DarkBrownText
 
+/**
+ * A dialog that allows the user to switch between different financial accounts.
+ * 
+ * @param accounts The list of available [Account] objects.
+ * @param selectedAccountId The ID of the currently selected account.
+ * @param onAccountSelected Callback triggered when an account is selected.
+ * @param onDismiss Callback to dismiss the dialog.
+ * @param showAllAccountsOption Whether to show an "All Accounts" option in the list.
+ */
 @Composable
 fun AccountPickerDialog(
     accounts: List<Account>,
     selectedAccountId: Long,
     onAccountSelected: (Long) -> Unit,
     onDismiss: () -> Unit,
-    showAllAccountsOption: Boolean = true // Added parameter
+    showAllAccountsOption: Boolean = true
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -78,6 +87,9 @@ fun AccountPickerDialog(
     )
 }
 
+/**
+ * A single row representing an account option in the [AccountPickerDialog].
+ */
 @Composable
 fun AccountOptionRow(
     name: String,

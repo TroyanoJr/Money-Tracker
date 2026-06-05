@@ -29,8 +29,12 @@ import net.micode.spendingtracker.ui.theme.BeigeHeader
 import net.micode.spendingtracker.ui.theme.DarkBrownText
 
 /**
- * Screen to add or edit a User Account.
- * Matches the design in reference Image 2.
+ * Screen for adding a new financial account or editing an existing one.
+ * Users can specify the account name and associate a color with it.
+ * 
+ * @param accountToEdit The [Account] to edit, or null if creating a new one.
+ * @param onClose Callback to close the screen without saving.
+ * @param onDone Callback triggered when the account is saved.
  */
 @Composable
 fun AddAccountScreen(
@@ -61,7 +65,7 @@ fun AddAccountScreen(
         color = BeigeHeader
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Header Bar
+            // Top Bar with Close and Done actions
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -96,7 +100,7 @@ fun AddAccountScreen(
             }
 
             Column(modifier = Modifier.fillMaxWidth()) {
-                // Name Row
+                // Account Name Input Row
                 CategoryRow(
                     label = stringResource(R.string.name),
                     labelColor = if (isNameValid) labelBlue else Color.Red.copy(alpha = 0.7f)
@@ -116,7 +120,7 @@ fun AddAccountScreen(
                 }
                 HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
 
-                // Colour Selection Row
+                // Color Selection Row
                 CategoryRow(label = stringResource(R.string.icon_color), labelColor = labelBlue) {
                     Row(
                         modifier = Modifier
@@ -140,6 +144,7 @@ fun AddAccountScreen(
         }
     }
 
+    // Color Picker Dialog
     if (showColorPicker) {
         TwoLevelColorPickerDialog(
             onDismiss = { showColorPicker = false },

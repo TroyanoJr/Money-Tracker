@@ -17,14 +17,26 @@ import androidx.core.content.ContextCompat
 import net.micode.spendingtracker.MainActivity
 import net.micode.spendingtracker.util.ReminderManager
 
+/**
+ * BroadcastReceiver responsible for receiving scheduled alarms and triggering reminder notifications.
+ * It also re-schedules the next reminder after the current one is triggered.
+ */
 class ReminderReceiver : BroadcastReceiver() {
+    /**
+     * Called when the alarm is triggered.
+     * Triggers the notification and schedules the next alarm for the following day.
+     */
     override fun onReceive(context: Context, intent: Intent) {
         Log.d("ReminderReceiver", "Alarm triggered!")
         sendReminderNotification(context)
-        // Reprogramar para el día siguiente
+        // Re-schedule for the next day
         ReminderManager.scheduleReminder(context)
     }
 
+    /**
+     * Builds and displays a high-priority notification to remind the user to log their transactions.
+     * Handles notification channels for Android O and above, and permission checks for Android 13+.
+     */
     private fun sendReminderNotification(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(
@@ -64,7 +76,7 @@ class ReminderReceiver : BroadcastReceiver() {
             .setContentTitle("Blackboard Update Time!")
             .setContentText("Don't forget to record your expenses for today ✍️")
             .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setCategory(NotificationCompat.CATEGORY_REMINDER) // EVITA ANÁLISIS DE HUAWEI
+            .setCategory(NotificationCompat.CATEGORY_REMINDER) // Avoids generic analysis by some OEMs
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setAutoCancel(true)

@@ -54,7 +54,9 @@ class TransactionViewModel(
     private val settingsManager: SettingsManager
 ) : ViewModel() {
     
-    // Event stream triggered whenever transaction data changes in the repository
+    /**
+     * Event stream triggered whenever transaction data changes in the repository.
+     */
     val dataChangedEvent = repository.dataChanged
 
     private val _selectedPeriod = MutableStateFlow(Period.MONTH)
@@ -119,7 +121,14 @@ class TransactionViewModel(
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /**
+     * Observable list of expense categories.
+     */
     val expenseCategories = categories.map { l -> l.filter { it.isExpense } }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    
+    /**
+     * Observable list of income categories.
+     */
     val incomeCategories = categories.map { l -> l.filter { !it.isExpense } }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /**
@@ -164,11 +173,19 @@ class TransactionViewModel(
         repository.getPagedTransactions(id, range.start, range.end, isExp, if (type == FilterType.BY_CATEGORY) cat else null, q)
     }.flatMapLatest { it }.cachedIn(viewModelScope)
 
-    // UI state modifiers
+    /** Sets the search query for filtering transactions. */
     fun setSearchQuery(query: String?) { _searchQuery.value = if (query.isNullOrBlank()) null else query }
+    
+    /** Sets the active filter type and category. */
     fun setFilter(type: FilterType, categoryName: String? = null) { _activeFilterType.value = type; _filterCategoryName.value = categoryName }
+    
+    /** Updates the currently selected account ID. */
     fun setSelectedAccount(id: Long) { _selectedAccountId.value = id }
+    
+    /** Refreshes the currency symbol from settings. */
     fun refreshCurrency() { _currencySymbol.value = settingsManager.getCurrencySymbol() }
+    
+    /** Sets whether reports should focus on expenses or income. */
     fun setReportIsExpense(isExpense: Boolean) { _reportIsExpense.value = isExpense }
 
     /**
@@ -190,10 +207,16 @@ class TransactionViewModel(
         }
     }
 
-    // Navigation through time periods
+    /** Sets the current viewing period (Day, Week, Month, Year). */
     fun setPeriod(period: Period) { _selectedPeriod.value = period }
+    
+    /** Sets the selected reference date for the current period. */
     fun setDate(dateMillis: Long) { _selectedDate.value = dateMillis }
+    
+    /** Advances to the next period. */
     fun nextPeriod() { _selectedDate.value = adjustDate(_selectedDate.value, _selectedPeriod.value, 1) }
+    
+    /** Goes back to the previous period. */
     fun previousPeriod() { _selectedDate.value = adjustDate(_selectedDate.value, _selectedPeriod.value, -1) }
 
     private fun adjustDate(d: Long, p: Period, a: Int): Long = Calendar.getInstance().apply {
@@ -241,6 +264,9 @@ class TransactionViewModel(
 
     private fun ensureTransferCategoryExists() = viewModelScope.launch { repository.insertCategory(Category(name = "Transfer", iconName = "SyncAlt", isExpense = true, color = -0x1000000)) }
 
+    /**
+     * Transfers funds from one account to another by creating matching expense and income transactions.
+     */
     fun transferFunds(fromAccountId: Long, toAccountId: Long, amount: Double, date: Long, note: String) = viewModelScope.launch {
         val uuid = UUID.randomUUID().toString()
         repository.insertTransaction(Transaction(id = "${uuid}_out", amount = amount, categoryName = "Transfer", date = date, note = note, isExpense = true, accountId = fromAccountId))
@@ -253,12 +279,14 @@ class TransactionViewModel(
     val totalExpense = allTransactionsInPeriod.map { it.filter { t -> t.isExpense }.sumOf { t -> t.amount } }.distinctUntilChanged().flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
     
     private val carryOverSettings = combine(_isCarryOverEnabled, _isCarryOverPositiveOnly) { enabled, posOnly -> enabled to posOnly }
-    private val budgetBasicSettings = combine(_isBudgetModeEnabled, _monthlyBudget) { enabled, budget -> enabled to budget }
+    private val budgetBasicSettings = combine(_isBudgetModeEnabled, _monthlyBudget, _isIncludeIncomeEnabled) { enabled, budget, includeIncome -> 
+        Triple(enabled, budget, includeIncome) 
+    }
 
     /**
      * Core logic for calculating the amount carried over from previous months.
      * In Standard Mode: Returns the total historical balance before the current period.
-     * In Budget Mode: Returns the cumulative difference between fixed budget and actual spending.
+     * In Budget Mode: Returns the cumulative difference between effective budget and actual spending.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     val carryOverAmount: StateFlow<Double> = combine(
@@ -269,12 +297,12 @@ class TransactionViewModel(
         dataChangedEvent.onStart { emit(Unit) }
     ) { id, range, cSettings, bSettings, _ ->
         val (enabled, posOnly) = cSettings
-        val (budgetEnabled, mBudget) = bSettings
+        val (budgetEnabled, mBudget, includeIncome) = bSettings
         
         if (!enabled || id == -1L) return@combine 0.0
         
         if (budgetEnabled) {
-            // Budget carry over: cumulative (Budget * months) - (Expenses since the beginning)
+            // Budget carry over: cumulative (Effective Budget) - (Expenses since the beginning)
             val firstExpenseDate = repository.getFirstExpenseDate(id)
             if (firstExpenseDate == null) {
                 0.0
@@ -296,7 +324,11 @@ class TransactionViewModel(
                 } else {
                     val totalExpensesBefore = repository.getTotalExpensesBeforeDate(id, range.start)
                     val cumulativeFixedBudget = mBudget * monthsDiff
-                    val carry = cumulativeFixedBudget - totalExpensesBefore
+                    
+                    // FIXED: If income is included in budget, add historical income to the cumulative budget
+                    val totalIncomeBefore = if (includeIncome) repository.getTotalIncomeBeforeDate(id, range.start) else 0.0
+                    
+                    val carry = (cumulativeFixedBudget + totalIncomeBefore) - totalExpensesBefore
                     if (posOnly && carry < 0.0) 0.0 else carry
                 }
             }
@@ -390,6 +422,9 @@ class TransactionViewModel(
         map
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
+    /**
+     * Count of transactions that are marked as incomplete (e.g., pending).
+     */
     @OptIn(ExperimentalCoroutinesApi::class)
     val incompleteTransactionsCount = _selectedAccountId.flatMapLatest { id ->
         repository.getAllTransactions(id).map { l -> l.count { !it.isComplete } }
@@ -460,16 +495,30 @@ class TransactionViewModel(
         }.sortedByDescending { it.amount }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Database operations exposed to the UI
+    /** Adds a new transaction to the database. */
     fun addTransaction(transaction: Transaction) = viewModelScope.launch {
         val aid = if (_selectedAccountId.value == -1L) 1L else _selectedAccountId.value
         repository.insertTransaction(if (transaction.accountId <= 0L) transaction.copy(accountId = aid) else transaction)
     }
+    
+    /** Updates an existing transaction. */
     fun updateTransaction(transaction: Transaction) { viewModelScope.launch { repository.updateTransaction(transaction) } }
+    
+    /** Deletes a single transaction. */
     fun deleteTransaction(transaction: Transaction) { viewModelScope.launch { repository.deleteTransaction(transaction) } }
+    
+    /** Deletes a list of transactions. */
     fun deleteTransactions(transactions: List<Transaction>) { viewModelScope.launch { transactions.forEach { repository.deleteTransaction(it) } } }
+    
+    /** Adds a new category. */
     fun addCategory(category: Category) { viewModelScope.launch { repository.insertCategory(category) } }
+    
+    /** Updates an existing category. */
     fun updateCategory(category: Category) { viewModelScope.launch { repository.updateCategory(category) } }
+    
+    /** Deletes a list of categories. */
     fun deleteCategories(categories: List<Category>) { viewModelScope.launch { repository.deleteCategories(categories) } }
+    
+    /** Generates a CSV string of transactions for export (Stub). */
     suspend fun generateCsvString(s: Long, e: Long, n: Boolean, c: String, so: String, se: String): String = ""
 }

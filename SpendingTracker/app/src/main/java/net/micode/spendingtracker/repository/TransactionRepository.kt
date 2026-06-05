@@ -18,8 +18,8 @@ import net.micode.spendingtracker.model.PeriodSummary
 import net.micode.spendingtracker.model.Transaction
 
 /**
- * Repository to bridge the gap between NotificationInterceptorService, 
- * Room database, and the UI (ViewModel).
+ * Repository class that abstracts access to multiple data sources.
+ * It provides a clean API for the UI to interact with transaction, category, and account data.
  */
 class TransactionRepository(
     private val transactionDao: TransactionDao,
@@ -28,19 +28,35 @@ class TransactionRepository(
     private val accountDao: AccountDao
 ) {
     
-    // For automated transactions from NotificationInterceptorService
+    /**
+     * SharedFlow to notify observers about new transactions, typically from background services.
+     */
     private val _newTransactions = MutableSharedFlow<Transaction>(extraBufferCapacity = 1)
     val newTransactions: SharedFlow<Transaction> = _newTransactions
+    
+    /**
+     * SharedFlow to notify observers whenever any transaction-related data changes in the database.
+     */
     private val _dataChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val dataChanged: SharedFlow<Unit> = _dataChanged.asSharedFlow()
 
-    // Transaction methods
+    // --- Transaction Methods ---
+
+    /**
+     * Returns a Flow of all transactions associated with a specific account.
+     */
     fun getAllTransactions(accountId: Long): Flow<List<Transaction>> = transactionDao.getAllTransactions(accountId)
     
+    /**
+     * Returns a Flow of transactions within a specific date range for an account.
+     */
     fun getTransactionsByDateRange(accountId: Long, startDate: Long, endDate: Long): Flow<List<Transaction>> {
         return transactionDao.getTransactionsByDateRange(accountId, startDate, endDate)
     }
 
+    /**
+     * Provides a paged Flow of transactions based on various filters.
+     */
     fun getPagedTransactions(
         accountId: Long,
         startDate: Long,
@@ -69,49 +85,85 @@ class TransactionRepository(
         ).flow
     }
 
+    /**
+     * Inserts a new transaction and notifies observers.
+     */
     suspend fun insertTransaction(transaction: Transaction) {
         transactionDao.insertTransaction(transaction)
         _newTransactions.emit(transaction)
         _dataChanged.emit(Unit)
     }
 
+    /**
+     * Deletes a transaction and notifies observers.
+     */
     suspend fun deleteTransaction(transaction: Transaction) {
         transactionDao.deleteTransaction(transaction)
         _dataChanged.emit(Unit)
     }
 
+    /**
+     * Updates an existing transaction and notifies observers.
+     */
     suspend fun updateTransaction(transaction: Transaction) {
         transactionDao.updateTransaction(transaction)
         _dataChanged.emit(Unit)
     }
 
-    // Category methods
+    // --- Category Methods ---
+
+    /**
+     * Flow of all available categories.
+     */
     val allCategories: Flow<List<Category>> = categoryDao.getAllCategories()
 
+    /**
+     * Inserts a new category.
+     */
     suspend fun insertCategory(category: Category) {
         categoryDao.insertCategory(category)
     }
 
+    /**
+     * Updates an existing category.
+     */
     suspend fun updateCategory(category: Category) {
         categoryDao.updateCategory(category)
     }
 
+    /**
+     * Deletes a category.
+     */
     suspend fun deleteCategory(category: Category) {
         categoryDao.deleteCategory(category)
     }
 
+    /**
+     * Deletes a list of categories.
+     */
     suspend fun deleteCategories(categories: List<Category>) {
         categories.forEach { categoryDao.deleteCategory(it) }
     }
 
+    // --- Summary and Analytic Methods ---
+
+    /**
+     * Retrieves a period summary by its unique key.
+     */
     fun getPeriodSummary(summaryKey: String): Flow<PeriodSummary?> {
         return periodSummaryDao.getSummaryByKey(summaryKey)
     }
 
+    /**
+     * Inserts or updates a period summary record.
+     */
     suspend fun upsertPeriodSummary(summary: PeriodSummary) {
         periodSummaryDao.upsertSummary(summary)
     }
 
+    /**
+     * Calculates totals (income/expense) for a filtered set of transactions.
+     */
     suspend fun getSummaryTotals(
         accountId: Long,
         startDate: Long,
@@ -128,48 +180,90 @@ class TransactionRepository(
         )
     }
 
+    /**
+     * Calculates the net balance of an account before a specific date.
+     */
     suspend fun getBalanceBeforeDate(accountId: Long, beforeDate: Long): Double {
         return transactionDao.getBalanceBeforeDate(accountId, beforeDate)
     }
 
+    /**
+     * Retrieves the date of the oldest transaction for an account.
+     */
     suspend fun getOldestTransactionDate(accountId: Long): Long? {
         return transactionDao.getOldestTransactionDate(accountId)
     }
 
+    /**
+     * Retrieves the date of the first expense for an account.
+     */
     suspend fun getFirstExpenseDate(accountId: Long): Long? {
         return transactionDao.getFirstExpenseDate(accountId)
     }
 
+    /**
+     * Sums all expenses for an account prior to a given date.
+     */
     suspend fun getTotalExpensesBeforeDate(accountId: Long, beforeDate: Long): Double {
         return transactionDao.getTotalExpensesBeforeDate(accountId, beforeDate)
     }
 
-    // Account methods
+    /**
+     * Sums all income for an account prior to a given date.
+     */
+    suspend fun getTotalIncomeBeforeDate(accountId: Long, beforeDate: Long): Double {
+        return transactionDao.getTotalIncomeBeforeDate(accountId, beforeDate)
+    }
+
+    // --- Account Methods ---
+
+    /**
+     * Flow of all available financial accounts.
+     */
     val allAccounts: Flow<List<Account>> = accountDao.getAllAccounts()
 
+    /**
+     * Inserts a new account and returns its generated ID.
+     */
     suspend fun insertAccount(account: Account): Long {
         return accountDao.insertAccount(account)
     }
 
+    /**
+     * Updates an account's details.
+     */
     suspend fun updateAccount(account: Account) {
         accountDao.updateAccount(account)
     }
 
+    /**
+     * Deletes an account.
+     */
     suspend fun deleteAccount(account: Account) {
         accountDao.deleteAccount(account)
     }
 
+    /**
+     * Designates a specific account as the default.
+     */
     suspend fun setDefaultAccount(accountId: Long) {
         accountDao.setDefaultAccount(accountId)
     }
 
+    /**
+     * Retrieves the current default account.
+     */
     suspend fun getDefaultAccount(): Account? {
         return accountDao.getDefaultAccount()
     }
     
     companion object {
+        @Volatile
         private var instance: TransactionRepository? = null
         
+        /**
+         * Singleton pattern to provide a thread-safe instance of the repository.
+         */
         fun getInstance(
             transactionDao: TransactionDao,
             categoryDao: CategoryDao,

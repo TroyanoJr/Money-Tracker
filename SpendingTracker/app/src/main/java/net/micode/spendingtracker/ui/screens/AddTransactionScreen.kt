@@ -41,6 +41,17 @@ import net.micode.spendingtracker.viewmodel.TransactionViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * Screen for adding a new transaction or editing an existing one.
+ * It features a pager to switch between Expense and Income types.
+ * 
+ * @param transactionToEdit The transaction object to edit, or null if creating a new one.
+ * @param viewModel The ViewModel for managing transactions.
+ * @param accounts The list of available accounts for transaction assignment.
+ * @param initialType The starting transaction type (0 for Expense, 1 for Income).
+ * @param onClose Callback to close the screen.
+ * @param onDone Callback triggered after a transaction is successfully saved.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionScreen(
@@ -57,7 +68,7 @@ fun AddTransactionScreen(
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
 
-    // Cargar anuncio al entrar
+    // Preload an interstitial ad when the screen is entered
     LaunchedEffect(Unit) {
         InterstitialAdHelper.loadAd(context)
     }
@@ -100,6 +111,7 @@ fun AddTransactionScreen(
 
     Surface(modifier = Modifier.fillMaxSize(), color = BeigeHeader) {
         Column(modifier = Modifier.fillMaxSize()) {
+            // Header with Close and Done actions
             Row(modifier = Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { onClose() }) {
                     Icon(Icons.Default.Close, stringResource(R.string.close), tint = DarkBrownText)
@@ -123,7 +135,7 @@ fun AddTransactionScreen(
                         if (transactionToEdit == null) viewModel.addTransaction(transaction)
                         else viewModel.updateTransaction(transaction)
                         
-                        // Mostrar anuncio antes de cerrar
+                        // Show ad before finishing the operation
                         InterstitialAdHelper.showAd(context as Activity) {
                             onDone()
                         }
@@ -131,11 +143,13 @@ fun AddTransactionScreen(
                 )
             }
 
+            // Tab bar to toggle Expense/Income
             Row(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalArrangement = Arrangement.Center) {
                 CategoryTabButton(text = stringResource(R.string.expense), selected = pagerState.currentPage == 0, isStart = true, onClick = { coroutineScope.launch { pagerState.animateScrollToPage(0) } })
                 CategoryTabButton(text = stringResource(R.string.income), selected = pagerState.currentPage == 1, isStart = false, onClick = { coroutineScope.launch { pagerState.animateScrollToPage(1) } })
             }
 
+            // Form Content
             HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { _ ->
                 Column(modifier = Modifier.fillMaxSize()) {
                     SectionHeader(title = stringResource(R.string.transaction_details))

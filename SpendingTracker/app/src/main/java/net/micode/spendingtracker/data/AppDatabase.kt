@@ -9,24 +9,38 @@ import net.micode.spendingtracker.model.Category
 import net.micode.spendingtracker.model.PeriodSummary
 import net.micode.spendingtracker.model.Transaction
 
+/**
+ * Main database class for the Spending Tracker application.
+ * Defines the schema and provides access to the DAOs.
+ * Uses Room for data persistence and supports migrations.
+ */
 @Database(
     entities = [Transaction::class, Category::class, PeriodSummary::class, Account::class], 
     version = 8, 
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
+    /** Returns the DAO for transaction operations. */
     abstract fun transactionDao(): TransactionDao
+    
+    /** Returns the DAO for category operations. */
     abstract fun categoryDao(): CategoryDao
+    
+    /** Returns the DAO for period summary operations. */
     abstract fun periodSummaryDao(): PeriodSummaryDao
+    
+    /** Returns the DAO for account operations. */
     abstract fun accountDao(): AccountDao
 
     companion object {
+        /** Migration from version 4 to 5: Adds index to transactions date. */
         val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_transactions_date ON transactions(date)")
             }
         }
 
+        /** Migration from version 5 to 6: Creates the period_summaries table. */
         val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("""
@@ -46,6 +60,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** Migration from version 6 to 7: Creates accounts table and adds accountId to transactions. */
         val MIGRATION_6_7 = object : Migration(6, 7) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("CREATE TABLE IF NOT EXISTS accounts (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, color INTEGER NOT NULL, isDefault INTEGER NOT NULL DEFAULT 0)")
@@ -55,6 +70,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** Migration from version 7 to 8: Ensures Default account existence and transaction data integrity. */
         val MIGRATION_7_8 = object : Migration(7, 8) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // Ensure Default account exists and transactions are linked correctly

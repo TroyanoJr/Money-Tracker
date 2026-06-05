@@ -29,6 +29,28 @@ import net.micode.spendingtracker.viewmodel.Period
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * The top navigation bar of the application.
+ * It manages the search bar, period selection, account switching, and tab navigation.
+ * 
+ * @param selectedTabIndex The currently active tab index.
+ * @param onTabSelected Callback triggered when a tab is clicked.
+ * @param onAddClick Callback for the "+" action button.
+ * @param onSettingsClick Callback for the Settings menu item.
+ * @param onBackupsClick Callback for the Backups menu item.
+ * @param selectedPeriod The currently selected time period (Day, Week, Month, Year).
+ * @param selectedDate The selected reference date.
+ * @param onPeriodSelected Callback triggered when a new period is chosen.
+ * @param onDateSelected Callback triggered when a new date is selected.
+ * @param isSearchActive Whether the search mode is currently active.
+ * @param searchQuery The current text in the search field.
+ * @param onSearchQueryChange Callback triggered as the user types in the search field.
+ * @param onToggleSearch Callback to enable or disable search mode.
+ * @param showSearchOption Whether to display the search icon in the menu.
+ * @param onSwitchAccountClick Callback for the account switcher button.
+ * @param selectedAccountColor The color associated with the currently selected account.
+ * @param showAccountOption Whether to display the account switcher icon.
+ */
 @Composable
 fun TopNavigation(
     selectedTabIndex: Int,
@@ -46,7 +68,8 @@ fun TopNavigation(
     onToggleSearch: (Boolean) -> Unit = {},
     showSearchOption: Boolean = false,
     onSwitchAccountClick: () -> Unit = {},
-    selectedAccountColor: Color? = null // Added parameter
+    selectedAccountColor: Color? = null,
+    showAccountOption: Boolean = true
 ) {
     var showPeriodMenu by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
@@ -110,8 +133,8 @@ fun TopNavigation(
                         IconButton(onClick = onAddClick) { Icon(Icons.Default.Add, contentDescription = "Add", tint = DarkBrownText) }
                     }
                     
-                    // Show account icon ONLY on Spending tab (Image 1) - Now with dynamic color
-                    if (selectedTabIndex == 0) {
+                    // Show account icon ONLY if requested and on Spending tab
+                    if (selectedTabIndex == 0 && showAccountOption) {
                         IconButton(onClick = onSwitchAccountClick) {
                             Icon(
                                 imageVector = Icons.Default.AccountCircle, 
@@ -149,6 +172,9 @@ fun TopNavigation(
     }
 }
 
+/**
+ * A single tab item in the [TopNavigation] bar.
+ */
 @Composable
 fun TabItem(text: String, icon: ImageVector, selected: Boolean, modifier: Modifier = Modifier) {
     Column(modifier = modifier.padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {

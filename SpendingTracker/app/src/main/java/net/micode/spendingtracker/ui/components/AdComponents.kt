@@ -11,6 +11,9 @@ import com.google.android.gms.ads.AdView
 
 /**
  * A Composable that displays an Anchored Adaptive AdMob Banner Ad.
+ * This component automatically calculates the appropriate ad size based on the screen width.
+ * 
+ * @param modifier The modifier to be applied to the layout.
  */
 @Composable
 fun BannerAdView(modifier: Modifier = Modifier) {

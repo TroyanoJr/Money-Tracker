@@ -39,6 +39,20 @@ import net.micode.spendingtracker.viewmodel.TransactionViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * Screen that displays a paginated list of transactions.
+ * Provides filtering by category, account switching, and export options (CSV/PDF).
+ * Supports multi-selection for bulk deletion.
+ * 
+ * Logic Update: Account info is hidden if only one account exists.
+ * 
+ * @param viewModel ViewModel for transactions.
+ * @param accounts List of available accounts.
+ * @param onEditTransaction Callback to edit a transaction.
+ * @param onDeleteTransactions Callback to delete selected transactions.
+ * @param onExportCsv Navigation callback for CSV export.
+ * @param onSwitchAccountClick UI callback to switch accounts.
+ */
 @Composable
 fun TransactionsScreen(
     viewModel: TransactionViewModel,
@@ -79,6 +93,9 @@ fun TransactionsScreen(
         else currentAccount?.name ?: "Default"
     }
 
+    // Only show account switching elements if there's more than 1 account
+    val isMultiAccount = remember(accounts) { accounts.size > 1 }
+
     var selectedTransactionIds by remember { mutableStateOf(setOf<String>()) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var transactionsToDelete by remember { mutableStateOf<List<Transaction>>(emptyList()) }
@@ -109,18 +126,24 @@ fun TransactionsScreen(
             )
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = currentAccountName,
-                color = DarkBrownText,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
+        /**
+         * ACCOUNT NAME HEADER
+         * Hidden if only one account exists.
+         */
+        if (isMultiAccount) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = currentAccountName,
+                    color = DarkBrownText,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
 
         Row(
@@ -190,7 +213,7 @@ fun TransactionsScreen(
                             CarryOverItem(
                                 amount = carryOverAmount,
                                 symbol = currencySymbol,
-                                date = selectedDate // Usamos la fecha seleccionada para mostrar el inicio del periodo
+                                date = selectedDate
                             )
                             HorizontalDivider(modifier = Modifier.padding(start = 56.dp), thickness = 0.5.dp, color = Color.LightGray)
                         }
@@ -232,12 +255,19 @@ fun TransactionsScreen(
                 IconButton(onClick = { showFilterDialog = true }) {
                     Icon(Icons.Default.FilterList, contentDescription = null, tint = DarkBrownText)
                 }
-                IconButton(onClick = onSwitchAccountClick) {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = "Switch Account",
-                        tint = if (currentAccount != null) Color(currentAccount.color) else DarkBrownText
-                    )
+                
+                /**
+                 * ACCOUNT PICKER BUTTON
+                 * Hidden if only one account exists.
+                 */
+                if (isMultiAccount) {
+                    IconButton(onClick = onSwitchAccountClick) {
+                        Icon(
+                            imageVector = Icons.Default.AccountCircle,
+                            contentDescription = "Switch Account",
+                            tint = if (currentAccount != null) Color(currentAccount.color) else DarkBrownText
+                        )
+                    }
                 }
             }
         }
@@ -482,7 +512,7 @@ fun CarryOverItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFFFB74D).copy(alpha = 0.1f)) // Fondo sutil naranja para destacar
+            .background(Color(0xFFFFB74D).copy(alpha = 0.1f))
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically) {
         Icon(imageVector = Icons.Default.Savings, contentDescription = null, tint = Color(0xFFE67E22), modifier = Modifier.size(24.dp))
@@ -493,7 +523,7 @@ fun CarryOverItem(
         }
         Text(
             text = String.format(Locale.getDefault(), "%s%s %.2f", if (amount >= 0) "" else "-", symbol, amount),
-            color = Color(0xFFE67E22), // Color naranja/oro
+            color = Color(0xFFE67E22),
             fontSize = 18.sp,
             fontWeight = FontWeight.Medium
         )

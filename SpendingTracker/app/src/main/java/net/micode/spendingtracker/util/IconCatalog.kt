@@ -5,9 +5,21 @@ import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
 
+/**
+ * A central catalog of all icons available in the application for categories and UI elements.
+ * Icons are organized into themed sections to facilitate selection in the UI.
+ */
 object IconCatalog {
+    /**
+     * Represents a themed section of icons.
+     * @property name The display name of the section.
+     * @property icons A list of pairs containing the icon name (string) and its [ImageVector].
+     */
     data class IconSection(val name: String, val icons: List<Pair<String, ImageVector>>)
 
+    /**
+     * The complete list of icon sections available in the app.
+     */
     val filledIconSections = listOf(
         IconSection("Bills", listOf(
             "FlashOn" to Icons.Default.FlashOn,
@@ -184,6 +196,11 @@ object IconCatalog {
         ))
     )
 
+    /**
+     * Finds an icon by its registered string name.
+     * @param name The name of the icon to find.
+     * @return The corresponding [ImageVector], or [Icons.Default.Sell] as a fallback.
+     */
     fun getIconByName(name: String): ImageVector {
         return filledIconSections.flatMap { it.icons }.find { it.first == name }?.second ?: Icons.Default.Sell
     }

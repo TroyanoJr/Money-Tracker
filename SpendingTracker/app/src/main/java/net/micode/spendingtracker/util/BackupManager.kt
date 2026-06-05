@@ -10,7 +10,8 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 /**
- * Manages atomic backup and restore operations using ZIP packaging.
+ * Utility object for managing atomic backup and restore operations.
+ * It packages the database and shared preference files into a single ZIP archive.
  */
 object BackupManager {
     private const val TAG = "BackupManager"
@@ -19,11 +20,15 @@ object BackupManager {
     private const val PREFS_SECURITY = "security_prefs.xml"
 
     /**
-     * Bundles the database and all settings into a single ZIP file at targetUri.
+     * Bundles the database and application settings into a ZIP file at the specified URI.
+     * @param context Application context.
+     * @param database The [AppDatabase] instance to be backed up.
+     * @param targetUri The destination URI for the backup file.
+     * @return True if the backup was successful, false otherwise.
      */
     fun createBackup(context: Context, database: AppDatabase, targetUri: Uri): Boolean {
         return try {
-            // 1. Force database checkpoint to merge WAL files into the main DB file
+            // 1. Force database checkpoint to merge WAL/SHM files into the main DB file
             database.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL)").use { cursor ->
                 if (cursor.moveToFirst()) Log.d(TAG, "Checkpoint status: ${cursor.getInt(0)}")
             }
@@ -33,10 +38,10 @@ object BackupManager {
 
             context.contentResolver.openOutputStream(targetUri)?.use { outputStream ->
                 ZipOutputStream(BufferedOutputStream(outputStream)).use { zipOut ->
-                    // Add Database
+                    // Add Database file to ZIP
                     if (dbFile.exists()) addToZip(dbFile, DB_NAME, zipOut)
                     
-                    // Add all relevant XML preferences
+                    // Add relevant XML preference files to ZIP
                     File(sharedPrefsDir, PREFS_MAIN).let { if (it.exists()) addToZip(it, PREFS_MAIN, zipOut) }
                     File(sharedPrefsDir, PREFS_SECURITY).let { if (it.exists()) addToZip(it, PREFS_SECURITY, zipOut) }
                 }
@@ -49,7 +54,11 @@ object BackupManager {
     }
 
     /**
-     * Extracts files from ZIP sourceUri and restores them to internal storage.
+     * Extracts files from a ZIP backup and restores them to the application's internal storage.
+     * Deletes existing WAL/SHM files to ensure database consistency after restore.
+     * @param context Application context.
+     * @param sourceUri The source URI of the backup file.
+     * @return True if restore was successful, false otherwise.
      */
     fun restoreBackup(context: Context, sourceUri: Uri): Boolean {
         return try {
@@ -90,6 +99,9 @@ object BackupManager {
         }
     }
 
+    /**
+     * Internal helper to add a single file to a [ZipOutputStream].
+     */
     private fun addToZip(file: File, entryName: String, zipOut: ZipOutputStream) {
         FileInputStream(file).use { input ->
             val entry = ZipEntry(entryName)

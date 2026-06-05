@@ -11,12 +11,19 @@ import net.micode.spendingtracker.receiver.ReminderReceiver
 import java.util.*
 
 /**
- * Manages the scheduling of reminders.
- * Optimized for standard Android flow while supporting Huawei manual instructions.
+ * Utility object for managing the scheduling of app reminders.
+ * It uses [AlarmManager] to trigger notifications at specific times, with optimizations
+ * for different Android versions and specific hardware manufacturers (like Huawei).
  */
 object ReminderManager {
     private const val REQUEST_CODE = 1001
 
+    /**
+     * Schedules a daily reminder based on the user's preferences stored in [SettingsManager].
+     * Uses exact alarms when possible to ensure timely notifications.
+     * 
+     * @param context Application context.
+     */
     fun scheduleReminder(context: Context) {
         val settingsManager = SettingsManager(context)
         val frequency = settingsManager.getReminderFrequency()
@@ -30,6 +37,7 @@ object ReminderManager {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
+        // Cancel if frequency is set to "Never"
         if (frequency == "Never") {
             alarmManager.cancel(pendingIntent)
             return
@@ -41,13 +49,14 @@ object ReminderManager {
             set(Calendar.MINUTE, minute)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
+            // If the time has already passed today, schedule for tomorrow
             if (timeInMillis <= System.currentTimeMillis()) {
                 add(Calendar.DAY_OF_YEAR, 1)
             }
         }
 
         try {
-            // Use exact alarms based on API level compatibility
+            // Use exact alarms based on API level compatibility and permissions
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 if (alarmManager.canScheduleExactAlarms()) {
                     alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
@@ -60,12 +69,17 @@ object ReminderManager {
                 alarmManager.setExact(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
             }
         } catch (e: Exception) {
+            // Fallback to non-exact alarm if exact alarm fails
             alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
         }
     }
 
     /**
-     * Specifically identifies Huawei/Honor for manual battery instruction card.
+     * Checks if the app needs battery optimization exemption, specifically for Huawei and Honor devices
+     * which are known for aggressive background task management.
+     * 
+     * @param context Application context.
+     * @return True if exemption is recommended but not yet granted.
      */
     fun needsBatteryExemption(context: Context): Boolean {
         val manufacturer = Build.MANUFACTURER.lowercase()

@@ -18,8 +18,9 @@ import net.micode.spendingtracker.ui.theme.SpendingTrackerTheme
 import net.micode.spendingtracker.util.SettingsManager
 
 /**
- * Main entry point of the application.
- * Using AppCompatActivity to support dynamic language switching.
+ * Main activity of the application.
+ * It serves as the entry point for the UI, handling theme initialization,
+ * security locking (passcode), and hosting the main Dashboard.
  */
 class MainActivity : AppCompatActivity() {
     
@@ -71,6 +72,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Ensure currency symbol is up to date when returning to the app
         viewModel.refreshCurrency()
     }
 }

@@ -39,7 +39,15 @@ import kotlin.math.abs
 
 /**
  * Main dashboard screen displaying the financial summary for a selected period.
- * It follows a "Blackboard" aesthetic with chalk-like colors.
+ * Features a "Blackboard" aesthetic with chalk-like colors.
+ * 
+ * Logic Update: Account selector is strictly hidden if only one account exists.
+ * 
+ * @param viewModel ViewModel for transaction data.
+ * @param accountViewModel ViewModel for account management.
+ * @param onAddExpense Navigation callback to add expense.
+ * @param onAddIncome Navigation callback to add income.
+ * @param onSwitchAccountClick UI callback to show account selection.
  */
 @Composable
 fun SpendingScreen(
@@ -73,10 +81,13 @@ fun SpendingScreen(
     val accounts by accountViewModel.allAccounts.collectAsState()
     val selectedAccountId by viewModel.selectedAccountId.collectAsState()
 
+    // STRICT VISIBILITY LOGIC: Only show if there is actually something to switch to.
+    val isMultiAccountMode = remember(accounts) { accounts.size > 1 }
+
     // Determine displayed account name
     val currentAccountName = remember(selectedAccountId, accounts) {
         if (selectedAccountId == -1L && accounts.size > 1) "All Accounts"
-        else accounts.find { it.id == selectedAccountId }?.name ?: "Default"
+        else accounts.find { it.id == selectedAccountId }?.name ?: ""
     }
 
     // Refresh settings whenever account or core preferences change
@@ -95,6 +106,7 @@ fun SpendingScreen(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Period back button
                 Text(
                     text = "< ",
                     color = ChalkWhite,
@@ -102,14 +114,24 @@ fun SpendingScreen(
                     modifier = Modifier.clickable { viewModel.previousPeriod() }.padding(horizontal = 16.dp)
                 )
 
-                Text(
-                    text = currentAccountName,
-                    color = ChalkWhite,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.clickable { onSwitchAccountClick() }
-                )
+                /**
+                 * ACCOUNT SELECTOR
+                 * Only displayed if there are at least 2 accounts in the database.
+                 */
+                if (isMultiAccountMode) {
+                    Text(
+                        text = currentAccountName,
+                        color = ChalkWhite,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clickable { onSwitchAccountClick() }
+                    )
+                } else {
+                    // Empty spacer to keep arrows aligned if the name is hidden
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
                 
+                // Period next button
                 Text(
                     text = " >",
                     color = ChalkWhite,
@@ -201,7 +223,6 @@ fun SpendingScreen(
                     /**
                      * CARRY OVER SUB-ITEM
                      * If 'Add to Income' is enabled, display Carry Over as a detailed breakdown under Income.
-                     * Using ChalkWhite color and indentation to match the itemized expense style.
                      */
                     if (isCarryOverEnabled && isCarryOverAddToIncome && carryOverAmount != 0.0) {
                         item {
@@ -239,7 +260,6 @@ fun SpendingScreen(
                 /**
                  * STANDALONE CARRY OVER ROW
                  * Only displayed if Carry Over is NOT integrated into the Income total and Budget is disabled.
-                 * Uses ChalkOrange for high visibility.
                  */
                 if (!isBudgetEnabled && isCarryOverEnabled && !isCarryOverAddToIncome && carryOverAmount != 0.0) {
                     item {
@@ -261,7 +281,6 @@ fun SpendingScreen(
                         stringResource(R.string.balance)
                     }
                     
-                    // Display '+' for positive balance and '-' for negative to match user reference images
                     val sign = if (balance < 0) "- " else if (balance > 0) "+ " else ""
                     val formattedValue = String.format(Locale.getDefault(), "%s%s %.2f", sign, currencySymbol, abs(balance))
                     BalanceRow(balanceLabel, formattedValue, ChalkBlue)
@@ -372,6 +391,9 @@ fun YearlyHeatmap(data: Map<Long, Double>) {
     }
 }
 
+/**
+ * Helper component for heatmap legends.
+ */
 @Composable
 fun LegendItem(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -381,6 +403,9 @@ fun LegendItem(color: Color, label: String) {
     }
 }
 
+/**
+ * A standardized row for displaying financial balance items.
+ */
 @Composable
 fun BalanceRow(label: String, value: String, color: Color) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

@@ -26,7 +26,12 @@ import androidx.compose.ui.unit.dp
 import net.micode.spendingtracker.R
 
 /**
- * A shared two-level color picker dialog used for categories and accounts.
+ * A shared two-level color picker dialog used for selecting colors for categories and accounts.
+ * Level 1: Select a primary color.
+ * Level 2: Select a specific shade of the chosen primary color.
+ * 
+ * @param onDismiss Callback triggered when the dialog is closed.
+ * @param onColorSelected Callback triggered when a final color is selected.
  */
 @Composable
 fun TwoLevelColorPickerDialog(
@@ -149,6 +154,9 @@ fun TwoLevelColorPickerDialog(
     )
 }
 
+/**
+ * A circular color representation used within the color picker.
+ */
 @Composable
 fun ColorCircle(color: Color, isSelected: Boolean, onClick: () -> Unit) {
     Box(

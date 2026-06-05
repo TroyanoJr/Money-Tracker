@@ -37,6 +37,14 @@ import net.micode.spendingtracker.viewmodel.AccountViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * Screen that displays and manages the list of financial accounts.
+ * Users can add, edit, or delete accounts, and initiate transfers between them.
+ * 
+ * @param viewModel The ViewModel handling account logic.
+ * @param selectedAccountId The ID of the currently active account.
+ * @param onEditAccount Callback triggered to edit an existing account.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AccountsScreen(
@@ -58,7 +66,7 @@ fun AccountsScreen(
             .fillMaxSize()
             .background(BeigeHeader)
     ) {
-        // Multi-selection Toolbar
+        // Selection Toolbar for bulk actions (Edit/Delete)
         if (selectedAccountIds.isNotEmpty()) {
             CategorySelectionToolbar(
                 selectedCount = selectedAccountIds.size,
@@ -69,6 +77,7 @@ fun AccountsScreen(
                     selectedAccountIds = emptySet()
                 },
                 onDelete = {
+                    // Prevent deletion of the protected System Default account
                     if (selectedAccountIds.contains(1L)) {
                         accountErrorName = accounts.find { it.id == 1L }?.name ?: "Default"
                         showDeleteErrorDialog = true
@@ -79,7 +88,7 @@ fun AccountsScreen(
             )
         }
 
-        // Transfer Button (Only visible if > 1 account)
+        // Transfer Action Button (Visible only if multiple accounts exist)
         if (accounts.size > 1) {
             Box(
                 modifier = Modifier
@@ -98,6 +107,7 @@ fun AccountsScreen(
             }
         }
 
+        // Scrollable list of accounts
         LazyColumn(modifier = Modifier.weight(1f)) {
             items(accounts) { account ->
                 val isSelected = selectedAccountIds.contains(account.id)
@@ -126,6 +136,7 @@ fun AccountsScreen(
         
         Spacer(modifier = Modifier.height(16.dp))
         
+        // Informational footer
         Text(
             text = stringResource(R.string.accounts_info),
             color = DarkBrownText.copy(alpha = 0.6f),
@@ -138,6 +149,7 @@ fun AccountsScreen(
         )
     }
 
+    // Dialogs for various account operations
     if (showTransferDialog) {
         TransferDialog(
             accounts = accounts,
@@ -197,6 +209,9 @@ fun AccountsScreen(
     }
 }
 
+/**
+ * A dialog form for transferring funds between two accounts.
+ */
 @Composable
 fun TransferDialog(
     accounts: List<Account>,
@@ -323,6 +338,9 @@ fun TransferDialog(
     }
 }
 
+/**
+ * A single item in the account list.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AccountItem(

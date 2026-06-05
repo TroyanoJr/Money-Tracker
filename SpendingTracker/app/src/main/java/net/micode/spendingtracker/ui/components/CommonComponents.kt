@@ -21,10 +21,16 @@ import androidx.compose.ui.unit.sp
 import net.micode.spendingtracker.ui.theme.BeigeHeader
 import net.micode.spendingtracker.ui.theme.DarkBrownText
 
+/**
+ * A standardized header for sections in the UI, containing a title and a help icon.
+ * Includes horizontal dividers for visual separation.
+ * 
+ * @param title The title text to display in the header.
+ */
 @Composable
 fun SectionHeader(title: String) {
     val colorScheme = MaterialTheme.colorScheme
-    // Optimizamos: Recordamos los colores para evitar cálculos en cada frame de animación
+    // Optimize: Remember colors to avoid recalculations during animation frames
     val dividerColor = remember(colorScheme.outline) { colorScheme.outline.copy(alpha = 0.3f) }
     val bgColor = remember(colorScheme.surfaceVariant) { colorScheme.surfaceVariant.copy(alpha = 0.4f) }
     val textColor = remember(colorScheme.onSurfaceVariant) { colorScheme.onSurfaceVariant.copy(alpha = 0.8f) }
@@ -57,6 +63,14 @@ fun SectionHeader(title: String) {
     }
 }
 
+/**
+ * A layout row for input fields or category selections, featuring a label and a content area.
+ * It uses a vertical divider between the label and the content.
+ * 
+ * @param label The text label for the row.
+ * @param labelColor The color for the label text.
+ * @param content The composable content to display on the right side of the row.
+ */
 @Composable
 fun CategoryRow(
     label: String,
@@ -112,6 +126,14 @@ fun CategoryRow(
     }
 }
 
+/**
+ * A tab-like button used in category or item selection.
+ * 
+ * @param text The text label for the button.
+ * @param selected Whether the button is currently in the selected state.
+ * @param isStart True if this is the first button in a group (affects rounding).
+ * @param onClick Callback triggered when the button is clicked.
+ */
 @Composable
 fun CategoryTabButton(
     text: String,
@@ -119,7 +141,7 @@ fun CategoryTabButton(
     isStart: Boolean,
     onClick: () -> Unit
 ) {
-    // Memorizamos la forma para no crear objetos nuevos innecesariamente
+    // Memoize the shape to avoid creating new objects unnecessarily
     val shape = remember(isStart) {
         if (isStart) RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp)
         else RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)
@@ -147,6 +169,14 @@ fun CategoryTabButton(
     }
 }
 
+/**
+ * A toolbar displayed when multiple categories are selected for bulk actions.
+ * 
+ * @param selectedCount The number of items currently selected.
+ * @param onClearSelection Callback to cancel the current selection.
+ * @param onEdit Callback to trigger the edit action (enabled only for single selection).
+ * @param onDelete Callback to trigger the delete action.
+ */
 @Composable
 fun CategorySelectionToolbar(
     selectedCount: Int,

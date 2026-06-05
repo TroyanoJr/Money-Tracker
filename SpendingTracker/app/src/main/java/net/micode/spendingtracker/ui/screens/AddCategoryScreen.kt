@@ -40,6 +40,15 @@ import net.micode.spendingtracker.ui.theme.BeigeHeader
 import net.micode.spendingtracker.ui.theme.DarkBrownText
 import net.micode.spendingtracker.util.IconCatalog
 
+/**
+ * Screen for creating a new financial category or editing an existing one.
+ * Users can define the name, select an icon from the catalog, and pick a representative color.
+ * 
+ * @param categoryToEdit The category object to modify, or null if creating a new one.
+ * @param isExpense Whether the new category should be classified as an expense by default.
+ * @param onClose Callback to close the screen without saving.
+ * @param onDone Callback triggered when the category is saved.
+ */
 @Composable
 fun AddCategoryScreen(
     categoryToEdit: Category? = null,
@@ -70,6 +79,7 @@ fun AddCategoryScreen(
         color = BeigeHeader
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
+            // Header with Close and Save actions
             Row(
                 modifier = Modifier.fillMaxWidth().padding(8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -104,6 +114,7 @@ fun AddCategoryScreen(
             SectionHeader(title = stringResource(R.string.category_details))
 
             Column(modifier = Modifier.fillMaxWidth()) {
+                // Category Name Input
                 CategoryRow(
                     label = stringResource(R.string.name), 
                     labelColor = if (isNameValid) labelBlue else Color.Red.copy(alpha = 0.7f)
@@ -123,6 +134,7 @@ fun AddCategoryScreen(
                 }
                 HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
 
+                // Icon Selection Row
                 CategoryRow(label = stringResource(R.string.icon), labelColor = labelBlue) {
                     Row(
                         modifier = Modifier.fillMaxWidth().clickable { focusManager.clearFocus(); showIconPicker = true },
@@ -136,6 +148,7 @@ fun AddCategoryScreen(
                 }
                 HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
 
+                // Color Selection Row
                 CategoryRow(label = stringResource(R.string.chart_colour), labelColor = labelBlue) {
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                         Box(modifier = Modifier.weight(1f).clickable { focusManager.clearFocus(); showColorPicker = true }) {
@@ -157,6 +170,7 @@ fun AddCategoryScreen(
         }
     }
 
+    // Overlays for Pickers
     if (showIconPicker) {
         IconPickerDialog(
             selectedIconName = selectedIconName,
@@ -173,6 +187,9 @@ fun AddCategoryScreen(
     }
 }
 
+/**
+ * A dialog that provides a two-step color selection process: primary color and then its shade.
+ */
 @Composable
 fun TwoLevelColorPickerDialog(onDismiss: () -> Unit, onColorSelected: (Color) -> Unit) {
     var currentLevel by rememberSaveable { mutableIntStateOf(1) }
@@ -216,7 +233,7 @@ fun TwoLevelColorPickerDialog(onDismiss: () -> Unit, onColorSelected: (Color) ->
                     Spacer(Modifier.width(4.dp))
                     Box(modifier = Modifier.size(8.dp).background(if (currentLevel == 2) Color.Gray else Color.LightGray, CircleShape))
                 }
-                LazyVerticalGrid(columns = GridCells.Fixed(4), modifier = Modifier.height(250.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                LazyVerticalGrid(columns = GridCells.Fixed(4), modifier = Modifier.height(250.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp) ) {
                     if (currentLevel == 1) {
                         items(primaries) { color -> ColorCircle(color = color, isSelected = tempSelectedColor == color, onClick = { selectedPrimaryColor = color; tempSelectedColor = color; currentLevel = 2 }) }
                     } else {
@@ -232,6 +249,9 @@ fun TwoLevelColorPickerDialog(onDismiss: () -> Unit, onColorSelected: (Color) ->
     )
 }
 
+/**
+ * Individual color circle representation for the picker.
+ */
 @Composable
 fun ColorCircle(color: Color, isSelected: Boolean, onClick: () -> Unit) {
     Box(modifier = Modifier.size(48.dp).background(color, CircleShape).border(width = if (isSelected) 2.dp else 0.5.dp, color = if (isSelected) Color.White else Color.Gray.copy(alpha = 0.3f), shape = CircleShape).clickable { onClick() }, contentAlignment = Alignment.Center) {

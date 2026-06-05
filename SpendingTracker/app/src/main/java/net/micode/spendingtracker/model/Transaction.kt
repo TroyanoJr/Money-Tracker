@@ -11,9 +11,18 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
- * Data model for a financial transaction stored in Room.
- * Linked to Category via ForeignKey with Cascade Delete.
- * Now also linked to Account via accountId.
+ * Data model for a financial transaction stored in the Room database.
+ * Each transaction is linked to a [Category] and an [Account].
+ * 
+ * @property id Unique identifier for the transaction (often a UUID string).
+ * @property amount The monetary value of the transaction.
+ * @property categoryName The name of the category this transaction belongs to (Foreign Key).
+ * @property date The timestamp when the transaction occurred.
+ * @property note A user-provided description or note for the transaction.
+ * @property isExpense True if the transaction is an expense, false if it is income.
+ * @property isRepeating Whether this is a recurring transaction.
+ * @property isComplete Whether the transaction has been finalized.
+ * @property accountId The ID of the account associated with this transaction (Foreign Key).
  */
 @Entity(
     tableName = "transactions",
@@ -48,11 +57,16 @@ data class Transaction(
     val isComplete: Boolean = true,
     @ColumnInfo(name = "accountId") val accountId: Long = 0
 ) {
-    // Moved out of primary constructor to fix KSP matching error
+    /**
+     * The icon vector representing the transaction's category.
+     * Ignored by Room as it's only used for UI display.
+     */
     @Ignore
     var categoryIcon: ImageVector = Icons.Default.Sell
 
-    // Constructor for UI/Logic that needs to pass an icon
+    /**
+     * Secondary constructor for UI/Logic that needs to pass an icon explicitly.
+     */
     @Ignore
     constructor(
         id: String,

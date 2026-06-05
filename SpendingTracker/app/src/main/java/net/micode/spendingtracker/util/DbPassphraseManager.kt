@@ -13,7 +13,9 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /**
- * Manages the database passphrase with migration support to a portable format.
+ * Manages the generation, migration, and retrieval of the database passphrase.
+ * Supports migrating legacy Android KeyStore encrypted keys to a more portable format
+ * while ensuring data security.
  */
 object DbPassphraseManager {
     private const val TAG = "DbPassphraseManager"
@@ -24,6 +26,12 @@ object DbPassphraseManager {
     private const val NEW_PREFS = "app_settings"
     private const val NEW_KEY_PASSPHRASE = "db_passphrase_portable_v2"
 
+    /**
+     * Retrieves the current database passphrase or creates a new one if it doesn't exist.
+     * Handles migration from legacy encrypted preferences to the new portable format.
+     * @param context Application context.
+     * @return The 32-byte passphrase as a [ByteArray].
+     */
     fun getOrCreatePassphrase(context: Context): ByteArray {
         val newPrefs = context.getSharedPreferences(NEW_PREFS, Context.MODE_PRIVATE)
         val portableValue = newPrefs.getString(NEW_KEY_PASSPHRASE, null)
@@ -53,12 +61,18 @@ object DbPassphraseManager {
         return passphrase
     }
 
+    /**
+     * Saves the passphrase in a Base64 encoded format in SharedPreferences.
+     */
     private fun savePortableKey(prefs: android.content.SharedPreferences, key: ByteArray) {
         prefs.edit()
             .putString(NEW_KEY_PASSPHRASE, Base64.encodeToString(key, Base64.NO_WRAP))
             .apply()
     }
 
+    /**
+     * Decrypts a legacy key that was protected using the Android KeyStore.
+     */
     private fun decryptOldKey(payload: ByteArray): ByteArray {
         val iv = payload.copyOfRange(0, 12)
         val encrypted = payload.copyOfRange(12, payload.size)
@@ -72,6 +86,10 @@ object DbPassphraseManager {
         return cipher.doFinal(encrypted)
     }
 
+    /**
+     * Clears all stored passphrases from both legacy and new preferences.
+     * Typically used during a factory reset of the application data.
+     */
     fun clearStoredPassphrase(context: Context) {
         context.getSharedPreferences(NEW_PREFS, Context.MODE_PRIVATE).edit().remove(NEW_KEY_PASSPHRASE).apply()
         context.getSharedPreferences(OLD_PREFS, Context.MODE_PRIVATE).edit().remove(OLD_KEY_PASSPHRASE).apply()
