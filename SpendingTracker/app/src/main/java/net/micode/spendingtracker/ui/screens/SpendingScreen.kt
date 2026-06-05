@@ -160,7 +160,7 @@ fun SpendingScreen(
              */
             val totalLimit = if (isIncludeIncomeEnabled) dynamicBudget + totalIncome else dynamicBudget
             Row(modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp))) {
-                if (isBudgetEnabled && selectedPeriod == Period.MONTH && selectedAccountId != -1L) {
+                if (isBudgetEnabled && selectedPeriod == Period.MONTH) {
                     if (totalExpense <= totalLimit) {
                         val spentWeight = if (totalLimit > 0) (totalExpense / totalLimit).toFloat().coerceIn(0f, 1f) else 0f
                         Box(modifier = Modifier.weight((1f - spentWeight).coerceAtLeast(0.0001f)).fillMaxHeight().background(ChalkGreen))
@@ -182,7 +182,7 @@ fun SpendingScreen(
             LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 
                 // INCOME SECTION - Shows monthly income or budget limit
-                if (isBudgetEnabled && selectedPeriod == Period.MONTH && selectedAccountId != -1L) {
+                if (isBudgetEnabled && selectedPeriod == Period.MONTH) {
                     item { 
                         val budgetLabel = stringResource(R.string.monthly_budget)
                         val budgetToShow = if (isCarryOverEnabled) dynamicBudget else monthlyBudget
