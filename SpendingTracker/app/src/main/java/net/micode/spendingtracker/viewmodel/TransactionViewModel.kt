@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import net.micode.spendingtracker.model.Account
 import net.micode.spendingtracker.model.Category
 import net.micode.spendingtracker.model.Transaction
 import net.micode.spendingtracker.repository.TransactionRepository
@@ -111,7 +112,6 @@ class TransactionViewModel(
 
     /**
      * Observable list of categories, excluding internal categories like "Transfer".
-     * Triggers category seeding if the database is empty.
      */
     val categories: StateFlow<List<Category>> = repository.allCategories
         .map { list -> list.filter { it.name != "Transfer" } }
@@ -121,40 +121,30 @@ class TransactionViewModel(
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /**
-     * Observable list of expense categories.
-     */
     val expenseCategories = categories.map { l -> l.filter { it.isExpense } }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    
-    /**
-     * Observable list of income categories.
-     */
     val incomeCategories = categories.map { l -> l.filter { !it.isExpense } }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /**
-     * Calculates the time window based on current period (e.g., Month, Year) and selected date.
-     */
     private val selectedDateRange = combine(_selectedPeriod, _selectedDate) { p, d -> calculateDateRange(p, d) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), calculateDateRange(Period.MONTH, System.currentTimeMillis()))
 
-    /**
-     * Source flow for all transactions within the selected period and account.
-     */
     @OptIn(ExperimentalCoroutinesApi::class)
     private val periodTransactionsFlow = combine(selectedDateRange, _selectedAccountId) { range, id ->
         range to id
     }.flatMapLatest { (range, id) -> repository.getTransactionsByDateRange(id, range.start, range.end) }
 
-    /**
-     * List of all transactions in the current period, used for summary calculations.
-     */
     val allTransactionsInPeriod: StateFlow<List<Transaction>> = periodTransactionsFlow
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /**
-     * Filtered version of transactions for display in the main list.
+     * Raw Income for the current period (excluding Carry Over).
      */
+    val periodIncome: StateFlow<Double> = allTransactionsInPeriod
+        .map { list -> list.filter { !it.isExpense }.sumOf { it.amount } }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+
     val transactions: StateFlow<List<Transaction>> = combine(allTransactionsInPeriod, _activeFilterType, _filterCategoryName) { txs, type, cat ->
         when (type) {
             FilterType.ALL -> txs
@@ -164,34 +154,18 @@ class TransactionViewModel(
         }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /**
-     * Paging-enabled transaction flow for efficient scrolling of large datasets.
-     */
     @OptIn(ExperimentalCoroutinesApi::class)
     val pagedTransactions: Flow<PagingData<Transaction>> = combine(selectedDateRange, _activeFilterType, _filterCategoryName, _searchQuery, _selectedAccountId) { range, type, cat, q, id ->
         val isExp = when (type) { FilterType.ONLY_EXPENSE -> true; FilterType.ONLY_INCOME -> false; else -> null }
         repository.getPagedTransactions(id, range.start, range.end, isExp, if (type == FilterType.BY_CATEGORY) cat else null, q)
     }.flatMapLatest { it }.cachedIn(viewModelScope)
 
-    /** Sets the search query for filtering transactions. */
     fun setSearchQuery(query: String?) { _searchQuery.value = if (query.isNullOrBlank()) null else query }
-    
-    /** Sets the active filter type and category. */
     fun setFilter(type: FilterType, categoryName: String? = null) { _activeFilterType.value = type; _filterCategoryName.value = categoryName }
-    
-    /** Updates the currently selected account ID. */
     fun setSelectedAccount(id: Long) { _selectedAccountId.value = id }
-    
-    /** Refreshes the currency symbol from settings. */
     fun refreshCurrency() { _currencySymbol.value = settingsManager.getCurrencySymbol() }
-    
-    /** Sets whether reports should focus on expenses or income. */
     fun setReportIsExpense(isExpense: Boolean) { _reportIsExpense.value = isExpense }
 
-    /**
-     * Syncs local state with SettingsManager for the specific account.
-     * All Accounts (-1L) has its own independent Budget settings but Carry Over remains disabled.
-     */
     fun refreshBudgetSettings() {
         val id = _selectedAccountId.value
         _isBudgetModeEnabled.value = settingsManager.isBudgetModeEnabled(id)
@@ -203,23 +177,16 @@ class TransactionViewModel(
             _isCarryOverPositiveOnly.value = settingsManager.isCarryOverPositiveOnly(id)
             _isCarryOverAddToIncome.value = settingsManager.isCarryOverAddToIncome(id)
         } else { 
-            // Carry Over is not supported for All Accounts mode
-            _isCarryOverEnabled.value = false
-            _isCarryOverPositiveOnly.value = false
-            _isCarryOverAddToIncome.value = false
+            // All Accounts: Carry Over is informative if Budget is OFF
+            _isCarryOverEnabled.value = !settingsManager.isBudgetModeEnabled(-1L)
+            _isCarryOverPositiveOnly.value = false 
+            _isCarryOverAddToIncome.value = true
         }
     }
 
-    /** Sets the current viewing period (Day, Week, Month, Year). */
     fun setPeriod(period: Period) { _selectedPeriod.value = period }
-    
-    /** Sets the selected reference date for the current period. */
     fun setDate(dateMillis: Long) { _selectedDate.value = dateMillis }
-    
-    /** Advances to the next period. */
     fun nextPeriod() { _selectedDate.value = adjustDate(_selectedDate.value, _selectedPeriod.value, 1) }
-    
-    /** Goes back to the previous period. */
     fun previousPeriod() { _selectedDate.value = adjustDate(_selectedDate.value, _selectedPeriod.value, -1) }
 
     private fun adjustDate(d: Long, p: Period, a: Int): Long = Calendar.getInstance().apply {
@@ -267,225 +234,133 @@ class TransactionViewModel(
 
     private fun ensureTransferCategoryExists() = viewModelScope.launch { repository.insertCategory(Category(name = "Transfer", iconName = "SyncAlt", isExpense = true, color = -0x1000000)) }
 
-    /**
-     * Transfers funds from one account to another by creating matching expense and income transactions.
-     */
     fun transferFunds(fromAccountId: Long, toAccountId: Long, amount: Double, date: Long, note: String) = viewModelScope.launch {
         val uuid = UUID.randomUUID().toString()
         repository.insertTransaction(Transaction(id = "${uuid}_out", amount = amount, categoryName = "Transfer", date = date, note = note, isExpense = true, accountId = fromAccountId))
         repository.insertTransaction(Transaction(id = "${uuid}_in", amount = amount, categoryName = "Transfer", date = date, note = note, isExpense = false, accountId = toAccountId))
     }
 
-    /**
-     * Sum of all expenses in the current period.
-     */
     val totalExpense = allTransactionsInPeriod.map { it.filter { t -> t.isExpense }.sumOf { t -> t.amount } }.distinctUntilChanged().flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
     
     private val carryOverSettings = combine(_isCarryOverEnabled, _isCarryOverPositiveOnly) { enabled, posOnly -> enabled to posOnly }
-    private val budgetBasicSettings = combine(_isBudgetModeEnabled, _monthlyBudget, _isIncludeIncomeEnabled) { enabled, budget, includeIncome -> 
-        Triple(enabled, budget, includeIncome) 
-    }
+    private val budgetBasicSettings = combine(_isBudgetModeEnabled, _monthlyBudget, _isIncludeIncomeEnabled) { enabled, budget, includeIncome -> Triple(enabled, budget, includeIncome) }
+    private val accountAndRange = combine(_selectedAccountId, selectedDateRange) { id, range -> id to range }
 
     /**
      * Core logic for calculating the amount carried over from previous months.
-     * In Standard Mode: Returns the total historical balance before the current period.
-     * In Budget Mode: Returns the cumulative difference between effective budget and actual spending.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     val carryOverAmount: StateFlow<Double> = combine(
-        _selectedAccountId,
-        selectedDateRange,
-        carryOverSettings,
-        budgetBasicSettings,
-        dataChangedEvent.onStart { emit(Unit) }
-    ) { id, range, cSettings, bSettings, _ ->
+        accountAndRange, carryOverSettings, budgetBasicSettings, repository.allAccounts, dataChangedEvent.onStart { emit(Unit) }
+    ) { accRange, cSettings, bSettings, allAccounts, _ ->
+        val (id, range) = accRange
         val (enabled, posOnly) = cSettings
         val (budgetEnabled, mBudget, includeIncome) = bSettings
         
-        if (!enabled || id == -1L) return@combine 0.0
-        
-        if (budgetEnabled) {
-            // Budget carry over: cumulative (Effective Budget) - (Expenses since the first transaction)
-            val firstTxDate = repository.getOldestTransactionDate(id)
-            if (firstTxDate == null) {
-                0.0
-            } else {
-                val calStart = Calendar.getInstance().apply { 
-                    timeInMillis = firstTxDate 
-                    set(Calendar.DAY_OF_MONTH, 1)
-                    set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-                }
-                val calCurrent = Calendar.getInstance().apply { 
-                    timeInMillis = range.start 
-                    set(Calendar.DAY_OF_MONTH, 1)
-                }
-                val monthsDiff = (calCurrent.get(Calendar.YEAR) - calStart.get(Calendar.YEAR)) * 12 +
-                        (calCurrent.get(Calendar.MONTH) - calStart.get(Calendar.MONTH))
-                
-                if (monthsDiff <= 0) {
-                    0.0
-                } else {
-                    val totalExpensesBefore = repository.getTotalExpensesBeforeDate(id, range.start)
-                    val cumulativeFixedBudget = mBudget * monthsDiff
-                    
-                    // If income is included in budget, add historical income to the cumulative budget
-                    val totalIncomeBefore = if (includeIncome) repository.getTotalIncomeBeforeDate(id, range.start) else 0.0
-                    
-                    val carry = (cumulativeFixedBudget + totalIncomeBefore) - totalExpensesBefore
-                    if (posOnly && carry < 0.0) 0.0 else carry
+        if (id == -1L) {
+            if (budgetEnabled) return@combine 0.0
+            var totalCarry = 0.0
+            for (acc in allAccounts) {
+                if (settingsManager.isCarryOverEnabled(acc.id) && !settingsManager.isBudgetModeEnabled(acc.id)) {
+                    val accCarry = repository.getBalanceBeforeDate(acc.id, range.start)
+                    val accPosOnly = settingsManager.isCarryOverPositiveOnly(acc.id)
+                    totalCarry += if (accPosOnly && accCarry < 0.0) 0.0 else accCarry
                 }
             }
+            return@combine totalCarry
+        }
+        
+        if (!enabled) return@combine 0.0
+        
+        if (budgetEnabled) {
+            calculateBudgetCarryOver(id, range.start, mBudget, includeIncome, posOnly)
         } else {
-            // Standard carry over: simple balance summation up to the start of current period
-            val previousBalance = repository.getBalanceBeforeDate(id, range.start)
-            if (posOnly && previousBalance < 0.0) 0.0 else previousBalance
+            val balanceBefore = repository.getBalanceBeforeDate(id, range.start)
+            if (posOnly && balanceBefore < 0.0) 0.0 else balanceBefore
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
-    /**
-     * The effective budget for the month, including any carried over savings/debt.
-     */
-    val dynamicBudget: StateFlow<Double> = combine(
-        _monthlyBudget,
-        carryOverAmount,
-        _isBudgetModeEnabled,
-        _isCarryOverEnabled
-    ) { fixed, carry, budgetEnabled, carryEnabled ->
-        if (budgetEnabled && carryEnabled) fixed + carry else fixed
+    private suspend fun calculateBudgetCarryOver(accId: Long, startDate: Long, budget: Double, includeInc: Boolean, posOnly: Boolean): Double {
+        val firstTxDate = repository.getOldestTransactionDate(accId) ?: return 0.0
+        val calStart = Calendar.getInstance().apply { timeInMillis = firstTxDate; set(Calendar.DAY_OF_MONTH, 1); set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
+        val calCurrent = Calendar.getInstance().apply { timeInMillis = startDate; set(Calendar.DAY_OF_MONTH, 1); set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
+        val monthsDiff = (calCurrent.get(Calendar.YEAR) - calStart.get(Calendar.YEAR)) * 12 + (calCurrent.get(Calendar.MONTH) - calStart.get(Calendar.MONTH))
+        if (monthsDiff <= 0) return 0.0
+        val expensesBefore = repository.getTotalExpensesBeforeDate(accId, startDate)
+        val cumulativeBudget = budget * monthsDiff
+        val incomeBefore = if (includeInc) repository.getTotalIncomeBeforeDate(accId, startDate) else 0.0
+        val carry = (cumulativeBudget + incomeBefore) - expensesBefore
+        return if (posOnly && carry < 0.0) 0.0 else carry
+    }
+
+    val dynamicBudget: StateFlow<Double> = combine(_monthlyBudget, carryOverAmount, _isBudgetModeEnabled, _isCarryOverEnabled) { fixed, carry, bEnabled, cEnabled ->
+        if (bEnabled && cEnabled) fixed + carry else fixed
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
-    /**
-     * Total income for the period. 
-     * If 'Carry Over Add to Income' is true, it incorporates the historical balance into this figure.
-     */
-    val totalIncome = combine(
-        allTransactionsInPeriod.map { it.filter { t -> !t.isExpense }.sumOf { t -> t.amount } },
-        carryOverAmount,
-        _isCarryOverAddToIncome,
-        _isBudgetModeEnabled,
-        _isCarryOverEnabled
-    ) { income, carry, add, budgetEnabled, carryEnabled ->
-        if (add && !(budgetEnabled && carryEnabled)) income + carry else income
+    val totalIncome = combine(periodIncome, carryOverAmount, _isCarryOverAddToIncome, _isBudgetModeEnabled, _isCarryOverEnabled) { income, carry, add, bEnabled, cEnabled ->
+        if (add && !(bEnabled && cEnabled)) income + carry else income
     }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
-    /**
-     * Final calculation of the current period's financial state.
-     * In Standard Mode: Net profit/loss + Carry Over (if not already in totalIncome).
-     * In Budget Mode: Remaining funds relative to the FIXED budget limit (excluding Carry Over from the sum).
-     */
-    val balance = combine(
-        totalIncome, 
-        totalExpense, 
-        carryOverAmount, 
-        _isCarryOverAddToIncome, 
-        combine(_isBudgetModeEnabled, _isIncludeIncomeEnabled, _monthlyBudget) { a, b, c -> Triple(a, b, c) }
-    ) { income, expense, carry, add, budgetSettings ->
-        val (budgetEnabled, includeIncome, mBudget) = budgetSettings
+    private val fullSettings = combine(_isBudgetModeEnabled, _isIncludeIncomeEnabled, _monthlyBudget) { b, i, m -> Triple(b, i, m) }
 
-        if (budgetEnabled) {
-            // Net balance in Budget Mode = (Fixed Monthly Budget + Income if enabled) - Expenses
-            // Carry Over is displayed separately and doesn't affect the "Remaining" figure of the current month.
-            val base = if (includeIncome) mBudget + income else mBudget
-            base - expense
-        } else {
-            val net = income - expense
-            // If carry wasn't added to totalIncome for display, we add it here 
-            // to maintain a cumulative historical balance (Cumulative Flow Logic).
+    val balance: StateFlow<Double> = combine(totalIncome, totalExpense, carryOverAmount, _isCarryOverAddToIncome, fullSettings) { inc, exp, carry, add, settings ->
+        val (bEnabled, includeInc, mBudget) = settings
+        if (bEnabled) (if (includeInc) mBudget + inc else mBudget) - exp
+        else {
+            val net = inc - exp
             if (!add) net + carry else net
         }
     }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
-    /**
-     * Aggregated expenses grouped by category for the summary chart.
-     */
     val expensesByCategory = allTransactionsInPeriod.map { list ->
         list.filter { it.isExpense }.groupBy { it.categoryName }.map { (n, ts) -> n to ts.sumOf { it.amount } }.sortedByDescending { it.second }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /**
-     * Daily balance changes used to populate the Heatmap calendar.
-     */
     val heatmapData = combine(selectedDateRange, allTransactionsInPeriod) { range, list ->
         val map = mutableMapOf<Long, Double>()
-        val cal = Calendar.getInstance()
-        cal.timeInMillis = range.start
-        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0); cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
-        while (cal.timeInMillis <= range.end) {
-            map[cal.timeInMillis] = 0.0
-            cal.add(Calendar.DAY_OF_YEAR, 1)
-        }
+        val cal = Calendar.getInstance().apply { timeInMillis = range.start; set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
+        while (cal.timeInMillis <= range.end) { map[cal.timeInMillis] = 0.0; cal.add(Calendar.DAY_OF_YEAR, 1) }
         list.forEach { tx ->
-            cal.timeInMillis = tx.date
-            cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0); cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+            cal.timeInMillis = tx.date; cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0); cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
             val day = cal.timeInMillis
             if (map.containsKey(day)) map[day] = (map[day] ?: 0.0) + (if (tx.isExpense) -tx.amount else tx.amount)
         }
         map
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
-    /**
-     * Count of transactions that are marked as incomplete (e.g., pending).
-     */
     @OptIn(ExperimentalCoroutinesApi::class)
-    val incompleteTransactionsCount = _selectedAccountId.flatMapLatest { id ->
-        repository.getAllTransactions(id).map { l -> l.count { !it.isComplete } }
-    }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    val incompleteTransactionsCount = _selectedAccountId.flatMapLatest { id -> repository.getAllTransactions(id).map { l -> l.count { !it.isComplete } } }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    /**
-     * Detailed timeline data for the Cash Flow chart (Bar Chart).
-     */
     val cashFlowData: StateFlow<List<CashFlowPoint>> = combine(transactions, _selectedPeriod, _selectedDate) { list, period, date ->
         val cal = Calendar.getInstance().apply { timeInMillis = date }
         val points = mutableListOf<CashFlowPoint>()
         val txCal = Calendar.getInstance()
         val grouped = list.groupBy { 
             txCal.timeInMillis = it.date
-            when (period) {
-                Period.DAY -> txCal.get(Calendar.HOUR_OF_DAY)
-                Period.WEEK -> txCal.get(Calendar.DAY_OF_WEEK)
-                Period.MONTH -> txCal.get(Calendar.DAY_OF_MONTH)
-                Period.YEAR -> txCal.get(Calendar.MONTH)
-            }
+            when (period) { Period.DAY -> txCal.get(Calendar.HOUR_OF_DAY); Period.WEEK -> txCal.get(Calendar.DAY_OF_WEEK); Period.MONTH -> txCal.get(Calendar.DAY_OF_MONTH); Period.YEAR -> txCal.get(Calendar.MONTH) }
         }
         when (period) {
             Period.DAY -> {
                 val sdf = SimpleDateFormat("HH:00", Locale.getDefault())
-                for (h in 0..23) {
-                    val ts = grouped[h] ?: emptyList()
-                    cal.set(Calendar.HOUR_OF_DAY, h); points.add(CashFlowPoint(sdf.format(cal.time), ts.filter { !it.isExpense }.sumOf { it.amount }, ts.filter { it.isExpense }.sumOf { it.amount }, cal.timeInMillis))
-                }
+                for (h in 0..23) { val ts = grouped[h] ?: emptyList(); cal.set(Calendar.HOUR_OF_DAY, h); points.add(CashFlowPoint(sdf.format(cal.time), ts.filter { !it.isExpense }.sumOf { it.amount }, ts.filter { it.isExpense }.sumOf { it.amount }, cal.timeInMillis)) }
             }
             Period.WEEK -> {
                 val sdf = SimpleDateFormat("EEE", Locale.getDefault())
                 val temp = cal.clone() as Calendar; temp.set(Calendar.DAY_OF_WEEK, temp.firstDayOfWeek)
-                for (i in 0..6) {
-                    val day = temp.get(Calendar.DAY_OF_WEEK)
-                    val ts = grouped[day] ?: emptyList()
-                    points.add(CashFlowPoint(sdf.format(temp.time), ts.filter { !it.isExpense }.sumOf { it.amount }, ts.filter { it.isExpense }.sumOf { it.amount }, temp.timeInMillis))
-                    temp.add(Calendar.DAY_OF_MONTH, 1)
-                }
+                for (i in 0..6) { val day = temp.get(Calendar.DAY_OF_WEEK); val ts = grouped[day] ?: emptyList(); points.add(CashFlowPoint(sdf.format(temp.time), ts.filter { !it.isExpense }.sumOf { it.amount }, ts.filter { it.isExpense }.sumOf { it.amount }, temp.timeInMillis)); temp.add(Calendar.DAY_OF_MONTH, 1) }
             }
             Period.MONTH -> {
                 val sdf = SimpleDateFormat("d", Locale.getDefault())
-                for (d in 1..cal.getActualMaximum(Calendar.DAY_OF_MONTH)) {
-                    val ts = grouped[d] ?: emptyList()
-                    cal.set(Calendar.DAY_OF_MONTH, d); points.add(CashFlowPoint(sdf.format(cal.time), ts.filter { !it.isExpense }.sumOf { it.amount }, ts.filter { it.isExpense }.sumOf { it.amount }, cal.timeInMillis))
-                }
+                for (d in 1..cal.getActualMaximum(Calendar.DAY_OF_MONTH)) { val ts = grouped[d] ?: emptyList(); cal.set(Calendar.DAY_OF_MONTH, d); points.add(CashFlowPoint(sdf.format(cal.time), ts.filter { !it.isExpense }.sumOf { it.amount }, ts.filter { it.isExpense }.sumOf { it.amount }, cal.timeInMillis)) }
             }
             Period.YEAR -> {
                 val sdf = SimpleDateFormat("MMM", Locale.getDefault())
-                for (m in 0..11) {
-                    val ts = grouped[m] ?: emptyList()
-                    cal.set(Calendar.MONTH, m); points.add(CashFlowPoint(sdf.format(cal.time), ts.filter { !it.isExpense }.sumOf { it.amount }, ts.filter { it.isExpense }.sumOf { it.amount }, cal.timeInMillis))
-                }
+                for (m in 0..11) { val ts = grouped[m] ?: emptyList(); cal.set(Calendar.MONTH, m); points.add(CashFlowPoint(sdf.format(cal.time), ts.filter { !it.isExpense }.sumOf { it.amount }, ts.filter { it.isExpense }.sumOf { it.amount }, cal.timeInMillis)) }
             }
         }
         points
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /**
-     * Percentage-based data for the Category Pie/List report.
-     */
     val categoryReportData = combine(allTransactionsInPeriod, categories, _reportIsExpense) { txs, cats, isExp ->
         val filtered = txs.filter { it.isExpense == isExp }
         val total = filtered.sumOf { it.amount }
@@ -496,30 +371,15 @@ class TransactionViewModel(
         }.sortedByDescending { it.amount }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /** Adds a new transaction to the database. */
     fun addTransaction(transaction: Transaction) = viewModelScope.launch {
         val aid = if (_selectedAccountId.value == -1L) 1L else _selectedAccountId.value
         repository.insertTransaction(if (transaction.accountId <= 0L) transaction.copy(accountId = aid) else transaction)
     }
-    
-    /** Updates an existing transaction. */
     fun updateTransaction(transaction: Transaction) { viewModelScope.launch { repository.updateTransaction(transaction) } }
-    
-    /** Deletes a single transaction. */
     fun deleteTransaction(transaction: Transaction) { viewModelScope.launch { repository.deleteTransaction(transaction) } }
-    
-    /** Deletes a list of transactions. */
     fun deleteTransactions(transactions: List<Transaction>) { viewModelScope.launch { transactions.forEach { repository.deleteTransaction(it) } } }
-    
-    /** Adds a new category. */
     fun addCategory(category: Category) { viewModelScope.launch { repository.insertCategory(category) } }
-    
-    /** Updates an existing category. */
     fun updateCategory(category: Category) { viewModelScope.launch { repository.updateCategory(category) } }
-    
-    /** Deletes a list of categories. */
     fun deleteCategories(categories: List<Category>) { viewModelScope.launch { repository.deleteCategories(categories) } }
-    
-    /** Generates a CSV string of transactions for export (Stub). */
     suspend fun generateCsvString(s: Long, e: Long, n: Boolean, c: String, so: String, se: String): String = ""
 }

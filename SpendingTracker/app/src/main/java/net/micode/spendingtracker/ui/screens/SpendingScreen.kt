@@ -45,6 +45,8 @@ fun SpendingScreen(
     onAddIncome: () -> Unit,
     onSwitchAccountClick: () -> Unit
 ) {
+    // Financial Data
+    val periodIncome by viewModel.periodIncome.collectAsState()
     val totalIncome by viewModel.totalIncome.collectAsState()
     val totalExpense by viewModel.totalExpense.collectAsState()
     val balance by viewModel.balance.collectAsState()
@@ -55,6 +57,7 @@ fun SpendingScreen(
     val selectedPeriod by viewModel.selectedPeriod.collectAsState()
     val currencySymbol by viewModel.currencySymbol.collectAsState()
     
+    // User Preferences
     val isBudgetEnabled by viewModel.isBudgetModeEnabled.collectAsState()
     val monthlyBudget by viewModel.monthlyBudget.collectAsState()
     val isIncludeIncomeEnabled by viewModel.isIncludeIncomeEnabled.collectAsState()
@@ -82,6 +85,7 @@ fun SpendingScreen(
             modifier = Modifier.fillMaxSize().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Period Navigation
             Row(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                 horizontalArrangement = Arrangement.Center,
@@ -125,7 +129,7 @@ fun SpendingScreen(
                 }
             }
 
-            // Progress Bar based on Fixed Budget for consistency
+            // Visual Progress Bar
             val totalLimit = if (isIncludeIncomeEnabled) monthlyBudget + totalIncome else monthlyBudget
             Row(modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp))) {
                 if (isBudgetEnabled && selectedPeriod == Period.MONTH) {
@@ -149,12 +153,12 @@ fun SpendingScreen(
             LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 
                 if (isBudgetEnabled && selectedPeriod == Period.MONTH) {
-                    // MAIN ROW: Shows Fixed Budget (as per reference image)
+                    // BUDGET MODE: Show Monthly Fixed Budget
                     item { 
                         BalanceRow(stringResource(R.string.monthly_budget), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, monthlyBudget), ChalkGreen) 
                     }
                     
-                    // SUB-ITEM: Carry Over (Informative only)
+                    // BUDGET MODE Carry Over (Sub-item, informative only)
                     if (isCarryOverEnabled && carryOverAmount != 0.0) {
                         item {
                             val sign = if (carryOverAmount < 0) "- " else "+ "
@@ -169,11 +173,13 @@ fun SpendingScreen(
                     }
 
                     if (isIncludeIncomeEnabled) {
-                        item { BalanceRow(stringResource(R.string.income), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, totalIncome), ChalkGreen) }
+                        item { BalanceRow(stringResource(R.string.income), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, periodIncome), ChalkGreen) }
                     }
                 } else {
-                    item { BalanceRow(stringResource(R.string.income), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, totalIncome), ChalkGreen) }
+                    // STANDARD MODE: Show Monthly Income (Transactions only)
+                    item { BalanceRow(stringResource(R.string.income), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, periodIncome), ChalkGreen) }
                     
+                    // STANDARD MODE Carry Over (Sub-item for consolidated view)
                     if (isCarryOverEnabled && isCarryOverAddToIncome && carryOverAmount != 0.0) {
                         item {
                             val sign = if (carryOverAmount < 0) "- " else "+ "
@@ -188,6 +194,7 @@ fun SpendingScreen(
                     }
                 }
 
+                // Expenses Section
                 item { BalanceRow(stringResource(R.string.expense), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, totalExpense), ChalkRed) }
                 
                 items(expensesByCategory) { (name, amount) ->
@@ -197,6 +204,7 @@ fun SpendingScreen(
                     }
                 }
 
+                // Standalone Carry Over (Only if not integrated into Income/Budget labels)
                 if (!isBudgetEnabled && isCarryOverEnabled && !isCarryOverAddToIncome && carryOverAmount != 0.0) {
                     item {
                         val sign = if (carryOverAmount < 0) "- " else ""
@@ -204,8 +212,10 @@ fun SpendingScreen(
                     }
                 }
 
+                // Final Balance Section
                 item {
                     DottedDivider(modifier = Modifier.padding(vertical = 16.dp))
+                    
                     val balanceLabel = if (isBudgetEnabled) {
                         if (balance >= 0) stringResource(R.string.remaining) else stringResource(R.string.over_spending)
                     } else {
