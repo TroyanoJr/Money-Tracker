@@ -305,13 +305,13 @@ class TransactionViewModel(
         if (!enabled || id == -1L) return@combine 0.0
         
         if (budgetEnabled) {
-            // Budget carry over: cumulative (Effective Budget) - (Expenses since the beginning)
-            val firstExpenseDate = repository.getFirstExpenseDate(id)
-            if (firstExpenseDate == null) {
+            // Budget carry over: cumulative (Effective Budget) - (Expenses since the first transaction)
+            val firstTxDate = repository.getOldestTransactionDate(id)
+            if (firstTxDate == null) {
                 0.0
             } else {
                 val calStart = Calendar.getInstance().apply { 
-                    timeInMillis = firstExpenseDate 
+                    timeInMillis = firstTxDate 
                     set(Calendar.DAY_OF_MONTH, 1)
                     set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
                 }
@@ -328,7 +328,7 @@ class TransactionViewModel(
                     val totalExpensesBefore = repository.getTotalExpensesBeforeDate(id, range.start)
                     val cumulativeFixedBudget = mBudget * monthsDiff
                     
-                    // FIXED: If income is included in budget, add historical income to the cumulative budget
+                    // If income is included in budget, add historical income to the cumulative budget
                     val totalIncomeBefore = if (includeIncome) repository.getTotalIncomeBeforeDate(id, range.start) else 0.0
                     
                     val carry = (cumulativeFixedBudget + totalIncomeBefore) - totalExpensesBefore
@@ -368,26 +368,24 @@ class TransactionViewModel(
         if (add && !(budgetEnabled && carryEnabled)) income + carry else income
     }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
-    private val fullBudgetSettings = combine(_isBudgetModeEnabled, _isIncludeIncomeEnabled, dynamicBudget) { enabled, includeIncome, dBudget ->
-        Triple(enabled, includeIncome, dBudget)
-    }
-
     /**
      * Final calculation of the current period's financial state.
      * In Standard Mode: Net profit/loss + Carry Over (if not already in totalIncome).
-     * In Budget Mode: Remaining funds relative to the dynamic budget limit.
+     * In Budget Mode: Remaining funds relative to the FIXED budget limit (excluding Carry Over from the sum).
      */
     val balance = combine(
         totalIncome, 
         totalExpense, 
         carryOverAmount, 
         _isCarryOverAddToIncome, 
-        fullBudgetSettings
-    ) { income, expense, carry, add, bSettings ->
-        val (budgetEnabled, includeIncome, dBudget) = bSettings
+        combine(_isBudgetModeEnabled, _isIncludeIncomeEnabled, _monthlyBudget) { a, b, c -> Triple(a, b, c) }
+    ) { income, expense, carry, add, budgetSettings ->
+        val (budgetEnabled, includeIncome, mBudget) = budgetSettings
 
         if (budgetEnabled) {
-            val base = if (includeIncome) dBudget + income else dBudget
+            // Net balance in Budget Mode = (Fixed Monthly Budget + Income if enabled) - Expenses
+            // Carry Over is displayed separately and doesn't affect the "Remaining" figure of the current month.
+            val base = if (includeIncome) mBudget + income else mBudget
             base - expense
         } else {
             val net = income - expense
