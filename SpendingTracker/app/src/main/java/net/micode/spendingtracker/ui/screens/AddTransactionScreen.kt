@@ -182,9 +182,11 @@ fun AddTransactionScreen(
                         Switch(checked = isRepeating, onCheckedChange = { isRepeating = it }, colors = SwitchDefaults.colors(checkedThumbColor = DarkBrownText, checkedTrackColor = DarkBrownText.copy(alpha = 0.4f)))
                     }
                     Spacer(modifier = Modifier.height(24.dp))
+                    /**
                     CategoryRow(label = stringResource(R.string.note), labelColor = MaterialTheme.colorScheme.primary) {
                         BasicTextField(value = note, onValueChange = { note = it }, textStyle = TextStyle(fontSize = 16.sp, color = DarkBrownText), modifier = Modifier.fillMaxWidth())
                     }
+                    **/
                 }
             }
         }

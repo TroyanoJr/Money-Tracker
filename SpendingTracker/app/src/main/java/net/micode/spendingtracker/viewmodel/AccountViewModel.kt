@@ -39,7 +39,7 @@ class AccountViewModel(private val repository: TransactionRepository) : ViewMode
                         repository.insertAccount(
                             Account(
                                 id = 1,
-                                name = "Main Account",
+                                name = "Me",
                                 color = 0xFF2196F3.toInt(), // Material Blue
                                 isDefault = true
                             )
