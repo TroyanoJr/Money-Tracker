@@ -76,6 +76,9 @@ fun AddTransactionScreen(
     val expenseCategories by viewModel.expenseCategories.collectAsState()
     val incomeCategories by viewModel.incomeCategories.collectAsState()
     val currentDashboardDate by viewModel.selectedDate.collectAsState()
+    
+    // NEW: Observe the currently selected account ID from the global state
+    val currentDashboardAccountId by viewModel.selectedAccountId.collectAsState()
 
     var amount by rememberSaveable { mutableStateOf(transactionToEdit?.amount?.toString() ?: "") }
     var note by rememberSaveable { mutableStateOf(transactionToEdit?.note ?: "") }
@@ -83,7 +86,16 @@ fun AddTransactionScreen(
     var showCategorySelector by rememberSaveable { mutableStateOf(false) }
     var selectedCategoryName by rememberSaveable { mutableStateOf(transactionToEdit?.categoryName ?: "") }
     
-    var selectedAccountId by rememberSaveable { mutableLongStateOf(transactionToEdit?.accountId ?: 1L) }
+    /**
+     * Logic Change: Initialize with the current dashboard account if not editing.
+     * Fallback to 1L if dashboard is in "All Accounts" (-1L) mode.
+     */
+    var selectedAccountId by rememberSaveable { 
+        val initialId = transactionToEdit?.accountId 
+            ?: if (currentDashboardAccountId == -1L) 1L else currentDashboardAccountId
+        mutableLongStateOf(initialId) 
+    }
+
     var showAccountPicker by rememberSaveable { mutableStateOf(false) }
     val selectedAccountName = accounts.find { it.id == selectedAccountId }?.name ?: "Default"
 

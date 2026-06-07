@@ -258,6 +258,7 @@ class TransactionViewModel(
         val (budgetEnabled, mBudget, includeIncome) = bSettings
         
         if (id == -1L) {
+            // Consolidated carry for All Accounts (Budget must be OFF)
             if (budgetEnabled) return@combine 0.0
             var totalCarry = 0.0
             for (acc in allAccounts) {
