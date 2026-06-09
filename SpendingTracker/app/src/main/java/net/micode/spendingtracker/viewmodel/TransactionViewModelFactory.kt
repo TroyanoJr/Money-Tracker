@@ -16,7 +16,7 @@ class TransactionViewModelFactory(
 
     /**
      * Creates a new instance of the given [modelClass].
-     * Supported ViewModels: [TransactionViewModel], [AccountViewModel].
+     * Supported ViewModels: [TransactionViewModel], [AccountViewModel], [ReportsViewModel].
      * 
      * @param modelClass The class of the ViewModel to create.
      * @return A newly created ViewModel instance of type [T].
@@ -31,6 +31,10 @@ class TransactionViewModelFactory(
             modelClass.isAssignableFrom(AccountViewModel::class.java) -> {
                 @Suppress("UNCHECKED_CAST")
                 AccountViewModel(repository) as T
+            }
+            modelClass.isAssignableFrom(ReportsViewModel::class.java) -> {
+                @Suppress("UNCHECKED_CAST")
+                ReportsViewModel(repository, settingsManager) as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

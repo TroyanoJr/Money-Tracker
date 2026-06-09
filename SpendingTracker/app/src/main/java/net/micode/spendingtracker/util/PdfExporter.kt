@@ -11,20 +11,22 @@ import java.util.*
 
 /**
  * Utility object for exporting transaction data into a PDF format.
- * It generates an HTML representation of the financial data and uses the Android Print Service
- * to render and save it as a PDF document.
+ * Refactored to separate HTML generation (content) from the printing process (infrastructure).
+ * Complies with the Single Responsibility Principle (SRP).
  */
 object PdfExporter {
+
     /**
      * Generates a PDF report for a list of transactions.
+     * Entry point that coordinates report building and system printing.
      * 
      * @param context The context used to access system services.
-     * @param periodName A string representing the time range of the report (e.g., "January 2024").
+     * @param periodName A string representing the time range of the report.
      * @param totalIncome The sum of all income in the period.
      * @param totalExpense The sum of all expenses in the period.
      * @param balance The net balance for the period.
-     * @param currencySymbol The currency symbol to display in the report.
-     * @param transactions The list of transactions to include in the report.
+     * @param currencySymbol The currency symbol to display.
+     * @param transactions The list of transactions to include.
      */
     fun exportTransactionsToPdf(
         context: Context,
@@ -35,6 +37,27 @@ object PdfExporter {
         currencySymbol: String,
         transactions: List<Transaction>
     ) {
+        // Step 1: Generate HTML content
+        val htmlContent = generateHtmlContent(
+            periodName, totalIncome, totalExpense, balance, currencySymbol, transactions
+        )
+
+        // Step 2: Trigger the printing workflow
+        performPrint(context, htmlContent)
+    }
+
+    /**
+     * Builds the HTML representation of the financial data.
+     * Isolated logic to facilitate future UI/Design changes (OCP).
+     */
+    private fun generateHtmlContent(
+        periodName: String,
+        totalIncome: Double,
+        totalExpense: Double,
+        balance: Double,
+        currencySymbol: String,
+        transactions: List<Transaction>
+    ): String {
         val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
         val tableRows = transactions.joinToString("") { tx ->
             val color = if (tx.isExpense) "#e57373" else "#81c784"
@@ -51,7 +74,7 @@ object PdfExporter {
             """.trimIndent()
         }
 
-        val htmlContent = """
+        return """
             <!DOCTYPE html>
             <html>
             <head>
@@ -119,7 +142,12 @@ object PdfExporter {
             </body>
             </html>
         """.trimIndent()
+    }
 
+    /**
+     * Executes the actual print job through the Android Print Service.
+     */
+    private fun performPrint(context: Context, htmlContent: String) {
         val webView = WebView(context)
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {

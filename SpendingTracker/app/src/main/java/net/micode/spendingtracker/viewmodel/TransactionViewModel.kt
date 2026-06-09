@@ -37,8 +37,8 @@ data class CashFlowPoint(val label: String, val income: Double, val expense: Dou
 data class CategoryReportItem(val name: String, val amount: Double, val color: Int, val percentage: Float)
 
 /**
- * Main ViewModel for managing transactions, budgets, and financial reports.
- * Uses a reactive approach with StateFlows to ensure the UI stays synchronized with the database.
+ * Main ViewModel for managing transactions, budgets, and operational state.
+ * Refactored to delegate data seeding and cross-account transfers to the repository (SRP).
  */
 class TransactionViewModel(
     private val repository: TransactionRepository,
@@ -167,7 +167,6 @@ class TransactionViewModel(
             _isCarryOverPositiveOnly.value = settingsManager.isCarryOverPositiveOnly(id)
             _isCarryOverAddToIncome.value = settingsManager.isCarryOverAddToIncome(id)
         } else { 
-            // All Accounts: Carry Over is informative if Budget is OFF
             _isCarryOverEnabled.value = !settingsManager.isBudgetModeEnabled(-1L)
             _isCarryOverPositiveOnly.value = false 
             _isCarryOverAddToIncome.value = true
@@ -179,28 +178,26 @@ class TransactionViewModel(
     fun nextPeriod() { _selectedDate.value = DateManager.adjustDate(_selectedDate.value, _selectedPeriod.value, 1) }
     fun previousPeriod() { _selectedDate.value = DateManager.adjustDate(_selectedDate.value, _selectedPeriod.value, -1) }
 
+    /**
+     * Seeds default categories via repository.
+     */
     private fun seedDefaultCategories() = viewModelScope.launch {
-        val defaults = listOf(
-            Category(name = "Food & Dining", iconName = "Restaurant", isExpense = true, color = -0x1bbbd0),
-            Category(name = "Shopping", iconName = "ShoppingCart", isExpense = true, color = -0xba3d07),
-            Category(name = "Transport", iconName = "DirectionsBus", isExpense = true, color = -0xded60d),
-            Category(name = "Utilities & Subs", iconName = "Wifi", isExpense = true, color = -0xff6978),
-            Category(name = "Health & Beauty", iconName = "HealthAndSafety", isExpense = true, color = -0xb550b),
-            Category(name = "Entertainment", iconName = "Movie", isExpense = true, color = -0x543cb6),
-            Category(name = "Education", iconName = "School", isExpense = true, color = -0xff9678),
-            Category(name = "Finance & Social", iconName = "Payments", isExpense = true, color = -0x86aab8),
-            Category(name = "Transfer", iconName = "SyncAlt", isExpense = true, color = -0x1000000)
-        )
-        defaults.forEach { repository.insertCategory(it) }
+        repository.seedDefaultCategories()
         settingsManager.setHasSeededCategories(true)
     }
 
-    private fun ensureTransferCategoryExists() = viewModelScope.launch { repository.insertCategory(Category(name = "Transfer", iconName = "SyncAlt", isExpense = true, color = -0x1000000)) }
+    /**
+     * Ensures mandatory transfer category exists via repository.
+     */
+    private fun ensureTransferCategoryExists() = viewModelScope.launch {
+        repository.ensureTransferCategoryExists() 
+    }
 
+    /**
+     * Transfers funds between accounts via repository.
+     */
     fun transferFunds(fromAccountId: Long, toAccountId: Long, amount: Double, date: Long, note: String) = viewModelScope.launch {
-        val uuid = UUID.randomUUID().toString()
-        repository.insertTransaction(Transaction(id = "${uuid}_out", amount = amount, categoryName = "Transfer", date = date, note = note, isExpense = true, accountId = fromAccountId))
-        repository.insertTransaction(Transaction(id = "${uuid}_in", amount = amount, categoryName = "Transfer", date = date, note = note, isExpense = false, accountId = toAccountId))
+        repository.transferFunds(fromAccountId, toAccountId, amount, date, note)
     }
 
     val totalExpense = allTransactionsInPeriod.map { it.filter { t -> t.isExpense }.sumOf { t -> t.amount } }.distinctUntilChanged().flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
@@ -209,10 +206,6 @@ class TransactionViewModel(
     private val budgetBasicSettings = combine(_isBudgetModeEnabled, _monthlyBudget, _isIncludeIncomeEnabled) { enabled, budget, includeIncome -> Triple(enabled, budget, includeIncome) }
     private val accountAndRange = combine(_selectedAccountId, selectedDateRange) { id, range -> id to range }
 
-    /**
-     * Core logic for calculating the amount carried over from previous months.
-     * Delegated to BudgetManager for SRP.
-     */
     @OptIn(ExperimentalCoroutinesApi::class)
     val carryOverAmount: StateFlow<Double> = combine(
         accountAndRange, carryOverSettings, budgetBasicSettings, repository.allAccounts, dataChangedEvent.onStart { emit(Unit) }
@@ -231,16 +224,18 @@ class TransactionViewModel(
         if (add && !(bEnabled && cEnabled)) income + carry else income
     }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
-    private val fullSettings = combine(_isBudgetModeEnabled, _isIncludeIncomeEnabled, _monthlyBudget) { b, i, m -> Triple(b, i, m) }
+    private val fullSettings = combine(_isBudgetModeEnabled, _isIncludeIncomeEnabled, dynamicBudget) { b, i, db -> Triple(b, i, db) }
 
     val balance: StateFlow<Double> = combine(totalIncome, totalExpense, carryOverAmount, _isCarryOverAddToIncome, fullSettings) { inc, exp, carry, add, settings ->
-        val (bEnabled, includeInc, mBudget) = settings
-        if (bEnabled) (if (includeInc) mBudget + inc else mBudget) - exp
+        val (bEnabled, includeInc, dBudget) = settings
+        if (bEnabled) (if (includeInc) dBudget + inc else dBudget) - exp
         else {
             val net = inc - exp
             if (!add) net + carry else net
         }
     }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+
+    // --- Analytic Flows (Keeping for compatibility, logic duplicated in ReportsViewModel) ---
 
     val expensesByCategory = allTransactionsInPeriod.map { list ->
         list.filter { it.isExpense }.groupBy { it.categoryName }.map { (n, ts) -> n to ts.sumOf { it.amount } }.sortedByDescending { it.second }
@@ -301,13 +296,15 @@ class TransactionViewModel(
         }.sortedByDescending { it.amount }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // --- Transaction CRUD Operations ---
+
     fun addTransaction(transaction: Transaction) = viewModelScope.launch {
         val aid = if (_selectedAccountId.value == -1L) 1L else _selectedAccountId.value
         repository.insertTransaction(if (transaction.accountId <= 0L) transaction.copy(accountId = aid) else transaction)
     }
     fun updateTransaction(transaction: Transaction) { viewModelScope.launch { repository.updateTransaction(transaction) } }
     fun deleteTransaction(transaction: Transaction) { viewModelScope.launch { repository.deleteTransaction(transaction) } }
-    fun deleteTransactions(transactions: List<Transaction>) { viewModelScope.launch { transactions.forEach { repository.deleteTransaction(it) } } }
+    fun deleteTransactions(transactions: List<Transaction>) { viewModelScope.launch { repository.deleteTransactions(transactions) } }
     fun addCategory(category: Category) { viewModelScope.launch { repository.insertCategory(category) } }
     fun updateCategory(category: Category) { viewModelScope.launch { repository.updateCategory(category) } }
     fun deleteCategories(categories: List<Category>) { viewModelScope.launch { repository.deleteCategories(categories) } }

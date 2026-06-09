@@ -1,6 +1,5 @@
 package net.micode.spendingtracker.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,6 +36,10 @@ import net.micode.spendingtracker.viewmodel.TransactionViewModel
 import java.util.*
 import kotlin.math.abs
 
+/**
+ * Main Spending Dashboard screen. 
+ * Refactored using SRP by decomposing the UI into specialized sub-composables.
+ */
 @Composable
 fun SpendingScreen(
     viewModel: TransactionViewModel,
@@ -45,7 +48,7 @@ fun SpendingScreen(
     onAddIncome: () -> Unit,
     onSwitchAccountClick: () -> Unit
 ) {
-    // Financial Data
+    // Financial Data Collection
     val periodIncome by viewModel.periodIncome.collectAsState()
     val totalIncome by viewModel.totalIncome.collectAsState()
     val totalExpense by viewModel.totalExpense.collectAsState()
@@ -57,20 +60,18 @@ fun SpendingScreen(
     val selectedPeriod by viewModel.selectedPeriod.collectAsState()
     val currencySymbol by viewModel.currencySymbol.collectAsState()
     
-    // User Preferences
+    // UI State & Preferences
     val isBudgetEnabled by viewModel.isBudgetModeEnabled.collectAsState()
     val monthlyBudget by viewModel.monthlyBudget.collectAsState()
     val isIncludeIncomeEnabled by viewModel.isIncludeIncomeEnabled.collectAsState()
     val isCarryOverEnabled by viewModel.isCarryOverEnabled.collectAsState()
     val isCarryOverAddToIncome by viewModel.isCarryOverAddToIncome.collectAsState()
-
     val incompleteCount by viewModel.incompleteTransactionsCount.collectAsState()
     var showHeatmap by rememberSaveable { mutableStateOf(false) }
 
     val accounts by accountViewModel.allAccounts.collectAsState()
     val selectedAccountId by viewModel.selectedAccountId.collectAsState()
 
-    val isMultiAccountMode = remember(accounts) { accounts.size > 1 }
     val currentAccountName = remember(selectedAccountId, accounts) {
         if (selectedAccountId == -1L && accounts.size > 1) "All Accounts"
         else accounts.find { it.id == selectedAccountId }?.name ?: ""
@@ -85,164 +86,223 @@ fun SpendingScreen(
             modifier = Modifier.fillMaxSize().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Period Navigation
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "< ",
-                    color = ChalkWhite,
-                    fontSize = 20.sp,
-                    modifier = Modifier.clickable { viewModel.previousPeriod() }.padding(horizontal = 16.dp)
-                )
+            // 1. Period & Account Navigation
+            PeriodSelector(
+                currentAccountName = currentAccountName,
+                isMultiAccount = accounts.size > 1,
+                onPrevious = { viewModel.previousPeriod() },
+                onNext = { viewModel.nextPeriod() },
+                onAccountClick = onSwitchAccountClick
+            )
 
-                if (isMultiAccountMode) {
-                    Text(
-                        text = currentAccountName,
-                        color = ChalkWhite,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clickable { onSwitchAccountClick() }
-                    )
-                } else {
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
-                
-                Text(
-                    text = " >",
-                    color = ChalkWhite,
-                    fontSize = 20.sp,
-                    modifier = Modifier.clickable { viewModel.nextPeriod() }.padding(horizontal = 16.dp)
-                )
-            }
-
+            // 2. Pending Tasks Warning
             if (incompleteCount > 0) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp).border(1.dp, ChalkWhite.copy(alpha = 0.4f), RoundedCornerShape(4.dp)).background(Color.White.copy(alpha = 0.05f)).padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Warning, null, tint = ChalkRed, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Text(stringResource(R.string.pending_transactions, incompleteCount), color = ChalkWhite, fontSize = 12.sp)
-                }
+                PendingTransactionsAlert(incompleteCount)
             }
 
-            // Visual Progress Bar
-            val totalLimit = if (isIncludeIncomeEnabled) monthlyBudget + totalIncome else monthlyBudget
-            Row(modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp))) {
-                if (isBudgetEnabled && selectedPeriod == Period.MONTH) {
-                    if (totalExpense <= totalLimit) {
-                        val spentWeight = if (totalLimit > 0) (totalExpense / totalLimit).toFloat().coerceIn(0f, 1f) else 0f
-                        Box(modifier = Modifier.weight((1f - spentWeight).coerceAtLeast(0.0001f)).fillMaxHeight().background(ChalkGreen))
-                        Box(modifier = Modifier.weight(spentWeight.coerceAtLeast(0.0001f)).fillMaxHeight().background(ChalkRed))
-                    } else {
-                        Box(modifier = Modifier.weight(1f).fillMaxHeight().background(ChalkRed))
-                    }
-                } else {
-                    val total = totalIncome + totalExpense
-                    val incomeWeight = if (total > 0) (totalIncome / total).toFloat() else 0.5f
-                    if (incomeWeight > 0) Box(modifier = Modifier.weight(incomeWeight.coerceAtLeast(0.0001f)).fillMaxHeight().background(ChalkGreen))
-                    if (1f - incomeWeight > 0) Box(modifier = Modifier.weight((1f - incomeWeight).coerceAtLeast(0.0001f)).fillMaxHeight().background(ChalkRed))
-                }
-            }
+            // 3. Visual Spending Progress
+            SpendingProgressBar(
+                isBudgetEnabled = isBudgetEnabled,
+                isMonthPeriod = selectedPeriod == Period.MONTH,
+                isIncludeIncome = isIncludeIncomeEnabled,
+                monthlyBudget = if (isCarryOverEnabled) dynamicBudget else monthlyBudget,
+                totalIncome = totalIncome,
+                totalExpense = totalExpense
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                
-                if (isBudgetEnabled && selectedPeriod == Period.MONTH) {
-                    // BUDGET MODE: Show Monthly Fixed Budget
-                    item { 
-                        BalanceRow(stringResource(R.string.monthly_budget), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, monthlyBudget), ChalkGreen) 
-                    }
-                    
-                    // BUDGET MODE Carry Over (Sub-item, informative only)
-                    if (isCarryOverEnabled && carryOverAmount != 0.0) {
-                        item {
-                            val sign = if (carryOverAmount < 0) "- " else "+ "
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(start = 32.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(text = stringResource(R.string.carry_over), color = ChalkWhite, fontSize = 15.sp)
-                                Text(text = String.format(Locale.getDefault(), "%s%s %.2f", sign, currencySymbol, abs(carryOverAmount)), color = ChalkWhite, fontSize = 15.sp)
-                            }
-                        }
-                    }
+            // 4. Detailed Financial Summary List
+            FinancialSummarySection(
+                modifier = Modifier.weight(1f),
+                currencySymbol = currencySymbol,
+                isBudgetEnabled = isBudgetEnabled,
+                isMonthPeriod = selectedPeriod == Period.MONTH,
+                monthlyBudget = if (isCarryOverEnabled) dynamicBudget else monthlyBudget,
+                periodIncome = periodIncome,
+                totalExpense = totalExpense,
+                balance = balance,
+                carryOverAmount = carryOverAmount,
+                expensesByCategory = expensesByCategory,
+                isCarryOverEnabled = isCarryOverEnabled,
+                isCarryOverAddToIncome = isCarryOverAddToIncome,
+                isIncludeIncome = isIncludeIncomeEnabled
+            )
 
-                    if (isIncludeIncomeEnabled) {
-                        item { BalanceRow(stringResource(R.string.income), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, periodIncome), ChalkGreen) }
-                    }
-                } else {
-                    // STANDARD MODE: Show Monthly Income (Transactions only)
-                    item { BalanceRow(stringResource(R.string.income), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, periodIncome), ChalkGreen) }
-                    
-                    // STANDARD MODE Carry Over (Sub-item for consolidated view)
-                    if (isCarryOverEnabled && isCarryOverAddToIncome && carryOverAmount != 0.0) {
-                        item {
-                            val sign = if (carryOverAmount < 0) "- " else "+ "
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(start = 32.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(text = stringResource(R.string.carry_over), color = ChalkWhite, fontSize = 15.sp)
-                                Text(text = String.format(Locale.getDefault(), "%s%s %.2f", sign, currencySymbol, abs(carryOverAmount)), color = ChalkWhite, fontSize = 15.sp)
-                            }
-                        }
-                    }
-                }
-
-                // Expenses Section
-                item { BalanceRow(stringResource(R.string.expense), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, totalExpense), ChalkRed) }
-                
-                items(expensesByCategory) { (name, amount) ->
-                    Row(modifier = Modifier.fillMaxWidth().padding(start = 32.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(name, color = ChalkWhite, fontSize = 15.sp)
-                        Text(String.format(Locale.getDefault(), "%s %.2f", currencySymbol, amount), color = ChalkWhite, fontSize = 15.sp)
-                    }
-                }
-
-                // Standalone Carry Over (Only if not integrated into Income/Budget labels)
-                if (!isBudgetEnabled && isCarryOverEnabled && !isCarryOverAddToIncome && carryOverAmount != 0.0) {
-                    item {
-                        val sign = if (carryOverAmount < 0) "- " else ""
-                        BalanceRow(stringResource(R.string.carry_over), String.format(Locale.getDefault(), "%s%s %.2f", sign, currencySymbol, abs(carryOverAmount)), ChalkOrange)
-                    }
-                }
-
-                // Final Balance Section
-                item {
-                    DottedDivider(modifier = Modifier.padding(vertical = 16.dp))
-                    
-                    val balanceLabel = if (isBudgetEnabled) {
-                        if (balance >= 0) stringResource(R.string.remaining) else stringResource(R.string.over_spending)
-                    } else {
-                        stringResource(R.string.balance)
-                    }
-                    
-                    val sign = if (balance < 0) "- " else if (balance > 0) "+ " else ""
-                    val formattedValue = String.format(Locale.getDefault(), "%s%s %.2f", sign, currencySymbol, abs(balance))
-                    BalanceRow(balanceLabel, formattedValue, ChalkBlue)
-                }
-            }
-
+            // 5. Heatmap Toggle
             Text(
                 text = stringResource(R.string.show_heatmap),
                 color = ChalkWhite, fontSize = 14.sp,
-                modifier = Modifier.padding(bottom = 8.dp).clickable { showHeatmap = true }.border(1.dp, ChalkWhite.copy(alpha = 0.5f), RoundedCornerShape(4.dp)).padding(horizontal = 10.dp, vertical = 4.dp)
+                modifier = Modifier
+                    .padding(bottom = 8.dp)
+                    .clickable { showHeatmap = true }
+                    .border(1.dp, ChalkWhite.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
             )
 
-            Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                ChalkButton(stringResource(R.string.add_expense), onClick = onAddExpense)
-                ChalkButton(stringResource(R.string.add_income), onClick = onAddIncome)
-            }
+            // 6. Primary Action Buttons
+            ActionFooter(onAddExpense = onAddExpense, onAddIncome = onAddIncome)
         }
     }
 
     if (showHeatmap) {
         HeatmapDialog(data = heatmapData, period = selectedPeriod, onDismiss = { showHeatmap = false })
+    }
+}
+
+@Composable
+private fun PeriodSelector(
+    currentAccountName: String,
+    isMultiAccount: Boolean,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onAccountClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "< ", color = ChalkWhite, fontSize = 20.sp,
+            modifier = Modifier.clickable { onPrevious() }.padding(horizontal = 16.dp)
+        )
+
+        if (isMultiAccount) {
+            Text(
+                text = currentAccountName, color = ChalkWhite, fontSize = 18.sp,
+                fontWeight = FontWeight.Bold, modifier = Modifier.clickable { onAccountClick() }
+            )
+        } else {
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+        
+        Text(
+            text = " >", color = ChalkWhite, fontSize = 20.sp,
+            modifier = Modifier.clickable { onNext() }.padding(horizontal = 16.dp)
+        )
+    }
+}
+
+@Composable
+private fun PendingTransactionsAlert(count: Int) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 16.dp)
+            .border(1.dp, ChalkWhite.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+            .background(Color.White.copy(alpha = 0.05f))
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Default.Warning, null, tint = ChalkRed, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(12.dp))
+        Text(stringResource(R.string.pending_transactions, count), color = ChalkWhite, fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun SpendingProgressBar(
+    isBudgetEnabled: Boolean,
+    isMonthPeriod: Boolean,
+    isIncludeIncome: Boolean,
+    monthlyBudget: Double,
+    totalIncome: Double,
+    totalExpense: Double
+) {
+    val totalLimit = if (isIncludeIncome) monthlyBudget + totalIncome else monthlyBudget
+    Row(modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp))) {
+        if (isBudgetEnabled && isMonthPeriod) {
+            if (totalExpense <= totalLimit) {
+                val spentWeight = if (totalLimit > 0) (totalExpense / totalLimit).toFloat().coerceIn(0f, 1f) else 0f
+                Box(modifier = Modifier.weight((1f - spentWeight).coerceAtLeast(0.0001f)).fillMaxHeight().background(ChalkGreen))
+                Box(modifier = Modifier.weight(spentWeight.coerceAtLeast(0.0001f)).fillMaxHeight().background(ChalkRed))
+            } else {
+                Box(modifier = Modifier.weight(1f).fillMaxHeight().background(ChalkRed))
+            }
+        } else {
+            val total = totalIncome + totalExpense
+            val incomeWeight = if (total > 0) (totalIncome / total).toFloat() else 0.5f
+            if (incomeWeight > 0) Box(modifier = Modifier.weight(incomeWeight.coerceAtLeast(0.0001f)).fillMaxHeight().background(ChalkGreen))
+            if (1f - incomeWeight > 0) Box(modifier = Modifier.weight((1f - incomeWeight).coerceAtLeast(0.0001f)).fillMaxHeight().background(ChalkRed))
+        }
+    }
+}
+
+@Composable
+private fun FinancialSummarySection(
+    modifier: Modifier = Modifier,
+    currencySymbol: String,
+    isBudgetEnabled: Boolean,
+    isMonthPeriod: Boolean,
+    monthlyBudget: Double,
+    periodIncome: Double,
+    totalExpense: Double,
+    balance: Double,
+    carryOverAmount: Double,
+    expensesByCategory: List<Pair<String, Double>>,
+    isCarryOverEnabled: Boolean,
+    isCarryOverAddToIncome: Boolean,
+    isIncludeIncome: Boolean
+) {
+    LazyColumn(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (isBudgetEnabled && isMonthPeriod) {
+            item { BalanceRow(stringResource(R.string.monthly_budget), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, monthlyBudget), ChalkGreen) }
+            if (isCarryOverEnabled && carryOverAmount != 0.0) {
+                item { CarryOverItem(currencySymbol, carryOverAmount) }
+            }
+            if (isIncludeIncome) {
+                item { BalanceRow(stringResource(R.string.income), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, periodIncome), ChalkGreen) }
+            }
+        } else {
+            item { BalanceRow(stringResource(R.string.income), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, periodIncome), ChalkGreen) }
+            if (isCarryOverEnabled && isCarryOverAddToIncome && carryOverAmount != 0.0) {
+                item { CarryOverItem(currencySymbol, carryOverAmount) }
+            }
+        }
+
+        item { BalanceRow(stringResource(R.string.expense), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, totalExpense), ChalkRed) }
+        
+        items(expensesByCategory) { (name, amount) ->
+            Row(modifier = Modifier.fillMaxWidth().padding(start = 32.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(name, color = ChalkWhite, fontSize = 15.sp)
+                Text(String.format(Locale.getDefault(), "%s %.2f", currencySymbol, amount), color = ChalkWhite, fontSize = 15.sp)
+            }
+        }
+
+        if (!isBudgetEnabled && isCarryOverEnabled && !isCarryOverAddToIncome && carryOverAmount != 0.0) {
+            item {
+                val sign = if (carryOverAmount < 0) "- " else ""
+                BalanceRow(stringResource(R.string.carry_over), String.format(Locale.getDefault(), "%s%s %.2f", sign, currencySymbol, abs(carryOverAmount)), ChalkOrange)
+            }
+        }
+
+        item {
+            DottedDivider(modifier = Modifier.padding(vertical = 16.dp))
+            val balanceLabel = if (isBudgetEnabled) {
+                if (balance >= 0) stringResource(R.string.remaining) else stringResource(R.string.over_spending)
+            } else stringResource(R.string.balance)
+            
+            val sign = if (balance < 0) "- " else if (balance > 0) "+ " else ""
+            BalanceRow(balanceLabel, String.format(Locale.getDefault(), "%s%s %.2f", sign, currencySymbol, abs(balance)), ChalkBlue)
+        }
+    }
+}
+
+@Composable
+private fun CarryOverItem(currencySymbol: String, amount: Double) {
+    val sign = if (amount < 0) "- " else "+ "
+    Row(modifier = Modifier.fillMaxWidth().padding(start = 32.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(text = stringResource(R.string.carry_over), color = ChalkWhite, fontSize = 15.sp)
+        Text(text = String.format(Locale.getDefault(), "%s%s %.2f", sign, currencySymbol, abs(amount)), color = ChalkWhite, fontSize = 15.sp)
+    }
+}
+
+@Composable
+private fun ActionFooter(onAddExpense: () -> Unit, onAddIncome: () -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+        ChalkButton(stringResource(R.string.add_expense), onClick = onAddExpense)
+        ChalkButton(stringResource(R.string.add_income), onClick = onAddIncome)
     }
 }
 
