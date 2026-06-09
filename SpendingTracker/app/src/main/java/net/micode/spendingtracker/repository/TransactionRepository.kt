@@ -16,6 +16,7 @@ import net.micode.spendingtracker.model.Account
 import net.micode.spendingtracker.model.Category
 import net.micode.spendingtracker.model.PeriodSummary
 import net.micode.spendingtracker.model.Transaction
+import java.util.UUID
 
 /**
  * Repository class that abstracts access to multiple data sources.
@@ -103,11 +104,51 @@ class TransactionRepository(
     }
 
     /**
+     * Deletes a list of transactions and notifies observers once.
+     */
+    suspend fun deleteTransactions(transactions: List<Transaction>) {
+        transactions.forEach { transactionDao.deleteTransaction(it) }
+        _dataChanged.emit(Unit)
+    }
+
+    /**
      * Updates an existing transaction and notifies observers.
      */
     suspend fun updateTransaction(transaction: Transaction) {
         transactionDao.updateTransaction(transaction)
         _dataChanged.emit(Unit)
+    }
+
+    /**
+     * Executes a fund transfer between accounts by creating two complementary transactions.
+     * This ensures atomicity and consistency in the transfer logic across the app.
+     */
+    suspend fun transferFunds(fromAccountId: Long, toAccountId: Long, amount: Double, date: Long, note: String) {
+        val transferId = UUID.randomUUID().toString()
+        // Outgoing transaction from source account
+        insertTransaction(
+            Transaction(
+                id = "${transferId}_out",
+                amount = amount,
+                categoryName = "Transfer",
+                date = date,
+                note = note,
+                isExpense = true,
+                accountId = fromAccountId
+            )
+        )
+        // Incoming transaction to destination account
+        insertTransaction(
+            Transaction(
+                id = "${transferId}_in",
+                amount = amount,
+                categoryName = "Transfer",
+                date = date,
+                note = note,
+                isExpense = false,
+                accountId = toAccountId
+            )
+        )
     }
 
     // --- Category Methods ---
@@ -143,6 +184,31 @@ class TransactionRepository(
      */
     suspend fun deleteCategories(categories: List<Category>) {
         categories.forEach { categoryDao.deleteCategory(it) }
+    }
+
+    /**
+     * Seeds the database with a set of default categories.
+     */
+    suspend fun seedDefaultCategories() {
+        val defaults = listOf(
+            Category(name = "Food & Dining", iconName = "Restaurant", isExpense = true, color = -0x1bbbd0),
+            Category(name = "Shopping", iconName = "ShoppingCart", isExpense = true, color = -0xba3d07),
+            Category(name = "Transport", iconName = "DirectionsBus", isExpense = true, color = -0xded60d),
+            Category(name = "Utilities & Subs", iconName = "Wifi", isExpense = true, color = -0xff6978),
+            Category(name = "Health & Beauty", iconName = "HealthAndSafety", isExpense = true, color = -0xb550b),
+            Category(name = "Entertainment", iconName = "Movie", isExpense = true, color = -0x543cb6),
+            Category(name = "Education", iconName = "School", isExpense = true, color = -0xff9678),
+            Category(name = "Finance & Social", iconName = "Payments", isExpense = true, color = -0x86aab8),
+            Category(name = "Transfer", iconName = "SyncAlt", isExpense = true, color = -0x1000000)
+        )
+        defaults.forEach { categoryDao.insertCategory(it) }
+    }
+
+    /**
+     * Ensures that the mandatory "Transfer" category exists in the system.
+     */
+    suspend fun ensureTransferCategoryExists() {
+        insertCategory(Category(name = "Transfer", iconName = "SyncAlt", isExpense = true, color = -0x1000000))
     }
 
     // --- Summary and Analytic Methods ---

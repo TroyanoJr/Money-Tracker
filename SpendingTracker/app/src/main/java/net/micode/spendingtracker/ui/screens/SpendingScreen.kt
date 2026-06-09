@@ -32,7 +32,7 @@ import net.micode.spendingtracker.ui.components.ChalkButton
 import net.micode.spendingtracker.ui.components.DottedDivider
 import net.micode.spendingtracker.ui.theme.*
 import net.micode.spendingtracker.viewmodel.AccountViewModel
-import net.micode.spendingtracker.viewmodel.Period
+import net.micode.spendingtracker.util.Period
 import net.micode.spendingtracker.viewmodel.TransactionViewModel
 import java.util.*
 import kotlin.math.abs

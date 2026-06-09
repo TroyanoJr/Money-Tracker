@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.sp
 import net.micode.spendingtracker.R
 import net.micode.spendingtracker.ui.theme.BeigeHeader
 import net.micode.spendingtracker.ui.theme.DarkBrownText
-import net.micode.spendingtracker.viewmodel.Period
+import net.micode.spendingtracker.util.Period
 import java.text.SimpleDateFormat
 import java.util.*
 

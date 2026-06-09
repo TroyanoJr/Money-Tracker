@@ -33,8 +33,8 @@ import net.micode.spendingtracker.ui.theme.BeigeHeader
 import net.micode.spendingtracker.ui.theme.DarkBrownText
 import net.micode.spendingtracker.util.IconCatalog
 import net.micode.spendingtracker.util.PdfExporter
+import net.micode.spendingtracker.util.Period
 import net.micode.spendingtracker.viewmodel.FilterType
-import net.micode.spendingtracker.viewmodel.Period
 import net.micode.spendingtracker.viewmodel.TransactionViewModel
 import java.text.SimpleDateFormat
 import java.util.*

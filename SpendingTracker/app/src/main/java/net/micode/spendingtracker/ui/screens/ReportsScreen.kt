@@ -31,7 +31,7 @@ import net.micode.spendingtracker.R
 import net.micode.spendingtracker.viewmodel.CashFlowPoint
 import net.micode.spendingtracker.viewmodel.CategoryReportItem
 import net.micode.spendingtracker.viewmodel.TransactionViewModel
-import net.micode.spendingtracker.viewmodel.Period
+import net.micode.spendingtracker.util.Period
 import net.micode.spendingtracker.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*

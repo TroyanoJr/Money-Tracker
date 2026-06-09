@@ -12,14 +12,9 @@ import net.micode.spendingtracker.model.Account
 import net.micode.spendingtracker.model.Category
 import net.micode.spendingtracker.model.Transaction
 import net.micode.spendingtracker.repository.TransactionRepository
-import net.micode.spendingtracker.util.SettingsManager
+import net.micode.spendingtracker.util.*
 import java.text.SimpleDateFormat
 import java.util.*
-
-/**
- * Supported time periods for transaction filtering and reporting.
- */
-enum class Period { DAY, WEEK, MONTH, YEAR }
 
 /**
  * Filter types for the transaction list.
@@ -40,11 +35,6 @@ data class CashFlowPoint(val label: String, val income: Double, val expense: Dou
  * Represent a category's contribution to total spending/income in reports.
  */
 data class CategoryReportItem(val name: String, val amount: Double, val color: Int, val percentage: Float)
-
-/**
- * Internal helper to manage start and end timestamps for a given period.
- */
-private data class DateRange(val start: Long, val end: Long)
 
 /**
  * Main ViewModel for managing transactions, budgets, and financial reports.
@@ -124,8 +114,8 @@ class TransactionViewModel(
     val expenseCategories = categories.map { l -> l.filter { it.isExpense } }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val incomeCategories = categories.map { l -> l.filter { !it.isExpense } }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val selectedDateRange = combine(_selectedPeriod, _selectedDate) { p, d -> calculateDateRange(p, d) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), calculateDateRange(Period.MONTH, System.currentTimeMillis()))
+    private val selectedDateRange = combine(_selectedPeriod, _selectedDate) { p, d -> DateManager.calculateDateRange(p, d) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DateManager.calculateDateRange(Period.MONTH, System.currentTimeMillis()))
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val periodTransactionsFlow = combine(selectedDateRange, _selectedAccountId) { range, id ->
@@ -186,35 +176,8 @@ class TransactionViewModel(
 
     fun setPeriod(period: Period) { _selectedPeriod.value = period }
     fun setDate(dateMillis: Long) { _selectedDate.value = dateMillis }
-    fun nextPeriod() { _selectedDate.value = adjustDate(_selectedDate.value, _selectedPeriod.value, 1) }
-    fun previousPeriod() { _selectedDate.value = adjustDate(_selectedDate.value, _selectedPeriod.value, -1) }
-
-    private fun adjustDate(d: Long, p: Period, a: Int): Long = Calendar.getInstance().apply {
-        timeInMillis = d
-        when (p) { Period.DAY -> add(Calendar.DAY_OF_YEAR, a); Period.WEEK -> add(Calendar.WEEK_OF_YEAR, a); Period.MONTH -> add(Calendar.MONTH, a); Period.YEAR -> add(Calendar.YEAR, a) }
-    }.timeInMillis
-
-    private fun calculateDateRange(p: Period, d: Long): DateRange {
-        val s = Calendar.getInstance().apply {
-            timeInMillis = d
-            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-            when (p) {
-                Period.WEEK -> set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-                Period.MONTH -> set(Calendar.DAY_OF_MONTH, 1)
-                Period.YEAR -> { set(Calendar.MONTH, Calendar.JANUARY); set(Calendar.DAY_OF_MONTH, 1) }
-                else -> Unit
-            }
-        }
-        val e = s.clone() as Calendar
-        when (p) {
-            Period.DAY -> Unit
-            Period.WEEK -> e.add(Calendar.DAY_OF_YEAR, 6)
-            Period.MONTH -> e.set(Calendar.DAY_OF_MONTH, e.getActualMaximum(Calendar.DAY_OF_MONTH))
-            Period.YEAR -> { e.set(Calendar.MONTH, Calendar.DECEMBER); e.set(Calendar.DAY_OF_MONTH, 31) }
-        }
-        e.set(Calendar.HOUR_OF_DAY, 23); e.set(Calendar.MINUTE, 59); e.set(Calendar.SECOND, 59); e.set(Calendar.MILLISECOND, 999)
-        return DateRange(s.timeInMillis, e.timeInMillis)
-    }
+    fun nextPeriod() { _selectedDate.value = DateManager.adjustDate(_selectedDate.value, _selectedPeriod.value, 1) }
+    fun previousPeriod() { _selectedDate.value = DateManager.adjustDate(_selectedDate.value, _selectedPeriod.value, -1) }
 
     private fun seedDefaultCategories() = viewModelScope.launch {
         val defaults = listOf(
@@ -248,51 +211,17 @@ class TransactionViewModel(
 
     /**
      * Core logic for calculating the amount carried over from previous months.
+     * Delegated to BudgetManager for SRP.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     val carryOverAmount: StateFlow<Double> = combine(
         accountAndRange, carryOverSettings, budgetBasicSettings, repository.allAccounts, dataChangedEvent.onStart { emit(Unit) }
-    ) { accRange, cSettings, bSettings, allAccounts, _ ->
+    ) { accRange, _, _, allAccounts, _ ->
+        accRange to allAccounts
+    }.mapLatest { (accRange, allAccounts) ->
         val (id, range) = accRange
-        val (enabled, posOnly) = cSettings
-        val (budgetEnabled, mBudget, includeIncome) = bSettings
-        
-        if (id == -1L) {
-            // Consolidated carry for All Accounts (Budget must be OFF)
-            if (budgetEnabled) return@combine 0.0
-            var totalCarry = 0.0
-            for (acc in allAccounts) {
-                if (settingsManager.isCarryOverEnabled(acc.id) && !settingsManager.isBudgetModeEnabled(acc.id)) {
-                    val accCarry = repository.getBalanceBeforeDate(acc.id, range.start)
-                    val accPosOnly = settingsManager.isCarryOverPositiveOnly(acc.id)
-                    totalCarry += if (accPosOnly && accCarry < 0.0) 0.0 else accCarry
-                }
-            }
-            return@combine totalCarry
-        }
-        
-        if (!enabled) return@combine 0.0
-        
-        if (budgetEnabled) {
-            calculateBudgetCarryOver(id, range.start, mBudget, includeIncome, posOnly)
-        } else {
-            val balanceBefore = repository.getBalanceBeforeDate(id, range.start)
-            if (posOnly && balanceBefore < 0.0) 0.0 else balanceBefore
-        }
+        BudgetManager.calculateCarryOver(id, range.start, settingsManager, repository, allAccounts)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
-
-    private suspend fun calculateBudgetCarryOver(accId: Long, startDate: Long, budget: Double, includeInc: Boolean, posOnly: Boolean): Double {
-        val firstTxDate = repository.getOldestTransactionDate(accId) ?: return 0.0
-        val calStart = Calendar.getInstance().apply { timeInMillis = firstTxDate; set(Calendar.DAY_OF_MONTH, 1); set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
-        val calCurrent = Calendar.getInstance().apply { timeInMillis = startDate; set(Calendar.DAY_OF_MONTH, 1); set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
-        val monthsDiff = (calCurrent.get(Calendar.YEAR) - calStart.get(Calendar.YEAR)) * 12 + (calCurrent.get(Calendar.MONTH) - calStart.get(Calendar.MONTH))
-        if (monthsDiff <= 0) return 0.0
-        val expensesBefore = repository.getTotalExpensesBeforeDate(accId, startDate)
-        val cumulativeBudget = budget * monthsDiff
-        val incomeBefore = if (includeInc) repository.getTotalIncomeBeforeDate(accId, startDate) else 0.0
-        val carry = (cumulativeBudget + incomeBefore) - expensesBefore
-        return if (posOnly && carry < 0.0) 0.0 else carry
-    }
 
     val dynamicBudget: StateFlow<Double> = combine(_monthlyBudget, carryOverAmount, _isBudgetModeEnabled, _isCarryOverEnabled) { fixed, carry, bEnabled, cEnabled ->
         if (bEnabled && cEnabled) fixed + carry else fixed

@@ -8,9 +8,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import net.micode.spendingtracker.model.Account
-import net.micode.spendingtracker.model.Transaction
 import net.micode.spendingtracker.repository.TransactionRepository
-import java.util.UUID
 
 /**
  * ViewModel responsible for managing financial accounts.
@@ -107,6 +105,7 @@ class AccountViewModel(private val repository: TransactionRepository) : ViewMode
 
     /**
      * Transfers funds from one account to another by creating matching expense and income transactions.
+     * Delegated to [TransactionRepository.transferFunds] for consistency.
      * @param fromAccountId The ID of the source account.
      * @param toAccountId The ID of the destination account.
      * @param amount The amount of money to transfer.
@@ -115,31 +114,7 @@ class AccountViewModel(private val repository: TransactionRepository) : ViewMode
      */
     fun transferFunds(fromAccountId: Long, toAccountId: Long, amount: Double, date: Long, note: String) {
         viewModelScope.launch {
-            val transferId = UUID.randomUUID().toString()
-            // Expense from source account
-            repository.insertTransaction(
-                Transaction(
-                    id = "${transferId}_out",
-                    amount = amount,
-                    categoryName = "Transfer",
-                    date = date,
-                    note = note,
-                    isExpense = true,
-                    accountId = fromAccountId
-                )
-            )
-            // Income to destination account
-            repository.insertTransaction(
-                Transaction(
-                    id = "${transferId}_in",
-                    amount = amount,
-                    categoryName = "Transfer",
-                    date = date,
-                    note = note,
-                    isExpense = false,
-                    accountId = toAccountId
-                )
-            )
+            repository.transferFunds(fromAccountId, toAccountId, amount, date, note)
         }
     }
 
