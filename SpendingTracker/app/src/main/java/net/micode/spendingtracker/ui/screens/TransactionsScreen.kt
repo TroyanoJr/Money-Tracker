@@ -159,7 +159,19 @@ fun TransactionsScreen(
         Box(modifier = Modifier.weight(1f)) {
             val isRefreshing = pagedTransactions.loadState.refresh is LoadState.Loading
             val refreshError = pagedTransactions.loadState.refresh as? LoadState.Error
-            val isEmpty = !isRefreshing && refreshError == null && pagedTransactions.itemCount == 0
+            
+            /**
+             * Carry Over Visibility Logic:
+             * Carry over should be visible if enabled in settings and no specific filters are applied.
+             */
+            val shouldShowCarryOver = isCarryOverEnabled && activeFilter == FilterType.ALL
+            
+            /**
+             * Updated Empty State Logic:
+             * The screen is only considered empty if there are no transactions AND no carry over to display.
+             * This ensures the LazyColumn is rendered even if the only item is the carry over.
+             */
+            val isEmpty = !isRefreshing && refreshError == null && pagedTransactions.itemCount == 0 && !shouldShowCarryOver
 
             if (isRefreshing) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -208,7 +220,7 @@ fun TransactionsScreen(
                         HorizontalDivider(modifier = Modifier.padding(start = 56.dp), thickness = 0.5.dp, color = Color.LightGray)
                     }
 
-                    if (isCarryOverEnabled && activeFilter == FilterType.ALL) {
+                    if (shouldShowCarryOver) {
                         item {
                             CarryOverItem(
                                 amount = carryOverAmount,
