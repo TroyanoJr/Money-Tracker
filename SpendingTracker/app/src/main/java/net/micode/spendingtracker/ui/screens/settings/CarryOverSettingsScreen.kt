@@ -29,6 +29,7 @@ fun CarryOverSettingsScreen(
     var carryOverEnabled by remember(accountId) { mutableStateOf(settingsManager.isCarryOverEnabled(accountId)) }
     var positiveOnly by remember(accountId) { mutableStateOf(settingsManager.isCarryOverPositiveOnly(accountId)) }
     var addToIncome by remember(accountId) { mutableStateOf(settingsManager.isCarryOverAddToIncome(accountId)) }
+    val budgetModeEnabled = remember(accountId) { settingsManager.isBudgetModeEnabled(accountId) }
     var showInfoDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -77,14 +78,17 @@ fun CarryOverSettingsScreen(
                 settingsManager.setCarryOverPositiveOnly(accountId, it)
             }
 
-            SettingsToggleRow(
-                title = stringResource(R.string.add_to_income),
-                subtitle = stringResource(R.string.add_to_income_desc),
-                checked = addToIncome,
-                enabled = carryOverEnabled
-            ) {
-                addToIncome = it
-                settingsManager.setCarryOverAddToIncome(accountId, it)
+            // Ocultar esta opción si el Budget Mode está activo para evitar redundancia y doble conteo
+            if (!budgetModeEnabled) {
+                SettingsToggleRow(
+                    title = stringResource(R.string.add_to_income),
+                    subtitle = stringResource(R.string.add_to_income_desc),
+                    checked = addToIncome,
+                    enabled = carryOverEnabled
+                ) {
+                    addToIncome = it
+                    settingsManager.setCarryOverAddToIncome(accountId, it)
+                }
             }
             
             Text(
