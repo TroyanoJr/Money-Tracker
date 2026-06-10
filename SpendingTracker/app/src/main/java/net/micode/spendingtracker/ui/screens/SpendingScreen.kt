@@ -66,7 +66,7 @@ fun SpendingScreen(
     val isIncludeIncomeEnabled by viewModel.isIncludeIncomeEnabled.collectAsState()
     val isCarryOverEnabled by viewModel.isCarryOverEnabled.collectAsState()
     val isCarryOverAddToIncome by viewModel.isCarryOverAddToIncome.collectAsState()
-    val incompleteCount by viewModel.incompleteTransactionsCount.collectAsState()
+
     var showHeatmap by rememberSaveable { mutableStateOf(false) }
 
     val accounts by accountViewModel.allAccounts.collectAsState()
@@ -95,10 +95,7 @@ fun SpendingScreen(
                 onAccountClick = onSwitchAccountClick
             )
 
-            // 2. Pending Tasks Warning
-            if (incompleteCount > 0) {
-                PendingTransactionsAlert(incompleteCount)
-            }
+
 
             // 3. Visual Spending Progress
             SpendingProgressBar(
@@ -184,22 +181,6 @@ private fun PeriodSelector(
     }
 }
 
-@Composable
-private fun PendingTransactionsAlert(count: Int) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 16.dp)
-            .border(1.dp, ChalkWhite.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
-            .background(Color.White.copy(alpha = 0.05f))
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(Icons.Default.Warning, null, tint = ChalkRed, modifier = Modifier.size(16.dp))
-        Spacer(Modifier.width(12.dp))
-        Text(stringResource(R.string.pending_transactions, count), color = ChalkWhite, fontSize = 12.sp)
-    }
-}
 
 @Composable
 private fun SpendingProgressBar(

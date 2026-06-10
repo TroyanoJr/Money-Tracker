@@ -228,7 +228,7 @@ class TransactionViewModel(
         if (id == -1L) {
             allAccounts.map { acc ->
                 acc to BudgetManager.calculateCarryOver(acc.id, range.start, settingsManager, repository, allAccounts)
-            }.filter { it.second != 0.0 }
+            }.filter { (acc, amount) -> amount != 0.0 && !settingsManager.isBudgetModeEnabled(acc.id) }
         } else {
             val amount = BudgetManager.calculateCarryOver(id, range.start, settingsManager, repository, allAccounts)
             val current = allAccounts.find { it.id == id }
@@ -274,7 +274,7 @@ class TransactionViewModel(
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val incompleteTransactionsCount = _selectedAccountId.flatMapLatest { id -> repository.getAllTransactions(id).map { l -> l.count { !it.isComplete } } }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    //val incompleteTransactionsCount = _selectedAccountId.flatMapLatest { id -> repository.getAllTransactions(id).map { l -> l.count { !it.isComplete } } }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     val cashFlowData: StateFlow<List<CashFlowPoint>> = combine(transactions, _selectedPeriod, _selectedDate) { list, period, date ->
         val cal = Calendar.getInstance().apply { timeInMillis = date }
