@@ -216,6 +216,26 @@ class TransactionViewModel(
         BudgetManager.calculateCarryOver(id, range.start, settingsManager, repository, allAccounts)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
+    /**
+     * Provides individual carry-over amounts for each account.
+     * Used for granular display in "All Accounts" mode.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val individualCarryOvers: StateFlow<List<Pair<Account, Double>>> = combine(
+        accountAndRange, carryOverSettings, budgetBasicSettings, repository.allAccounts, dataChangedEvent.onStart { emit(Unit) }
+    ) { accRange, _, _, allAccounts, _ ->
+        val (id, range) = accRange
+        if (id == -1L) {
+            allAccounts.map { acc ->
+                acc to BudgetManager.calculateCarryOver(acc.id, range.start, settingsManager, repository, allAccounts)
+            }.filter { it.second != 0.0 }
+        } else {
+            val amount = BudgetManager.calculateCarryOver(id, range.start, settingsManager, repository, allAccounts)
+            val current = allAccounts.find { it.id == id }
+            if (current != null && amount != 0.0) listOf(current to amount) else emptyList()
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val dynamicBudget: StateFlow<Double> = combine(_monthlyBudget, carryOverAmount, _isBudgetModeEnabled, _isCarryOverEnabled) { fixed, carry, bEnabled, cEnabled ->
         if (bEnabled && cEnabled) fixed + carry else fixed
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)

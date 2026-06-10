@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -75,6 +76,7 @@ fun TransactionsScreen(
     val totalIncome by viewModel.totalIncome.collectAsState()
     val totalExpense by viewModel.totalExpense.collectAsState()
     val carryOverAmount by viewModel.carryOverAmount.collectAsState()
+    val individualCarryOvers by viewModel.individualCarryOvers.collectAsState()
     val isCarryOverEnabled by viewModel.isCarryOverEnabled.collectAsState()
     
     val activeFilter by viewModel.activeFilterType.collectAsState()
@@ -203,11 +205,16 @@ fun TransactionsScreen(
                         val category = categories.find { it.name == transaction.categoryName }
                         val icon = if (transaction.categoryName == "Transfer") Icons.Default.SyncAlt else if (category != null) IconCatalog.getIconByName(category.iconName) else Icons.Default.Sell
 
+                        val accountName = if (selectedAccountId == -1L) {
+                            accounts.find { it.id == transaction.accountId }?.name
+                        } else null
+
                         TransactionItem(
                             transaction = transaction,
                             icon = icon,
                             symbol = currencySymbol,
                             isSelected = isSelected,
+                            accountName = accountName,
                             onClick = {
                                 if (selectedTransactionIds.isEmpty()) {
                                     onEditTransaction(transaction)
@@ -221,13 +228,26 @@ fun TransactionsScreen(
                     }
 
                     if (shouldShowCarryOver) {
-                        item {
-                            CarryOverItem(
-                                amount = carryOverAmount,
-                                symbol = currencySymbol,
-                                date = selectedDate
-                            )
-                            HorizontalDivider(modifier = Modifier.padding(start = 56.dp), thickness = 0.5.dp, color = Color.LightGray)
+                        if (selectedAccountId == -1L) {
+                            items(individualCarryOvers) { entry ->
+                                val (account, amount) = entry
+                                CarryOverItem(
+                                    amount = amount,
+                                    symbol = currencySymbol,
+                                    date = selectedDate,
+                                    accountName = account.name
+                                )
+                                HorizontalDivider(modifier = Modifier.padding(start = 56.dp), thickness = 0.5.dp, color = Color.LightGray)
+                            }
+                        } else {
+                            item {
+                                CarryOverItem(
+                                    amount = carryOverAmount,
+                                    symbol = currencySymbol,
+                                    date = selectedDate
+                                )
+                                HorizontalDivider(modifier = Modifier.padding(start = 56.dp), thickness = 0.5.dp, color = Color.LightGray)
+                            }
                         }
                     }
 
@@ -488,6 +508,7 @@ fun TransactionItem(
     icon: ImageVector,
     symbol: String,
     isSelected: Boolean,
+    accountName: String? = null,
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
@@ -503,7 +524,12 @@ fun TransactionItem(
         Spacer(Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(text = transaction.categoryName, color = DarkBrownText, fontSize = 18.sp)
-            Text(text = dateFormatter.format(Date(transaction.date)), color = Color.Gray, fontSize = 12.sp)
+            val dateText = dateFormatter.format(Date(transaction.date))
+            Text(
+                text = if (accountName != null) "$accountName, $dateText" else dateText,
+                color = Color.Gray,
+                fontSize = 12.sp
+            )
         }
         Text(
             text = String.format(Locale.getDefault(), "%s%s %.2f", if (transaction.isExpense) "-" else "+", symbol, transaction.amount),
@@ -518,7 +544,8 @@ fun TransactionItem(
 fun CarryOverItem(
     amount: Double,
     symbol: String,
-    date: Long
+    date: Long,
+    accountName: String? = null
 ) {
     val dateFormatter = remember { SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.getDefault()) }
     Row(
@@ -531,7 +558,12 @@ fun CarryOverItem(
         Spacer(Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(text = stringResource(R.string.carry_over), color = DarkBrownText, fontSize = 18.sp)
-            Text(text = dateFormatter.format(Date(date)), color = Color.Gray, fontSize = 12.sp)
+            val dateText = dateFormatter.format(Date(date))
+            Text(
+                text = if (accountName != null) "$accountName, $dateText" else dateText,
+                color = Color.Gray,
+                fontSize = 12.sp
+            )
         }
         Text(
             text = String.format(Locale.getDefault(), "%s%s %.2f", if (amount >= 0) "" else "-", symbol, amount),
