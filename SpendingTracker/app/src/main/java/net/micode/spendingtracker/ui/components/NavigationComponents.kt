@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -26,30 +27,13 @@ import net.micode.spendingtracker.R
 import net.micode.spendingtracker.ui.theme.BeigeHeader
 import net.micode.spendingtracker.ui.theme.DarkBrownText
 import net.micode.spendingtracker.util.Period
+import net.micode.spendingtracker.util.SettingsManager
 import java.text.SimpleDateFormat
 import java.util.*
 
 /**
  * The top navigation bar of the application.
  * It manages the search bar, period selection, account switching, and tab navigation.
- * 
- * @param selectedTabIndex The currently active tab index.
- * @param onTabSelected Callback triggered when a tab is clicked.
- * @param onAddClick Callback for the "+" action button.
- * @param onSettingsClick Callback for the Settings menu item.
- * @param onBackupsClick Callback for the Backups menu item.
- * @param selectedPeriod The currently selected time period (Day, Week, Month, Year).
- * @param selectedDate The selected reference date.
- * @param onPeriodSelected Callback triggered when a new period is chosen.
- * @param onDateSelected Callback triggered when a new date is selected.
- * @param isSearchActive Whether the search mode is currently active.
- * @param searchQuery The current text in the search field.
- * @param onSearchQueryChange Callback triggered as the user types in the search field.
- * @param onToggleSearch Callback to enable or disable search mode.
- * @param showSearchOption Whether to display the search icon in the menu.
- * @param onSwitchAccountClick Callback for the account switcher button.
- * @param selectedAccountColor The color associated with the currently selected account.
- * @param showAccountOption Whether to display the account switcher icon.
  */
 @Composable
 fun TopNavigation(
@@ -74,16 +58,44 @@ fun TopNavigation(
     var showPeriodMenu by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     
-    val dateFormatter = remember(selectedPeriod) {
+    val context = LocalContext.current
+    val settingsManager = remember { SettingsManager(context) }
+    
+    val dateText = remember(selectedPeriod, selectedDate) {
+        val calendar = Calendar.getInstance().apply { timeInMillis = selectedDate }
+        val locale = Locale.getDefault()
+        
         when (selectedPeriod) {
-            Period.DAY -> SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            Period.WEEK -> SimpleDateFormat("'Week' w, yyyy", Locale.getDefault())
-            Period.MONTH -> SimpleDateFormat("MMM yyyy", Locale.getDefault())
-            Period.YEAR -> SimpleDateFormat("yyyy", Locale.getDefault())
+            Period.DAY -> SimpleDateFormat("EEE, d MMM", locale).format(Date(selectedDate))
+            Period.WEEK -> {
+                val weekStartDay = settingsManager.getWeekStartDay()
+                
+                // Adjust to the start of the week
+                var diff = calendar.get(Calendar.DAY_OF_WEEK) - weekStartDay
+                if (diff < 0) diff += 7
+                calendar.add(Calendar.DAY_OF_YEAR, -diff)
+                
+                val startDay = calendar.get(Calendar.DAY_OF_MONTH)
+                val startMonth = calendar.get(Calendar.MONTH)
+                val startDate = calendar.time
+                
+                calendar.add(Calendar.DAY_OF_YEAR, 6)
+                val endDay = calendar.get(Calendar.DAY_OF_MONTH)
+                val endMonth = calendar.get(Calendar.MONTH)
+                val endDate = calendar.time
+                
+                val monthFormatter = SimpleDateFormat("MMM", locale)
+                if (startMonth == endMonth) {
+                    "$startDay - $endDay ${monthFormatter.format(startDate)}"
+                } else {
+                    "$startDay ${monthFormatter.format(startDate)} - $endDay ${monthFormatter.format(endDate)}"
+                }
+            }
+            Period.MONTH -> SimpleDateFormat("MMM yyyy", locale).format(Date(selectedDate))
+            Period.YEAR -> SimpleDateFormat("yyyy", locale).format(Date(selectedDate))
         }
     }
     
-    val dateText = dateFormatter.format(Date(selectedDate))
     val showDate = selectedTabIndex == 0 || selectedTabIndex == 1
 
     Column(modifier = Modifier.background(BeigeHeader)) {
@@ -133,7 +145,6 @@ fun TopNavigation(
                         IconButton(onClick = onAddClick) { Icon(Icons.Default.Add, contentDescription = "Add", tint = DarkBrownText) }
                     }
                     
-                    // Show account icon ONLY if requested and on Spending tab
                     if (selectedTabIndex == 0 && showAccountOption) {
                         IconButton(onClick = onSwitchAccountClick) {
                             Icon(

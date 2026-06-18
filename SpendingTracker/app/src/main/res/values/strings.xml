@@ -146,6 +146,29 @@
     <string name="include_income_desc">Add earnings to budget</string>
     <string name="save">Save</string>
 
+    <!-- Time Period Settings -->
+    <string name="time_period">Time Period</string>
+    <string name="default_time_period">Default Time Period</string>
+    <string name="show_spending">Show Spending</string>
+    <string name="month_start_day">Month Start Day</string>
+    <string name="week_start_day">Week Start Day</string>
+    <string name="time_period_desc">The selected Time Period will be the one shown when the app starts up</string>
+    <string name="time_period_info_main">The Time Period determines how your Spending is Tracked by default:</string>
+    <string name="show_spending_info_desc">The Time Period to Track. This can be either Weekly, Monthly or Yearly.</string>
+    <string name="month_start_day_info_desc">When Spending is Tracked Monthly, this determines the first day to show. e.g. set it to \'8\' to display September as \'8th September - 7th October\'.</string>
+    <string name="week_start_day_info_desc">When Spending is Tracked Weekly, this determines the first day to show. e.g. set it to \'Tuesday\' to report a week as being \'Tuesday - Monday\'.</string>
+    <string name="daily">Daily</string>
+    <string name="weekly">Weekly</string>
+    <string name="monthly">Monthly</string>
+    <string name="yearly">Yearly</string>
+    <string name="monday">Monday</string>
+    <string name="tuesday">Tuesday</string>
+    <string name="wednesday">Wednesday</string>
+    <string name="thursday">Thursday</string>
+    <string name="friday">Friday</string>
+    <string name="saturday">Saturday</string>
+    <string name="sunday">Sunday</string>
+
     <!-- Carry Over Settings -->
     <string name="carry_over">Carry Over</string>
     <string name="carry_over_desc">Whether the balance is carried over or not.</string>

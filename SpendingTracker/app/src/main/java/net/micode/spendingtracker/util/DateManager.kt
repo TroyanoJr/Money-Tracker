@@ -31,39 +31,66 @@ object DateManager {
     }.timeInMillis
 
     /**
-     * Calculates a [DateRange] based on the selected [Period] and a reference date.
+     * Calculates a [DateRange] based on the selected [Period] and a reference date,
+     * taking into account custom start days for weeks and months.
      */
-    fun calculateDateRange(p: Period, d: Long): DateRange {
+    fun calculateDateRange(
+        p: Period, 
+        d: Long, 
+        monthStartDay: Int = 1, 
+        weekStartDay: Int = Calendar.MONDAY
+    ): DateRange {
         val s = Calendar.getInstance().apply {
             timeInMillis = d
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
+            
             when (p) {
-                Period.WEEK -> set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-                Period.MONTH -> set(Calendar.DAY_OF_MONTH, 1)
+                Period.WEEK -> {
+                    // Adjust to the previous occurrence of weekStartDay
+                    var diff = get(Calendar.DAY_OF_WEEK) - weekStartDay
+                    if (diff < 0) diff += 7
+                    add(Calendar.DAY_OF_YEAR, -diff)
+                }
+                Period.MONTH -> {
+                    val currentDay = get(Calendar.DAY_OF_MONTH)
+                    if (currentDay < monthStartDay) {
+                        // We are in the period that started in the previous month
+                        add(Calendar.MONTH, -1)
+                    }
+                    // Handle months with fewer days than monthStartDay
+                    val maxDays = getActualMaximum(Calendar.DAY_OF_MONTH)
+                    set(Calendar.DAY_OF_MONTH, monthStartDay.coerceAtMost(maxDays))
+                }
                 Period.YEAR -> {
+                    // For YEAR, we usually stick to Jan 1st, but we could apply monthStartDay to Jan
                     set(Calendar.MONTH, Calendar.JANUARY)
-                    set(Calendar.DAY_OF_MONTH, 1)
+                    set(Calendar.DAY_OF_MONTH, monthStartDay.coerceAtMost(getActualMaximum(Calendar.DAY_OF_MONTH)))
                 }
                 else -> Unit
             }
         }
+        
         val e = s.clone() as Calendar
         when (p) {
             Period.DAY -> Unit
             Period.WEEK -> e.add(Calendar.DAY_OF_YEAR, 6)
-            Period.MONTH -> e.set(Calendar.DAY_OF_MONTH, e.getActualMaximum(Calendar.DAY_OF_MONTH))
+            Period.MONTH -> {
+                e.add(Calendar.MONTH, 1)
+                e.add(Calendar.DAY_OF_YEAR, -1)
+            }
             Period.YEAR -> {
-                e.set(Calendar.MONTH, Calendar.DECEMBER)
-                e.set(Calendar.DAY_OF_MONTH, 31)
+                e.add(Calendar.YEAR, 1)
+                e.add(Calendar.DAY_OF_YEAR, -1)
             }
         }
         e.set(Calendar.HOUR_OF_DAY, 23)
         e.set(Calendar.MINUTE, 59)
         e.set(Calendar.SECOND, 59)
         e.set(Calendar.MILLISECOND, 999)
+
         return DateRange(s.timeInMillis, e.timeInMillis)
     }
 }

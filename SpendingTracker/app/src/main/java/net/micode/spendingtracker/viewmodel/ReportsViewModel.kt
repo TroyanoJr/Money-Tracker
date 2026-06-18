@@ -22,7 +22,9 @@ class ReportsViewModel(
     private val settingsManager: SettingsManager
 ) : ViewModel() {
 
-    private val _selectedPeriod = MutableStateFlow(Period.MONTH)
+    private val _selectedPeriod = MutableStateFlow(
+        try { Period.valueOf(settingsManager.getDefaultTimePeriod()) } catch (e: Exception) { Period.MONTH }
+    )
     val selectedPeriod: StateFlow<Period> = _selectedPeriod.asStateFlow()
 
     private val _selectedDate = MutableStateFlow(System.currentTimeMillis())
@@ -35,8 +37,13 @@ class ReportsViewModel(
     val reportIsExpense: StateFlow<Boolean> = _reportIsExpense.asStateFlow()
 
     private val dateRange = combine(_selectedPeriod, _selectedDate) { p, d ->
-        DateManager.calculateDateRange(p, d)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DateManager.calculateDateRange(Period.MONTH, System.currentTimeMillis()))
+        DateManager.calculateDateRange(p, d, settingsManager.getMonthStartDay(), settingsManager.getWeekStartDay())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DateManager.calculateDateRange(
+        try { Period.valueOf(settingsManager.getDefaultTimePeriod()) } catch (e: Exception) { Period.MONTH },
+        System.currentTimeMillis(),
+        settingsManager.getMonthStartDay(),
+        settingsManager.getWeekStartDay()
+    ))
 
     /**
      * Observable list of all categories from the repository.
@@ -106,7 +113,14 @@ class ReportsViewModel(
             }
             Period.WEEK -> {
                 val sdf = SimpleDateFormat("EEE", Locale.getDefault())
-                val temp = cal.clone() as Calendar; temp.set(Calendar.DAY_OF_WEEK, temp.firstDayOfWeek)
+                val weekStartDay = settingsManager.getWeekStartDay()
+                
+                val temp = cal.clone() as Calendar
+                // Adjust temp to the start of the week based on weekStartDay
+                var diff = temp.get(Calendar.DAY_OF_WEEK) - weekStartDay
+                if (diff < 0) diff += 7
+                temp.add(Calendar.DAY_OF_YEAR, -diff)
+
                 for (i in 0..6) { 
                     val day = temp.get(Calendar.DAY_OF_WEEK)
                     val ts = grouped[day] ?: emptyList()
@@ -116,10 +130,22 @@ class ReportsViewModel(
             }
             Period.MONTH -> {
                 val sdf = SimpleDateFormat("d", Locale.getDefault())
-                for (d in 1..cal.getActualMaximum(Calendar.DAY_OF_MONTH)) { 
+                val startDay = settingsManager.getMonthStartDay()
+                
+                val temp = cal.clone() as Calendar
+                if (temp.get(Calendar.DAY_OF_MONTH) < startDay) {
+                    temp.add(Calendar.MONTH, -1)
+                }
+                temp.set(Calendar.DAY_OF_MONTH, startDay.coerceAtMost(temp.getActualMaximum(Calendar.DAY_OF_MONTH)))
+                
+                val endCal = temp.clone() as Calendar
+                endCal.add(Calendar.MONTH, 1)
+                
+                while (temp.before(endCal)) {
+                    val d = temp.get(Calendar.DAY_OF_MONTH)
                     val ts = grouped[d] ?: emptyList()
-                    cal.set(Calendar.DAY_OF_MONTH, d)
-                    points.add(CashFlowPoint(sdf.format(cal.time), ts.filter { !it.isExpense }.sumOf { it.amount }, ts.filter { it.isExpense }.sumOf { it.amount }, cal.timeInMillis)) 
+                    points.add(CashFlowPoint(sdf.format(temp.time), ts.filter { !it.isExpense }.sumOf { it.amount }, ts.filter { it.isExpense }.sumOf { it.amount }, temp.timeInMillis))
+                    temp.add(Calendar.DAY_OF_MONTH, 1)
                 }
             }
             Period.YEAR -> {

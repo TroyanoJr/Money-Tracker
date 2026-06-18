@@ -42,7 +42,7 @@ object BudgetManager {
         return if (settingsManager.isBudgetModeEnabled(accountId)) {
             val budget = settingsManager.getMonthlyBudget(accountId)
             val includeInc = settingsManager.isIncludeIncomeInBudget(accountId)
-            calculateBudgetCarryOver(accountId, rangeStart, budget, includeInc, posOnly, repository)
+            calculateBudgetCarryOver(accountId, rangeStart, budget, includeInc, posOnly, repository, settingsManager)
         } else {
             val balanceBefore = repository.getBalanceBeforeDate(accountId, rangeStart)
             if (posOnly && balanceBefore < 0.0) 0.0 else balanceBefore
@@ -55,34 +55,49 @@ object BudgetManager {
         budget: Double,
         includeInc: Boolean,
         posOnly: Boolean,
-        repository: TransactionRepository
+        repository: TransactionRepository,
+        settingsManager: SettingsManager
     ): Double {
+        val periodStr = settingsManager.getDefaultTimePeriod()
+        val period = try { Period.valueOf(periodStr) } catch (e: Exception) { Period.MONTH }
+        val monthStartDay = settingsManager.getMonthStartDay()
+        val weekStartDay = settingsManager.getWeekStartDay()
+
         val firstTxDate = repository.getOldestTransactionDate(accId) ?: return 0.0
         
-        val calStart = Calendar.getInstance().apply { 
-            timeInMillis = firstTxDate
-            set(Calendar.DAY_OF_MONTH, 1)
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        val calCurrent = Calendar.getInstance().apply { 
-            timeInMillis = startDate
-            set(Calendar.DAY_OF_MONTH, 1)
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
+        // Calculate the exact start of the FIRST period in history
+        val startOfFirstPeriod = DateManager.calculateDateRange(
+            period, firstTxDate, monthStartDay, weekStartDay
+        ).start
+        
+        if (startDate <= startOfFirstPeriod) return 0.0
+        
+        // Calculate how many periods have passed
+        val periodsPassed = when (period) {
+            Period.DAY -> {
+                ((startDate - startOfFirstPeriod) / (24 * 60 * 60 * 1000)).toInt()
+            }
+            Period.WEEK -> {
+                ((startDate - startOfFirstPeriod) / (7 * 24 * 60 * 60 * 1000)).toInt()
+            }
+            Period.MONTH -> {
+                val calStart = Calendar.getInstance().apply { timeInMillis = startOfFirstPeriod }
+                val calCurrent = Calendar.getInstance().apply { timeInMillis = startDate }
+                val years = calCurrent.get(Calendar.YEAR) - calStart.get(Calendar.YEAR)
+                val months = calCurrent.get(Calendar.MONTH) - calStart.get(Calendar.MONTH)
+                (years * 12) + months
+            }
+            Period.YEAR -> {
+                val calStart = Calendar.getInstance().apply { timeInMillis = startOfFirstPeriod }
+                val calCurrent = Calendar.getInstance().apply { timeInMillis = startDate }
+                calCurrent.get(Calendar.YEAR) - calStart.get(Calendar.YEAR)
+            }
         }
         
-        val monthsDiff = (calCurrent.get(Calendar.YEAR) - calStart.get(Calendar.YEAR)) * 12 + 
-                        (calCurrent.get(Calendar.MONTH) - calStart.get(Calendar.MONTH))
-        
-        if (monthsDiff <= 0) return 0.0
+        if (periodsPassed <= 0) return 0.0
         
         val expensesBefore = repository.getTotalExpensesBeforeDate(accId, startDate)
-        val cumulativeBudget = budget * monthsDiff
+        val cumulativeBudget = budget * periodsPassed
         val incomeBefore = if (includeInc) repository.getTotalIncomeBeforeDate(accId, startDate) else 0.0
         
         val carry = (cumulativeBudget + incomeBefore) - expensesBefore

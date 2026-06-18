@@ -50,7 +50,9 @@ class TransactionViewModel(
      */
     val dataChangedEvent = repository.dataChanged
 
-    private val _selectedPeriod = MutableStateFlow(Period.MONTH)
+    private val _selectedPeriod = MutableStateFlow(
+        try { Period.valueOf(settingsManager.getDefaultTimePeriod()) } catch (e: Exception) { Period.MONTH }
+    )
     val selectedPeriod: StateFlow<Period> = _selectedPeriod.asStateFlow()
 
     private val _selectedDate = MutableStateFlow(System.currentTimeMillis())
@@ -78,6 +80,9 @@ class TransactionViewModel(
     val monthlyBudget: StateFlow<Double> = _monthlyBudget.asStateFlow()
     private val _isIncludeIncomeEnabled = MutableStateFlow(false)
     val isIncludeIncomeEnabled: StateFlow<Boolean> = _isIncludeIncomeEnabled.asStateFlow()
+
+    private val _defaultPeriod = MutableStateFlow(Period.MONTH)
+    val defaultPeriod: StateFlow<Period> = _defaultPeriod.asStateFlow()
 
     private val _isCarryOverEnabled = MutableStateFlow(false)
     val isCarryOverEnabled: StateFlow<Boolean> = _isCarryOverEnabled.asStateFlow()
@@ -114,8 +119,41 @@ class TransactionViewModel(
     val expenseCategories = categories.map { l -> l.filter { it.isExpense } }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val incomeCategories = categories.map { l -> l.filter { !it.isExpense } }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val selectedDateRange = combine(_selectedPeriod, _selectedDate) { p, d -> DateManager.calculateDateRange(p, d) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DateManager.calculateDateRange(Period.MONTH, System.currentTimeMillis()))
+    val selectedDateRange = combine(_selectedPeriod, _selectedDate, dataChangedEvent.onStart { emit(Unit) }) { p, d, _ -> 
+        DateManager.calculateDateRange(p, d, settingsManager.getMonthStartDay(), settingsManager.getWeekStartDay()) 
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DateManager.calculateDateRange(
+        try { Period.valueOf(settingsManager.getDefaultTimePeriod()) } catch (e: Exception) { Period.MONTH },
+        System.currentTimeMillis(),
+        settingsManager.getMonthStartDay(),
+        settingsManager.getWeekStartDay()
+    ))
+
+    /**
+     * Range corresponding to the base period defined in settings.
+     * Used to calculate the distribution factor.
+     */
+    val baseDateRange = combine(_defaultPeriod, _selectedDate, dataChangedEvent.onStart { emit(Unit) }) { p, d, _ ->
+        DateManager.calculateDateRange(p, d, settingsManager.getMonthStartDay(), settingsManager.getWeekStartDay())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DateManager.calculateDateRange(Period.MONTH, System.currentTimeMillis()))
+
+    /**
+     * Scale factor to distribute budget/carry-over across different time views.
+     */
+    val distributionFactor: StateFlow<Double> = combine(selectedDateRange, baseDateRange, _selectedPeriod, _defaultPeriod) { viewRange, baseRange, viewP, baseP ->
+        if (viewP == baseP) 1.0
+        else {
+            val viewDuration = (viewRange.end - viewRange.start).toDouble().coerceAtLeast(1.0)
+            val baseDuration = (baseRange.end - baseRange.start).toDouble().coerceAtLeast(1.0)
+            viewDuration / baseDuration
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1.0)
+
+    /**
+     * Proportional budget calculated based on the current view period.
+     */
+    val proportionalBudget: StateFlow<Double> = combine(_monthlyBudget, distributionFactor) { budget, factor ->
+        budget * factor
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val periodTransactionsFlow = combine(selectedDateRange, _selectedAccountId) { range, id ->
@@ -161,6 +199,7 @@ class TransactionViewModel(
         _isBudgetModeEnabled.value = settingsManager.isBudgetModeEnabled(id)
         _monthlyBudget.value = settingsManager.getMonthlyBudget(id)
         _isIncludeIncomeEnabled.value = settingsManager.isIncludeIncomeInBudget(id)
+        _defaultPeriod.value = try { Period.valueOf(settingsManager.getDefaultTimePeriod()) } catch (e: Exception) { Period.MONTH }
         
         if (id != -1L) {
             _isCarryOverEnabled.value = settingsManager.isCarryOverEnabled(id)
@@ -206,14 +245,18 @@ class TransactionViewModel(
     private val budgetBasicSettings = combine(_isBudgetModeEnabled, _monthlyBudget, _isIncludeIncomeEnabled) { enabled, budget, includeIncome -> Triple(enabled, budget, includeIncome) }
     private val accountAndRange = combine(_selectedAccountId, selectedDateRange) { id, range -> id to range }
 
+    /**
+     * Carry-over amount distributed proportionally across the current view period.
+     */
     @OptIn(ExperimentalCoroutinesApi::class)
     val carryOverAmount: StateFlow<Double> = combine(
-        accountAndRange, carryOverSettings, budgetBasicSettings, repository.allAccounts, dataChangedEvent.onStart { emit(Unit) }
-    ) { accRange, _, _, allAccounts, _ ->
-        accRange to allAccounts
-    }.mapLatest { (accRange, allAccounts) ->
-        val (id, range) = accRange
-        BudgetManager.calculateCarryOver(id, range.start, settingsManager, repository, allAccounts)
+        _selectedAccountId, baseDateRange, distributionFactor, repository.allAccounts, dataChangedEvent.onStart { emit(Unit) }
+    ) { id, bRange, factor, allAccounts, _ ->
+        Triple(id, bRange.start, factor) to allAccounts
+    }.mapLatest { (params, allAccounts) ->
+        val (id, bStart, factor) = params
+        val rawCarry = BudgetManager.calculateCarryOver(id, bStart, settingsManager, repository, allAccounts)
+        rawCarry * factor
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
     /**
@@ -236,8 +279,11 @@ class TransactionViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val dynamicBudget: StateFlow<Double> = combine(_monthlyBudget, carryOverAmount, _isBudgetModeEnabled, _isCarryOverEnabled) { fixed, carry, bEnabled, cEnabled ->
-        if (bEnabled && cEnabled) fixed + carry else fixed
+    /**
+     * Dynamic budget (Budget + Carry Over) scaled proportionally to the current view.
+     */
+    val dynamicBudget: StateFlow<Double> = combine(proportionalBudget, carryOverAmount, _isBudgetModeEnabled, _isCarryOverEnabled) { pBudget, pCarry, bEnabled, cEnabled ->
+        if (bEnabled && cEnabled) pBudget + pCarry else pBudget
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
     val totalIncome = combine(periodIncome, carryOverAmount, _isCarryOverAddToIncome, _isBudgetModeEnabled, _isCarryOverEnabled) { income, carry, add, bEnabled, cEnabled ->
@@ -287,16 +333,42 @@ class TransactionViewModel(
         when (period) {
             Period.DAY -> {
                 val sdf = SimpleDateFormat("HH:00", Locale.getDefault())
-                for (h in 0..23) { val ts = grouped[h] ?: emptyList(); cal.set(Calendar.HOUR_OF_DAY, h); points.add(CashFlowPoint(sdf.format(cal.time), ts.filter { !it.isExpense }.sumOf { it.amount }, ts.filter { it.isExpense }.sumOf { it.amount }, cal.timeInMillis)) }
+                for (h in 0..23) { 
+                    val ts = grouped[h] ?: emptyList()
+                    cal.set(Calendar.HOUR_OF_DAY, h)
+                    points.add(CashFlowPoint(sdf.format(cal.time), ts.filter { !it.isExpense }.sumOf { it.amount }, ts.filter { it.isExpense }.sumOf { it.amount }, cal.timeInMillis)) 
+                }
             }
             Period.WEEK -> {
                 val sdf = SimpleDateFormat("EEE", Locale.getDefault())
-                val temp = cal.clone() as Calendar; temp.set(Calendar.DAY_OF_WEEK, temp.firstDayOfWeek)
-                for (i in 0..6) { val day = temp.get(Calendar.DAY_OF_WEEK); val ts = grouped[day] ?: emptyList(); points.add(CashFlowPoint(sdf.format(temp.time), ts.filter { !it.isExpense }.sumOf { it.amount }, ts.filter { it.isExpense }.sumOf { it.amount }, temp.timeInMillis)); temp.add(Calendar.DAY_OF_MONTH, 1) }
+                val weekStartDay = settingsManager.getWeekStartDay()
+                val temp = cal.clone() as Calendar
+                var diff = temp.get(Calendar.DAY_OF_WEEK) - weekStartDay
+                if (diff < 0) diff += 7
+                temp.add(Calendar.DAY_OF_YEAR, -diff)
+                
+                for (i in 0..6) { 
+                    val day = temp.get(Calendar.DAY_OF_WEEK)
+                    val ts = grouped[day] ?: emptyList()
+                    points.add(CashFlowPoint(sdf.format(temp.time), ts.filter { !it.isExpense }.sumOf { it.amount }, ts.filter { it.isExpense }.sumOf { it.amount }, temp.timeInMillis))
+                    temp.add(Calendar.DAY_OF_MONTH, 1) 
+                }
             }
             Period.MONTH -> {
                 val sdf = SimpleDateFormat("d", Locale.getDefault())
-                for (d in 1..cal.getActualMaximum(Calendar.DAY_OF_MONTH)) { val ts = grouped[d] ?: emptyList(); cal.set(Calendar.DAY_OF_MONTH, d); points.add(CashFlowPoint(sdf.format(cal.time), ts.filter { !it.isExpense }.sumOf { it.amount }, ts.filter { it.isExpense }.sumOf { it.amount }, cal.timeInMillis)) }
+                val startDay = settingsManager.getMonthStartDay()
+                val temp = cal.clone() as Calendar
+                if (temp.get(Calendar.DAY_OF_MONTH) < startDay) temp.add(Calendar.MONTH, -1)
+                temp.set(Calendar.DAY_OF_MONTH, startDay.coerceAtMost(temp.getActualMaximum(Calendar.DAY_OF_MONTH)))
+                
+                val endCal = temp.clone() as Calendar
+                endCal.add(Calendar.MONTH, 1)
+                while (temp.before(endCal)) {
+                    val d = temp.get(Calendar.DAY_OF_MONTH)
+                    val ts = grouped[d] ?: emptyList()
+                    points.add(CashFlowPoint(sdf.format(temp.time), ts.filter { !it.isExpense }.sumOf { it.amount }, ts.filter { it.isExpense }.sumOf { it.amount }, temp.timeInMillis))
+                    temp.add(Calendar.DAY_OF_MONTH, 1)
+                }
             }
             Period.YEAR -> {
                 val sdf = SimpleDateFormat("MMM", Locale.getDefault())

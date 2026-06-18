@@ -75,9 +75,11 @@ fun AddTransactionScreen(
 
     val expenseCategories by viewModel.expenseCategories.collectAsState()
     val incomeCategories by viewModel.incomeCategories.collectAsState()
-    val currentDashboardDate by viewModel.selectedDate.collectAsState()
     
-    // NEW: Observe the currently selected account ID from the global state
+    // NEW: Observe the current date range from the dashboard
+    val currentDashboardRange by viewModel.selectedDateRange.collectAsState()
+    
+    // Observe the currently selected account ID from the global state
     val currentDashboardAccountId by viewModel.selectedAccountId.collectAsState()
 
     var amount by rememberSaveable { mutableStateOf(transactionToEdit?.amount?.toString() ?: "") }
@@ -86,10 +88,6 @@ fun AddTransactionScreen(
     var showCategorySelector by rememberSaveable { mutableStateOf(false) }
     var selectedCategoryName by rememberSaveable { mutableStateOf(transactionToEdit?.categoryName ?: "") }
     
-    /**
-     * Logic Change: Initialize with the current dashboard account if not editing.
-     * Fallback to 1L if dashboard is in "All Accounts" (-1L) mode.
-     */
     var selectedAccountId by rememberSaveable { 
         val initialId = transactionToEdit?.accountId 
             ?: if (currentDashboardAccountId == -1L) 1L else currentDashboardAccountId
@@ -103,7 +101,24 @@ fun AddTransactionScreen(
     val isCategorySelected = selectedCategoryName.isNotEmpty()
     val isFormValid = isAmountValid && isCategorySelected
 
-    var selectedLocalDateMillis by rememberSaveable { mutableLongStateOf(transactionToEdit?.date ?: currentDashboardDate) }
+    /**
+     * Intelligent Date Initialization:
+     * If editing, use transaction date.
+     * If new, check if "today" is within the visible dashboard range.
+     * If yes, use "today". If no, use the start of the visible range.
+     */
+    var selectedLocalDateMillis by rememberSaveable { 
+        val now = System.currentTimeMillis()
+        val initialDate = transactionToEdit?.date ?: run {
+            if (now in currentDashboardRange.start..currentDashboardRange.end) {
+                now
+            } else {
+                currentDashboardRange.start
+            }
+        }
+        mutableLongStateOf(initialDate) 
+    }
+    
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
     val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
     val formattedDate = dateFormatter.format(Date(selectedLocalDateMillis))
@@ -194,11 +209,6 @@ fun AddTransactionScreen(
                         Switch(checked = isRepeating, onCheckedChange = { isRepeating = it }, colors = SwitchDefaults.colors(checkedThumbColor = DarkBrownText, checkedTrackColor = DarkBrownText.copy(alpha = 0.4f)))
                     }
                     Spacer(modifier = Modifier.height(24.dp))
-                    /**
-                    CategoryRow(label = stringResource(R.string.note), labelColor = MaterialTheme.colorScheme.primary) {
-                        BasicTextField(value = note, onValueChange = { note = it }, textStyle = TextStyle(fontSize = 16.sp, color = DarkBrownText), modifier = Modifier.fillMaxWidth())
-                    }
-                    **/
                 }
             }
         }

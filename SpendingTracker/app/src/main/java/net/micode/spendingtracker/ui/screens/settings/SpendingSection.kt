@@ -26,6 +26,7 @@ fun SpendingSection(
     currentCurrency: String,
     accountId: Long,
     accountName: String,
+    onNavigateToTimePeriod: () -> Unit,
     onNavigateToBudget: () -> Unit,
     onNavigateToCarryOver: () -> Unit
 ) {
@@ -40,6 +41,17 @@ fun SpendingSection(
     // Header with current account name: Spending (AccountName)
     SettingsSectionHeader("${stringResource(R.string.spending_section)} ($accountName)")
     
+    SettingsClickableRow(
+        title = stringResource(R.string.time_period),
+        value = when(settingsManager.getDefaultTimePeriod()) {
+            "DAY" -> stringResource(R.string.daily)
+            "WEEK" -> stringResource(R.string.weekly)
+            "YEAR" -> stringResource(R.string.yearly)
+            else -> stringResource(R.string.monthly)
+        },
+        onClick = onNavigateToTimePeriod
+    )
+
     SettingsClickableRow(
         title = stringResource(R.string.budget_mode),
         value = if (budgetModeEnabled) stringResource(R.string.on) else stringResource(R.string.off),

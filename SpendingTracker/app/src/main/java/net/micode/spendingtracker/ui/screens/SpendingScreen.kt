@@ -12,8 +12,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -95,12 +93,9 @@ fun SpendingScreen(
                 onAccountClick = onSwitchAccountClick
             )
 
-
-
-            // 3. Visual Spending Progress
+            // 3. Visual Spending Progress - Now dynamic for all periods when budget is on
             SpendingProgressBar(
                 isBudgetEnabled = isBudgetEnabled,
-                isMonthPeriod = selectedPeriod == Period.MONTH,
                 isIncludeIncome = isIncludeIncomeEnabled,
                 monthlyBudget = if (isCarryOverEnabled) dynamicBudget else monthlyBudget,
                 totalIncome = totalIncome,
@@ -114,7 +109,7 @@ fun SpendingScreen(
                 modifier = Modifier.weight(1f),
                 currencySymbol = currencySymbol,
                 isBudgetEnabled = isBudgetEnabled,
-                isMonthPeriod = selectedPeriod == Period.MONTH,
+                selectedPeriod = selectedPeriod,
                 monthlyBudget = if (isCarryOverEnabled) dynamicBudget else monthlyBudget,
                 periodIncome = periodIncome,
                 totalExpense = totalExpense,
@@ -185,7 +180,6 @@ private fun PeriodSelector(
 @Composable
 private fun SpendingProgressBar(
     isBudgetEnabled: Boolean,
-    isMonthPeriod: Boolean,
     isIncludeIncome: Boolean,
     monthlyBudget: Double,
     totalIncome: Double,
@@ -193,7 +187,7 @@ private fun SpendingProgressBar(
 ) {
     val totalLimit = if (isIncludeIncome) monthlyBudget + totalIncome else monthlyBudget
     Row(modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp))) {
-        if (isBudgetEnabled && isMonthPeriod) {
+        if (isBudgetEnabled) {
             if (totalExpense <= totalLimit) {
                 val spentWeight = if (totalLimit > 0) (totalExpense / totalLimit).toFloat().coerceIn(0f, 1f) else 0f
                 Box(modifier = Modifier.weight((1f - spentWeight).coerceAtLeast(0.0001f)).fillMaxHeight().background(ChalkGreen))
@@ -215,7 +209,7 @@ private fun FinancialSummarySection(
     modifier: Modifier = Modifier,
     currencySymbol: String,
     isBudgetEnabled: Boolean,
-    isMonthPeriod: Boolean,
+    selectedPeriod: Period,
     monthlyBudget: Double,
     periodIncome: Double,
     totalExpense: Double,
@@ -226,9 +220,16 @@ private fun FinancialSummarySection(
     isCarryOverAddToIncome: Boolean,
     isIncludeIncome: Boolean
 ) {
+    val periodLabelPrefix = when(selectedPeriod) {
+        Period.DAY -> stringResource(R.string.daily)
+        Period.WEEK -> stringResource(R.string.weekly)
+        Period.YEAR -> stringResource(R.string.yearly)
+        else -> stringResource(R.string.monthly)
+    }
+
     LazyColumn(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (isBudgetEnabled && isMonthPeriod) {
-            item { BalanceRow(stringResource(R.string.monthly_budget), String.format(Locale.getDefault(), "%s %.2f", currencySymbol, monthlyBudget), ChalkGreen) }
+        if (isBudgetEnabled) {
+            item { BalanceRow("$periodLabelPrefix ${stringResource(R.string.budget_mode)}", String.format(Locale.getDefault(), "%s %.2f", currencySymbol, monthlyBudget), ChalkGreen) }
             if (isCarryOverEnabled && carryOverAmount != 0.0) {
                 item { CarryOverItem(currencySymbol, carryOverAmount) }
             }
@@ -356,7 +357,7 @@ fun YearlyHeatmap(data: Map<Long, Double>) {
     }
 
     LazyRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-        itemsIndexed(weeks) { _, week ->
+        itemsIndexed(weeks) { index, week ->
             Column {
                 for (timestamp in week) {
                     val balanceVal = timestamp?.let { data[it] } ?: 0.0

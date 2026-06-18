@@ -49,6 +49,14 @@ class SettingsManager(context: Context) {
     fun isCarryOverAddToIncome(accountId: Long): Boolean = financial.isCarryOverAddToIncome(accountId)
     fun setCarryOverAddToIncome(accountId: Long, enabled: Boolean) = financial.setCarryOverAddToIncome(accountId, enabled)
 
+    // --- Time Period Settings (Delegated to financial) ---
+    fun getDefaultTimePeriod(): String = financial.getDefaultTimePeriod()
+    fun setDefaultTimePeriod(period: String) = financial.setDefaultTimePeriod(period)
+    fun getMonthStartDay(): Int = financial.getMonthStartDay()
+    fun setMonthStartDay(day: Int) = financial.setMonthStartDay(day)
+    fun getWeekStartDay(): Int = financial.getWeekStartDay()
+    fun setWeekStartDay(day: Int) = financial.setWeekStartDay(day)
+
     // --- Notification & Reminder Settings (Delegated) ---
     fun getReminderFrequency(): String = notifications.getReminderFrequency()
     fun setReminderFrequency(frequency: String) = notifications.setReminderFrequency(frequency)

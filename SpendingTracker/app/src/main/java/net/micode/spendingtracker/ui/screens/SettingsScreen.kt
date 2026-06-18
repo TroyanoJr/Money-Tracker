@@ -43,6 +43,13 @@ fun SettingsScreen(
                 onBack = { currentSubScreen = null }
             )
         }
+        "time_period" -> {
+            TimePeriodSettingsScreen(
+                settingsManager = settingsManager,
+                accountName = currentAccountName,
+                onBack = { currentSubScreen = null }
+            )
+        }
         "budget" -> {
             BudgetSettingsScreen(
                 settingsManager = settingsManager,
@@ -84,6 +91,7 @@ fun SettingsScreen(
                     onCurrencyChanged()
                 },
                 onNavigateToReminders = { currentSubScreen = "reminders" },
+                onNavigateToTimePeriod = { currentSubScreen = "time_period" },
                 onNavigateToBudget = { currentSubScreen = "budget" },
                 onNavigateToCarryOver = { currentSubScreen = "carry_over" },
                 onNavigateToSetupPin = { isChange ->
@@ -105,6 +113,7 @@ fun MainSettingsList(
     onBack: () -> Unit,
     onCurrencyChanged: () -> Unit,
     onNavigateToReminders: () -> Unit,
+    onNavigateToTimePeriod: () -> Unit,
     onNavigateToBudget: () -> Unit,
     onNavigateToCarryOver: () -> Unit,
     onNavigateToSetupPin: (Boolean) -> Unit,
@@ -136,6 +145,7 @@ fun MainSettingsList(
                 currentCurrency = currencySymbol,
                 accountId = selectedAccountId,
                 accountName = currentAccountName,
+                onNavigateToTimePeriod = onNavigateToTimePeriod,
                 onNavigateToBudget = onNavigateToBudget,
                 onNavigateToCarryOver = onNavigateToCarryOver
             )
