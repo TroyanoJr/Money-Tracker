@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Spending Tracker</string>
+    <string name="app_name">Money Tracker</string>
     <string name="done">Done</string>
     <string name="expense">EXPENSE</string>
     <string name="income">INCOME</string>
@@ -138,7 +138,7 @@
     <string name="search">Search</string>
 
     <!-- Spending Section Settings -->
-    <string name="spending_section">Spending</string>
+    <string name="spending_section">Money</string>
     <string name="budget_mode">Budget Mode</string>
     <string name="budget_mode_desc">Enable monthly spending limit</string>
     <string name="monthly_budget">Monthly Budget</string>
@@ -211,6 +211,6 @@
     <!-- Reminders Warnings -->
     <string name="reminder_restriction_warn">Reminders may be restricted. Tap for instructions.</string>
     <string name="manual_config_required">Manual Configuration Required</string>
-    <string name="huawei_battery_instruction">To receive reminders when the app is closed, please perform these steps in your device settings:\n\n1. Open device Settings > Battery.\n2. Select \'App Launch\' or \'Startup Manager\'.\n3. Find \'Spending Tracker\' and turn OFF \'Manage automatically\'.\n4. Ensure \'Run in background\' is enabled.</string>
+    <string name="huawei_battery_instruction">To receive reminders when the app is closed, please perform these steps in your device settings:\n\n1. Open device Settings > Battery.\n2. Select \'App Launch\' or \'Startup Manager\'.\n3. Find \'Money Tracker\' and turn OFF \'Manage automatically\'.\n4. Ensure \'Run in background\' is enabled.</string>
     <string name="go_to_settings">GO TO SETTINGS</string>
 </resources>

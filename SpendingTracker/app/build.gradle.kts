@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "net.micode.spendingtracker"
+    namespace = "net.micode.moneytracker"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "net.micode.spendingtracker"
+        applicationId = "net.micode.moneytracker"
         minSdk = 24
         targetSdk = 35
         versionCode = 1

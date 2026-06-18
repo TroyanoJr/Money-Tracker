@@ -54,7 +54,7 @@
 
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="net.micode.spendingtracker.fileprovider"
+            android:authorities="net.micode.moneytracker.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
