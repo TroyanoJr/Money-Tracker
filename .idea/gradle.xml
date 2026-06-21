@@ -6,12 +6,12 @@
       <GradleProjectSettings>
         <option name="testRunner" value="CHOOSE_PER_TEST" />
         <option name="distributionType" value="LOCAL" />
-        <option name="externalProjectPath" value="$PROJECT_DIR$/SpendingTracker" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$/MoneyTracker" />
         <option name="gradleHome" value="D:\Android_Studio_Files\gradle-9.1.0-all\gradle-9.1.0" />
         <option name="modules">
           <set>
-            <option value="$PROJECT_DIR$/SpendingTracker" />
-            <option value="$PROJECT_DIR$/SpendingTracker/app" />
+            <option value="$PROJECT_DIR$/MoneyTracker" />
+            <option value="$PROJECT_DIR$/MoneyTracker/app" />
           </set>
         </option>
       </GradleProjectSettings>
