@@ -4,18 +4,10 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="51ebf135-55a5-4096-9404-7a4c43cfa87b" name="Changes" comment="Actualice el nombre del paquete y mi proyecto a money tracker">
+    <list default="true" id="51ebf135-55a5-4096-9404-7a4c43cfa87b" name="Changes" comment="Actualice los screenshot del readme">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MoneyTracker/Screenshots/Add Category.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/MoneyTracker/Screenshots/Add Transactions.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/MoneyTracker/Screenshots/Bar chart graph.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/MoneyTracker/Screenshots/Calendar Heatmap.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/MoneyTracker/Screenshots/Export doc 2.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/MoneyTracker/Screenshots/Export doc.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/MoneyTracker/Screenshots/Main dashBoard.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/MoneyTracker/Screenshots/Pie chart Graphic.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/MoneyTracker/Screenshots/Select color.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/MoneyTracker/Screenshots/Show all Transactions.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MoneyTracker/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -179,7 +171,15 @@
       <option name="project" value="LOCAL" />
       <updated>1782063869217</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="Actualice los screenshot del readme">
+      <option name="closed" value="true" />
+      <created>1782143984059</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1782143984059</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -195,7 +195,8 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Actualice el nombre del paquete y mi proyecto a money tracker" />
-    <option name="LAST_COMMIT_MESSAGE" value="Actualice el nombre del paquete y mi proyecto a money tracker" />
+    <MESSAGE value="Actualice los screenshot del readme" />
+    <option name="LAST_COMMIT_MESSAGE" value="Actualice los screenshot del readme" />
   </component>
   <component name="play_dynamic_filters_status">
     <option name="appIdToCheckInfo">
