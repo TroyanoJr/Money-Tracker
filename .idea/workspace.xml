@@ -4,152 +4,18 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="51ebf135-55a5-4096-9404-7a4c43cfa87b" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/local.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.name" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/deploymentTargetSelector.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/deploymentTargetSelector.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/deviceManager.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/gradle.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/gradle.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/.idea/.name" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/.idea/AndroidProjectSystem.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/.idea/compiler.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/.idea/deploymentTargetSelector.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/.idea/gradle.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/.idea/misc.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/.idea/runConfigurations.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/.idea/vcs.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/README.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/Screenshots/Add Category.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/Screenshots/Add Transactions.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/Screenshots/Bar chart graph.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/Screenshots/Calendar Heatmap.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/Screenshots/Export doc 2.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/Screenshots/Export doc.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/Screenshots/Main dashBoard.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/Screenshots/Pie chart Graphic.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/Screenshots/Select color.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/Screenshots/Show all Transactions.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/build.gradle.kts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/proguard-rules.pro" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/androidTest/java/net/micode/moneytracker/ExampleInstrumentedTest.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/AndroidManifest.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/MainActivity.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/SpendingTrackerApp.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/data/AccountDao.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/data/AppDatabase.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/data/CategoryDao.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/data/DatabaseProvider.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/data/PeriodSummaryDao.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/data/SummaryTotals.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/data/TransactionDao.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/model/Account.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/model/Category.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/model/PeriodSummary.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/model/Transaction.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/receiver/BootReceiver.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/receiver/ReminderReceiver.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/repository/TransactionRepository.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/service/NotificationService.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/components/AccountPickerDialog.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/components/AdComponents.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/components/ChalkComponents.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/components/ChalkDatePicker.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/components/ColorPickerComponent.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/components/CommonComponents.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/components/IconPickerDialog.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/components/NavigationComponents.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/AccountsScreen.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/AddAccountScreen.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/AddCategoryScreen.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/AddTransactionScreen.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/BackupScreen.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/CategoriesScreen.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/CategorySelectorScreen.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/CsvExportScreen.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/DashboardScreen.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/LockScreen.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/ReportsScreen.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/SettingsScreen.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/SpendingScreen.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/TransactionsScreen.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/settings/BudgetSettingsScreen.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/settings/CarryOverSettingsScreen.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/settings/GeneralSection.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/settings/InterfaceSection.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/settings/PinEntryScreen.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/settings/RemindersScreen.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/settings/SecuritySection.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/settings/SettingsComponents.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/settings/SpendingSection.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/screens/settings/TimePeriodSettingsScreen.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/theme/Color.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/ui/theme/Theme.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/util/AppGeneralSettings.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/util/AppLifecycleTracker.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/util/BackupManager.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/util/BackupSource.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/util/BudgetManager.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/util/DatabaseBackupSource.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/util/DateManager.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/util/DbPassphraseManager.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/util/FinancialSettings.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/util/IconCatalog.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/util/InterstitialAdHelper.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/util/NotificationSettings.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/util/PdfExporter.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/util/PreferencesBackupSource.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/util/ReminderManager.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/util/SecuritySettings.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/util/SettingsManager.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/util/ZipService.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/viewmodel/AccountViewModel.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/viewmodel/ReportsViewModel.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/viewmodel/TransactionViewModel.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/viewmodel/TransactionViewModelFactory.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/java/net/micode/moneytracker/worker/ReminderWorker.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/drawable/ic_launcher_background.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/drawable/ic_launcher_foreground.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/layout/activity_main.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/mipmap-hdpi/ic_launcher.webp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/mipmap-hdpi/ic_launcher_round.webp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/mipmap-mdpi/ic_launcher.webp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/mipmap-mdpi/ic_launcher_round.webp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/mipmap-xhdpi/ic_launcher.webp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/mipmap-xhdpi/ic_launcher_round.webp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/mipmap-xxhdpi/ic_launcher.webp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.webp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.webp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/values-en/strings.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/values-night/themes.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/values/colors.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/values/strings.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/values/themes.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/xml/backup_rules.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/xml/data_extraction_rules.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/xml/file_paths.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/res/xml/locales_config.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/main/xml/AndroidManifest.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/app/src/test/java/net/micode/moneytracker/ExampleUnitTest.kt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/build.gradle.kts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/gradle.properties" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/gradle/gradle-daemon-jvm.properties" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/gradle/libs.versions.toml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/gradle/wrapper/gradle-wrapper.jar" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/gradle/wrapper/gradle-wrapper.properties" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/gradlew" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/gradlew.bat" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SpendingTracker/settings.gradle.kts" beforeDir="false" />
+    <list default="true" id="51ebf135-55a5-4096-9404-7a4c43cfa87b" name="Changes" comment="Actualice el nombre del paquete y mi proyecto a money tracker">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MoneyTracker/Screenshots/Add Category.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MoneyTracker/Screenshots/Add Transactions.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MoneyTracker/Screenshots/Bar chart graph.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MoneyTracker/Screenshots/Calendar Heatmap.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MoneyTracker/Screenshots/Export doc 2.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MoneyTracker/Screenshots/Export doc.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MoneyTracker/Screenshots/Main dashBoard.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MoneyTracker/Screenshots/Pie chart Graphic.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MoneyTracker/Screenshots/Select color.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MoneyTracker/Screenshots/Show all Transactions.png" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -159,7 +25,7 @@
   <component name="ClangdSettings">
     <option name="formatViaClangd" value="false" />
   </component>
-  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[PhysicalDevice::serial=E6E4C20804000768]" />
+  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[LocalEmulator::path=C:\Users\Victor\.android\avd\Pixel_7_emulator.avd]" />
   <component name="ExternalProjectsData">
     <projectState path="$PROJECT_DIR$/MoneyTracker">
       <ProjectState />
@@ -305,6 +171,15 @@
       <option name="presentableId" value="Default" />
       <updated>1781891765063</updated>
     </task>
+    <task id="LOCAL-00001" summary="Actualice el nombre del paquete y mi proyecto a money tracker">
+      <option name="closed" value="true" />
+      <created>1782063869217</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1782063869217</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -313,6 +188,26 @@
         <entry key="MAIN">
           <value>
             <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Actualice el nombre del paquete y mi proyecto a money tracker" />
+    <option name="LAST_COMMIT_MESSAGE" value="Actualice el nombre del paquete y mi proyecto a money tracker" />
+  </component>
+  <component name="play_dynamic_filters_status">
+    <option name="appIdToCheckInfo">
+      <map>
+        <entry key="net.micode.moneytracker">
+          <value>
+            <CheckInfo lastCheckTimestamp="1782062895313" />
+          </value>
+        </entry>
+        <entry key="net.micode.moneytracker.test">
+          <value>
+            <CheckInfo lastCheckTimestamp="1782062895379" />
           </value>
         </entry>
       </map>
